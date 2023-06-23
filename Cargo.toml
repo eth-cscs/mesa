@@ -58,8 +58,8 @@ base64 = "0.13.1"
 jsonwebtoken = "8.3.0"
 
 [build-dependencies]
-clap = "*"
-clap_complete = "*"
+clap = "4.0.32"
+clap_complete = "4.0.3"
 
 [profile.release]
 opt-level = "s" # Tell `rustc` to optimize for small code size.
