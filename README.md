@@ -27,7 +27,7 @@ Mesa currently interacts with the following components:
 # Deploy
 
 ```
-cargo dist patch --execute
+cargo release patch --execute
 ```
 
  # Test
