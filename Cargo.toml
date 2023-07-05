@@ -24,7 +24,7 @@ log = "0.4.17"
 log4rs = "1.2.0" # Docs about pattern encoder https://docs.rs/log4rs/0.10.0/log4rs/encode/pattern/index.html
 tokio = { version = "1", features = ["full"] }
 tokio-rustls = "0.24.0" # used by kube-rs to configure client with socks proxy -- REMOVE
-tokio-native-tls = "0.3.0" # used by kube-rs to configure client with socks proxy -- REMOVE
+# tokio-native-tls = "0.3.0" # used by kube-rs to configure client with socks proxy -- REMOVE
 tokio-util = "0.7.4"       # used by manta_console to create a read stream from container stdout
 tokio-stream = "0.1.11"    # used by manta_console to create a read stream from container stdout (alternative?)
 kube = { version = "0.83.0", features = ["runtime", "derive", "rustls-tls", "ws"] }
@@ -34,9 +34,9 @@ rustls-pemfile = "1.0.3"
 hyper-socks2 = { version = "0.8.0", default-features = false, features = ["rustls"] } # needed by kube-rs (to operate with kube api) 
 hyper = { version = "0.14", features = ["full"] } # needed by kube-rs (to operate with kube api)
 hyper-rustls = "0.24.0" # used by kube-rs to configure client with socks proxy
-hyper-tls = "0.5.0" # needed by kube-rs (to operate with kube api) -- REMOVE ???
+# hyper-tls = "0.5.0" # needed by kube-rs (to operate with kube api) -- REMOVE ???
 tower = "0.4.13"
-native-tls = "0.2.10"
+# native-tls = "0.2.10"
 # rustls = { version = "0.21.1", features = [ "dangerous_configuration" ] }
 futures-util = "0.3.24"
 clap = { version =  "4.0.32", features = ["derive","cargo"] }

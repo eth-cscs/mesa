@@ -17,10 +17,7 @@ pub async fn get_k8s_client_programmatically(
     k8s_api_url: &str,
     shasta_k8s_secrets: Value,
 ) -> Result<kube::Client, Box<dyn Error>> {
-    /* let settings = crate::config::get("config");
-    let k8s_api_url = settings.get::<String>("k8s_api_url").unwrap(); */
-
-    let mut shasta_cluster = Cluster {
+    let shasta_cluster = Cluster {
         server: Some(k8s_api_url.to_string()),
         tls_server_name: Some("kube-apiserver".to_string()), // The value "kube-apiserver" has been taken from the
         // Subject: CN value in the Shasta certificate running

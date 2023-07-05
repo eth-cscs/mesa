@@ -23,3 +23,15 @@ Mesa currently interacts with the following components:
  - IMS
  - Keycloak
  - K8s
+
+# Deploy
+
+```
+cargo dist patch --execute
+```
+
+ # Test
+
+ ```
+ cargo test -- --nocapture
+ ```
