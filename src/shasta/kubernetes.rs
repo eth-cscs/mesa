@@ -1,13 +1,16 @@
-use std::{error::Error, str::FromStr};
+use core::time;
+use std::{error::Error, str::FromStr, pin::Pin, thread};
 
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
+use futures_util::{Stream, StreamExt};
+use k8s_openapi::api::core::v1::{Container, Pod};
 use kube::{
     client::ConfigExt,
     config::{
         AuthInfo, Cluster, Context, KubeConfigOptions, Kubeconfig, NamedAuthInfo, NamedCluster,
         NamedContext,
-    },
+    }, Api, api::ListParams,
 };
 
 use secrecy::SecretString;
@@ -250,6 +253,221 @@ pub async fn get_k8s_client_programmatically(
     };
 
     Ok(client)
+}
+
+pub async fn get_container_logs_stream(
+    cfs_session_layer_container: &Container,
+    cfs_session_pod: &Pod,
+    pods_api: &Api<Pod>,
+    params: &ListParams,
+) -> Result<
+    Pin<Box<dyn Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>>,
+    Box<dyn Error + Sync + Send>,
+> {
+    let mut container_log_stream: Pin<
+        Box<dyn Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>,
+    > = tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
+        format!(
+            "\nFetching logs for container {}\n",
+            cfs_session_layer_container.name
+        )
+        .as_bytes(),
+    )))
+    .boxed();
+
+    // Check if container exists in pod
+    let container_exists = cfs_session_pod
+        .spec
+        .as_ref()
+        .unwrap()
+        .containers
+        .iter()
+        .find(|x| x.name.eq(&cfs_session_layer_container.name));
+
+    if container_exists.is_none() {
+        return Err(format!(
+            "Container {} does not exists. Aborting",
+            cfs_session_layer_container.name
+        )
+        .into());
+    }
+
+    let mut container_state =
+        get_container_state(cfs_session_pod, &cfs_session_layer_container.name);
+
+    let mut i = 0;
+    let max = 300;
+
+    // Waiting for container ansible-x to start
+    while container_state.as_ref().unwrap().waiting.is_some() && i <= max {
+        container_log_stream = container_log_stream
+            .chain(tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
+                format!(
+                "\nWaiting for container {} to be ready. Checking again in 2 secs. Attempt {} of {}\n",
+                cfs_session_layer_container.name,
+                i + 1,
+                max
+            )
+                .as_bytes(),
+            ))))
+            .boxed();
+        i += 1;
+        thread::sleep(time::Duration::from_secs(2));
+        let pods = pods_api.list(params).await?;
+        container_state = get_container_state(&pods.items[0], &cfs_session_layer_container.name);
+        log::debug!("Container state:\n{:#?}", container_state.as_ref().unwrap());
+    }
+
+    if container_state.as_ref().unwrap().waiting.is_some() {
+        return Err(format!(
+            "Container {} not ready. Aborting operation",
+            cfs_session_layer_container.name
+        )
+        .into());
+    }
+
+    let logs_stream = pods_api
+        .log_stream(
+            cfs_session_pod.metadata.name.as_ref().unwrap(),
+            &kube::api::LogParams {
+                follow: true,
+                container: Some(cfs_session_layer_container.name.clone()),
+                ..kube::api::LogParams::default()
+            },
+        )
+        .await?;
+
+    // We are going to use chain method (https://dtantsur.github.io/rust-openstack/tokio/stream/trait.StreamExt.html#method.chain) to join streams coming from kube_client::api::subresource::Api::log_stream which returns Result<impl Stream<Item = Result<Bytes>>> or Result<hyper::body::Bytes>, we will consume the Result hence we will be chaining streams of hyper::body::Bytes
+    container_log_stream = container_log_stream.chain(logs_stream).boxed();
+
+    Ok(container_log_stream)
+}
+
+pub async fn get_cfs_session_logs_stream(
+    client: kube::Client,
+    cfs_session_name: &str,
+    layer_id: Option<&u8>,
+) -> Result<
+    Pin<Box<dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>>,
+    Box<dyn Error + Sync + Send>,
+> {
+    let mut container_log_stream: Pin<
+        Box<dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>,
+    > = tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
+        format!("\nFetching logs for CFS session {}\n", cfs_session_name).as_bytes(),
+    )))
+    .boxed();
+
+    let pods_api: kube::Api<k8s_openapi::api::core::v1::Pod> = kube::Api::namespaced(client, "services");
+
+    log::debug!("cfs session: {}", cfs_session_name);
+
+    let params = kube::api::ListParams::default()
+        .limit(1)
+        .labels(format!("cfsession={}", cfs_session_name).as_str());
+
+    let mut pods = pods_api.list(&params).await?;
+
+    let mut i = 0;
+    let max = 300;
+
+    // Waiting for pod to start
+    while pods.items.is_empty() && i <= max {
+        container_log_stream = container_log_stream
+            .chain(tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
+                format!(
+                    "\nPod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}\n",
+                    cfs_session_name,
+                    i + 1,
+                    max
+                )
+                .as_bytes(),
+            ))))
+            .boxed();
+        i += 1;
+        thread::sleep(time::Duration::from_secs(2));
+        pods = pods_api.list(&params).await?;
+    }
+
+    if pods.items.is_empty() {
+        return Err(format!(
+            "Pod for cfs session {} not ready. Aborting operation",
+            cfs_session_name
+        )
+        .into());
+    }
+
+    let cfs_session_pod = &pods.items[0].clone();
+
+    let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
+    log::info!("Pod name: {}", cfs_session_pod_name);
+
+    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = if layer_id.is_some() {
+        // Printing a CFS session layer logs
+
+        let layer = layer_id.unwrap().to_string();
+
+        let container_name = format!("ansible-{}", layer);
+
+        // Get ansible-x containers
+        cfs_session_pod
+            .spec
+            .as_ref()
+            .unwrap()
+            .containers
+            .iter()
+            .filter(|container| container.name.eq(&container_name))
+            .collect()
+    } else {
+        // Get ansible-x containers
+        cfs_session_pod
+            .spec
+            .as_ref()
+            .unwrap()
+            .containers
+            .iter()
+            .filter(|container| container.name.contains("ansible-"))
+            .collect()
+    };
+
+    for ansible_container in ansible_containers {
+        container_log_stream = container_log_stream
+            .chain(tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
+                format!(
+                    "\n*** Starting logs for container {}\n",
+                    ansible_container.name
+                )
+                .as_bytes(),
+            ))))
+            .boxed();
+
+        let logs_stream =
+            get_container_logs_stream(ansible_container, cfs_session_pod, &pods_api, &params)
+                .await
+                .unwrap();
+
+        // We are going to use chain method (https://dtantsur.github.io/rust-openstack/tokio/stream/trait.StreamExt.html#method.chain) to join streams coming from kube_client::api::subresource::Api::log_stream which returns Result<impl Stream<Item = Result<Bytes>>> or Result<hyper::body::Bytes>, we will consume the Result hence we will be chaining streams of hyper::body::Bytes
+        container_log_stream = container_log_stream.chain(logs_stream).boxed();
+    }
+
+    Ok(container_log_stream)
+}
+
+fn get_container_state(pod: &k8s_openapi::api::core::v1::Pod, container_name: &String) -> Option<k8s_openapi::api::core::v1::ContainerState> {
+    let container_status = pod
+        .status
+        .as_ref()
+        .unwrap()
+        .container_statuses
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|container_status| container_status.name.eq(container_name));
+
+    match container_status {
+        Some(container_status_aux) => container_status_aux.state.clone(),
+        None => None,
+    }
 }
 
 #[cfg(test)]
