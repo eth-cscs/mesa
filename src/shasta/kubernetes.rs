@@ -1,16 +1,18 @@
 use core::time;
-use std::{error::Error, str::FromStr, pin::Pin, thread};
+use std::{error::Error, pin::Pin, str::FromStr, thread};
 
+use futures_util::{Stream, StreamExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
-use futures_util::{Stream, StreamExt};
 use k8s_openapi::api::core::v1::{Container, Pod};
 use kube::{
+    api::ListParams,
     client::ConfigExt,
     config::{
         AuthInfo, Cluster, Context, KubeConfigOptions, Kubeconfig, NamedAuthInfo, NamedCluster,
         NamedContext,
-    }, Api, api::ListParams,
+    },
+    Api,
 };
 
 use secrecy::SecretString;
@@ -98,6 +100,8 @@ pub async fn get_k8s_client_programmatically(
     };
 
     let config = kube::Config::from_custom_kubeconfig(kube_config, &kube_config_options).await?;
+
+    log::debug!("kubeconfig:\n{:#?}", config);
 
     // OPTION 1 --> Native TLS - WORKING
     /* let client = if std::env::var("SOCKS5").is_ok() {
@@ -348,17 +352,26 @@ pub async fn get_cfs_session_logs_stream(
     cfs_session_name: &str,
     layer_id: Option<&u8>,
 ) -> Result<
-    Pin<Box<dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>>,
+    Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>>
+                + std::marker::Send,
+        >,
+    >,
     Box<dyn Error + Sync + Send>,
 > {
     let mut container_log_stream: Pin<
-        Box<dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>,
+        Box<
+            dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>>
+                + std::marker::Send,
+        >,
     > = tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
         format!("\nFetching logs for CFS session {}\n", cfs_session_name).as_bytes(),
     )))
     .boxed();
 
-    let pods_api: kube::Api<k8s_openapi::api::core::v1::Pod> = kube::Api::namespaced(client, "services");
+    let pods_api: kube::Api<k8s_openapi::api::core::v1::Pod> =
+        kube::Api::namespaced(client, "services");
 
     log::debug!("cfs session: {}", cfs_session_name);
 
@@ -402,33 +415,14 @@ pub async fn get_cfs_session_logs_stream(
     let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
     log::info!("Pod name: {}", cfs_session_pod_name);
 
-    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = if layer_id.is_some() {
-        // Printing a CFS session layer logs
-
-        let layer = layer_id.unwrap().to_string();
-
-        let container_name = format!("ansible-{}", layer);
-
-        // Get ansible-x containers
-        cfs_session_pod
-            .spec
-            .as_ref()
-            .unwrap()
-            .containers
-            .iter()
-            .filter(|container| container.name.eq(&container_name))
-            .collect()
-    } else {
-        // Get ansible-x containers
-        cfs_session_pod
-            .spec
-            .as_ref()
-            .unwrap()
-            .containers
-            .iter()
-            .filter(|container| container.name.contains("ansible-"))
-            .collect()
-    };
+    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = cfs_session_pod
+        .spec
+        .as_ref()
+        .unwrap()
+        .containers
+        .iter()
+        .filter(|container| container.name.contains("ansible"))
+        .collect();
 
     for ansible_container in ansible_containers {
         container_log_stream = container_log_stream
@@ -453,7 +447,10 @@ pub async fn get_cfs_session_logs_stream(
     Ok(container_log_stream)
 }
 
-fn get_container_state(pod: &k8s_openapi::api::core::v1::Pod, container_name: &String) -> Option<k8s_openapi::api::core::v1::ContainerState> {
+fn get_container_state(
+    pod: &k8s_openapi::api::core::v1::Pod,
+    container_name: &String,
+) -> Option<k8s_openapi::api::core::v1::ContainerState> {
     let container_status = pod
         .status
         .as_ref()
@@ -488,7 +485,8 @@ mod test {
         let vault_secret_path = "shasta";
         let vault_role_id = "b15517de-cabb-06ba-af98-633d216c6d99";
 
-        let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+        let shasta_k8s_secrets =
+            fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
         println!("\nhasta k8s secrets:\n{:#?}\n", shasta_k8s_secrets);
 
