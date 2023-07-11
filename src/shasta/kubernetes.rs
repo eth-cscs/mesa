@@ -485,9 +485,10 @@ mod test {
         std::env::set_var("SOCKS5", "socks5h://127.0.0.1:1080");
         let k8s_api_url = "https://10.252.1.12:6442";
         let vault_base_url = "https://hashicorp-vault.cscs.ch:8200";
+        let vault_secret_path = "shasta";
         let vault_role_id = "b15517de-cabb-06ba-af98-633d216c6d99";
 
-        let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_role_id).await;
+        let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
         println!("\nhasta k8s secrets:\n{:#?}\n", shasta_k8s_secrets);
 

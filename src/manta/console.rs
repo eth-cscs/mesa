@@ -15,12 +15,13 @@ use crate::{
 pub async fn get_container_attachment(
     xname: &String,
     vault_base_url: &str,
+    vault_secret_path: &str,
     vault_role_id: &str,
     k8s_api_url: &str,
 ) -> AttachedProcess {
     log::info!("xname: {}", xname);
 
-    let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_role_id).await;
+    let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
     let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
         .await
