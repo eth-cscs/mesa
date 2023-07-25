@@ -17,8 +17,23 @@ pub async fn get_api_token(
     shasta_base_url: &str,
     keycloak_base_url: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let mut file;
     let mut shasta_token = String::new();
+
+    for (env, value) in std::env::vars() {
+        if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
+            log::debug!("CSM token defined in env");
+            shasta_token = value;
+
+            if is_token_valid(shasta_base_url, &shasta_token).await?
+            {
+                return Ok(shasta_token);
+            } else {
+                return Err("Authentication unsucessful".into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+            }
+        }
+    }
+
+    let mut file;
 
     let project_dirs = ProjectDirs::from(
         "local", /*qualifier*/
@@ -35,9 +50,17 @@ pub async fn get_api_token(
 
     log::debug!("Cache file: {:?}", path);
 
-    if path.exists() {
-        shasta_token = get_token_from_local_file(path.as_os_str()).unwrap();
-    }
+    /* let mut shasta_token = if let Ok(shasta_token) = std::env::var("MANTA_CSM_TOKEN") {
+        println!("CSM token defined in env");
+        shasta_token
+    } else {
+        println!("CSM token defined in file");
+        if path.exists() {
+            get_token_from_local_file(path.as_os_str()).unwrap()
+        } else {
+            String::new()
+        }
+    }; */
 
     let mut attempts = 0;
 
