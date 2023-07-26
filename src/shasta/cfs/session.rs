@@ -79,6 +79,7 @@ impl CfsSession {
         configuration_name: String,
         ansible_limit: Option<String>,
         ansible_verbosity: Option<u8>,
+        ansible_passthrough: Option<String>,
         is_target_definition_image: bool,
         groups_name: Option<Vec<String>>,
         base_image_id: Option<String>,
@@ -91,6 +92,7 @@ impl CfsSession {
             configuration_name,
             ansible_limit,
             ansible_verbosity,
+            ansible_passthrough,
             ..Default::default()
         };
 
@@ -125,6 +127,7 @@ impl CfsSession {
         let cfs_session = crate::shasta::cfs::session::CfsSession::new(
             session_yaml["name"].as_str().unwrap().to_string(),
             session_yaml["configuration"].as_str().unwrap().to_string(),
+            None,
             None,
             None,
             true,
