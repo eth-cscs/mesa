@@ -17,21 +17,7 @@ pub async fn get_api_token(
     shasta_base_url: &str,
     keycloak_base_url: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let mut shasta_token = String::new();
-
-    for (env, value) in std::env::vars() {
-        if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
-            log::debug!("CSM token defined in env");
-            shasta_token = value;
-
-            if is_token_valid(shasta_base_url, &shasta_token).await?
-            {
-                return Ok(shasta_token);
-            } else {
-                return Err("Authentication unsucessful".into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
-        }
-    }
+    let mut shasta_token: String;
 
     let mut file;
 
@@ -43,26 +29,31 @@ pub async fn get_api_token(
 
     let mut path = PathBuf::from(project_dirs.unwrap().cache_dir());
 
+    for (env, value) in std::env::vars() {
+        if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
+            shasta_token = value;
+
+            if is_token_valid(shasta_base_url, &shasta_token).await? {
+                return Ok(shasta_token);
+            } else {
+                return Err("Authentication unsucessful".into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+            }
+        }
+    }
+
+    let mut attempts = 0;
+
     create_dir_all(&path)?;
 
     path.push("http"); // ~/.cache/manta/http is the file containing the Shasta authentication
                        // token
-
     log::debug!("Cache file: {:?}", path);
 
-    /* let mut shasta_token = if let Ok(shasta_token) = std::env::var("MANTA_CSM_TOKEN") {
-        println!("CSM token defined in env");
-        shasta_token
+    shasta_token = if path.exists() {
+        get_token_from_local_file(path.as_os_str()).unwrap()
     } else {
-        println!("CSM token defined in file");
-        if path.exists() {
-            get_token_from_local_file(path.as_os_str()).unwrap()
-        } else {
-            String::new()
-        }
-    }; */
-
-    let mut attempts = 0;
+        String::new()
+    };
 
     while !is_token_valid(shasta_base_url, &shasta_token)
         .await
