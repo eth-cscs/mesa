@@ -123,23 +123,26 @@ pub async fn is_token_valid(
 
     let api_url = shasta_base_url.to_owned() + "/cfs/healthz";
 
-    log::debug!("Test Shasta token against {}", api_url);
+    log::info!("Validate Shasta token against {}", api_url);
 
-    let resp = client
+    let resp_rslt = client
         //.get(format!("{}/cfs/healthz", shasta_base_url))
         .get(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?;
+        .await;
 
-    log::debug!("Check call apis/cfs/healthz api status");
-
-    if resp.status().is_success() {
-        log::debug!("Shasta token is valid");
-        Ok(true)
+    if let Ok(resp) = resp_rslt {
+        if resp.status().is_success() {
+            log::info!("Shasta token is valid");
+            Ok(true)
+        } else {
+            log::error!("Token is not valid - {}", resp.text().await?);
+            Ok(false)
+        }
     } else {
-        log::warn!("Token is not valid - {}", resp.text().await?);
-        Ok(false)
+        eprintln!("Error connecting to Shasta API. Exit\n{:#?}", resp_rslt);
+        std::process::exit(1);
     }
 }
 
