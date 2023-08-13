@@ -126,23 +126,23 @@ pub mod http_client {
             )
             .await;
 
-            log::info!("Shutdown nodes resp:\n{:#?}", capmc_shutdown_nodes_resp);
+            log::debug!("Shutdown nodes resp:\n{:#?}", capmc_shutdown_nodes_resp);
 
             // Check Nodes are shutdown
-            let mut nodes_status = hsm::http_client::get_components_status(
+            let mut nodes_status_resp = hsm::http_client::get_components_status(
                 shasta_token,
                 shasta_base_url,
                 xname_list.clone(),
             )
             .await;
 
-            log::info!("nodes_status:\n{:#?}", nodes_status);
+            log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
             // Check all nodes are OFF
             let mut i = 0;
             let max = 60;
             while i <= max
-                && !nodes_status.as_ref().unwrap()["Components"]
+                && !nodes_status_resp.as_ref().unwrap()["Components"]
                     .as_array()
                     .unwrap()
                     .iter()
@@ -155,8 +155,8 @@ pub mod http_client {
                 );
                 thread::sleep(time::Duration::from_secs(2));
                 i += 1;
-                log::info!("nodes_status:\n{:#?}", nodes_status);
-                nodes_status = hsm::http_client::get_components_status(
+                log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+                nodes_status_resp = hsm::http_client::get_components_status(
                     shasta_token,
                     shasta_base_url,
                     xname_list.clone(),
@@ -166,7 +166,7 @@ pub mod http_client {
 
             println!();
 
-            log::info!("node status resp:\n{:#?}", nodes_status);
+            log::debug!("node status resp:\n{:#?}", nodes_status_resp);
 
             capmc_shutdown_nodes_resp
         }
