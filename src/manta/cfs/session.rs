@@ -7,7 +7,7 @@ pub async fn get_sessions(
     session_name: Option<&String>,
     limit_number: Option<&u8>,
 ) -> Vec<Vec<String>> {
-    let cfs_sessions = shasta::cfs::session::http_client::get(
+    let cfs_sessions_resp = shasta::cfs::session::http_client::get(
         shasta_token,
         shasta_base_url,
         hsm_group_name,
@@ -18,7 +18,7 @@ pub async fn get_sessions(
     .await
     .unwrap_or_default();
 
-    log::info!("CFS sessions:\n{:#?}", cfs_sessions);
+    log::debug!("CFS sessions:\n{:#?}", cfs_sessions_resp);
 
     let bos_sessiontemplate_list =
         shasta::bos::template::http_client::get(shasta_token, shasta_base_url, None, None, None)
@@ -27,7 +27,7 @@ pub async fn get_sessions(
 
     let mut cfs_session_table_data_list = Vec::new();
 
-    for cfs_session in cfs_sessions {
+    for cfs_session in cfs_sessions_resp {
         let mut cfs_session_table_data = Vec::new();
         let cfs_sesion_name = cfs_session["name"].as_str().unwrap();
         cfs_session_table_data.push(cfs_sesion_name.to_owned());

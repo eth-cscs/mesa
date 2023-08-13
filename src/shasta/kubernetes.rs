@@ -402,6 +402,7 @@ pub async fn get_cfs_session_logs_stream(
     let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
     log::info!("Pod name: {}", cfs_session_pod_name);
 
+    // CSM 1.2.x
     let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = if layer_id.is_some() {
         // Printing a CFS session layer logs
 
@@ -428,6 +429,23 @@ pub async fn get_cfs_session_logs_stream(
             .iter()
             .filter(|container| container.name.contains("ansible-"))
             .collect()
+    };
+
+    // CSM 1.3.x
+    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = if ansible_containers.is_empty() {
+        log::info!("No containers found with name 'ansible-x' trying 'ansible'");
+        // Get ansible container
+        cfs_session_pod
+            .spec
+            .as_ref()
+            .unwrap()
+            .containers
+            .iter()
+            .filter(|container| container.name.contains("ansible"))
+            .collect()
+    } else {
+        eprintln!("No container related to CFS session logs found. Exit");
+        std::process::exit(1);
     };
 
     for ansible_container in ansible_containers {
