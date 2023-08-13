@@ -141,7 +141,8 @@ pub async fn is_token_valid(
             Ok(false)
         }
     } else {
-        eprintln!("Error connecting to Shasta API. Exit\n{:#?}", resp_rslt);
+        eprintln!("Error connecting to Shasta API. Exit");
+        log::debug!("Response:\n{:#?}", resp_rslt);
         std::process::exit(1);
     }
 }
