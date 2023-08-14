@@ -94,6 +94,13 @@ pub fn nodes_to_string_format_discrete_columns(
     members
 }
 
+pub fn validate_xname_format(xname: &str) -> bool {
+
+    let xname_re = Regex::new(r"^x\d{4}c[0-7]s([0-9]|[1-5][0-9]|6[0-4])b[0-1]n[0-7]$").unwrap();
+
+    xname_re.is_match(xname)
+}
+
 /// Validates a list of xnames.
 /// Checks xnames strings are valid
 /// If hsm_group_name if provided, then checks all xnames belongs to that hsm_group
@@ -121,14 +128,9 @@ pub async fn validate_xnames(
         Vec::new()
     };
 
-    /* println!("hsm_group_members:\n{:#?}", hsm_group_members);
-    println!("xnames:\n{:#?}", xnames); */
 
-    let xname_re = Regex::new(r"^x\d{4}c[0-7]s([0-9]|[1-5][0-9]|6[0-4])b[0-1]n[0-7]$").unwrap();
-
-
-    if xnames.iter().any(|xname| {
-        !xname_re.is_match(xname)
+    if xnames.iter().any(|&xname| {
+        !validate_xname_format(&xname)
             || (!hsm_group_members.is_empty() && !hsm_group_members.contains(&xname.to_string()))
     }) {
         return false;
