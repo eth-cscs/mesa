@@ -8,7 +8,7 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
-        image_id: &str,
+        image_id_opt: Option<&str>,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
@@ -26,7 +26,11 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + image_id;
+        let api_url = if let Some(image_id) = image_id_opt {
+            shasta_base_url.to_owned() + "/ims/v3/images/" + image_id
+        } else {
+            shasta_base_url.to_owned() + "/ims/v3/images"
+        };
 
         let resp = client
             .get(api_url)
