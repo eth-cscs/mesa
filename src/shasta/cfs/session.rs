@@ -2,21 +2,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tag {
-    property1: String,
-    property2: String,
+    pub property1: String,
+    pub property2: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Group {
-    name: String,
-    members: Vec<String>,
+    pub name: String,
+    pub members: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Target {
-    definition: String,
+    pub definition: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    groups: Option<Vec<Group>>,
+    pub groups: Option<Vec<Group>>,
 }
 
 impl Default for Target {
