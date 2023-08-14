@@ -21,7 +21,8 @@ pub async fn get_container_attachment(
 ) -> AttachedProcess {
     log::info!("xname: {}", xname);
 
-    let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+    let shasta_k8s_secrets =
+        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
     let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
         .await
@@ -71,7 +72,7 @@ pub async fn get_container_attachment(
 
     log::info!("Connecting to console {}", xname);
 
-    pods_fabric
+    let attachment_rslt = pods_fabric
         .exec(
             console_pod_name,
             command,
@@ -82,6 +83,14 @@ pub async fn get_container_attachment(
                 .stderr(false) // Note to self: tty and stderr cannot both be true
                 .tty(true),
         )
-        .await
-        .unwrap()
+        .await;
+
+    if attachment_rslt.is_ok() {
+        attachment_rslt.unwrap()
+    } else {
+        eprintln!(
+            "Error attaching to container, check 'kubectl -n services exec -it {} -c cray-console-node'. Exit", console_pod_name
+        );
+        std::process::exit(1);
+    }
 }
