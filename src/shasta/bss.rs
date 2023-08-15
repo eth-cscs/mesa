@@ -1,3 +1,13 @@
+pub struct BootParameters {
+    hosts: Option<Vec<String>>,
+    macs: Option<Vec<String>>,
+    nids: Option<Vec<String>>,
+    params: Option<String>,
+    kernel: Option<String>,
+    initrd: Option<String>,
+    // cloud-init: Option<>, // TODO: fix this because it is supposed to be an object ????
+}
+
 pub mod http_client {
 
     use serde_json::Value;
@@ -35,6 +45,50 @@ pub mod http_client {
 
         let resp = client
             .put(api_url)
+            .json(&serde_json::json!({"hosts": xnames, "params": params, "kernel": kernel, "initrd": initrd})) // Encapsulating configuration.layers
+            .bearer_auth(shasta_token)
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            let response = &resp.text().await?;
+            Ok(serde_json::from_str(response)?)
+        } else {
+            eprintln!("FAIL request: {:#?}", resp);
+            let response: String = resp.text().await?;
+            eprintln!("FAIL response: {:#?}", response);
+            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
+    pub async fn patch(
+        shasta_base_url: &str,
+        shasta_token: &str,
+        xnames: &Vec<String>,
+        params: Option<&String>,
+        kernel: Option<&String>,
+        initrd: Option<&String>,
+    ) -> Result<Vec<Value>, Box<dyn Error>> {
+        let client;
+
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = format!("{}/bss/boot/v1/bootparameters", shasta_base_url);
+
+        let resp = client
+            .patch(api_url)
             .json(&serde_json::json!({"hosts": xnames, "params": params, "kernel": kernel, "initrd": initrd})) // Encapsulating configuration.layers
             .bearer_auth(shasta_token)
             .send()
