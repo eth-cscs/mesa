@@ -2,10 +2,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct State {
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "cloneUrl")]
     clone_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     playbook: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     commit: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "sesisonName")]
     session_name: Option<String>,
 }
@@ -13,15 +17,21 @@ pub struct State {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Component {
     id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Vec<State>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "stateAppend")]
     state_append: Option<State>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "desiredConfig")]
     desired_config: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "errorCount")]
     error_count: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "retryPolicy")]
     retry_policy: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     enabled: Option<bool>,
     // tags: TODO: this is supposed to be an object??? https://csm12-apidocs.svc.cscs.ch/paas/cfs/operation/patch_component/#!path=tags&t=request
 }
