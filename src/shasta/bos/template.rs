@@ -132,34 +132,34 @@ impl BosTemplate {
     } */
 
     pub fn new_for_node_list(
-        cfs_configuration_name: String,
         bos_session_template_name: String,
-        ims_image_name: String,
-        ims_image_path: String,
-        ims_image_type: String,
-        ims_image_etag: String,
-        limit: Vec<String>,
+        cfs_configuration_name: Option<String>,
+        ims_image_name: Option<String>,
+        ims_image_path: Option<String>,
+        ims_image_type: Option<String>,
+        ims_image_etag: Option<String>,
+        limit: Option<Vec<String>>,
     ) -> Self {
         let cfs = crate::shasta::bos::template::Cfs {
             clone_url: None,
             branch: None,
             commit: None,
             playbook: None,
-            configuration: Some(cfs_configuration_name),
+            configuration: cfs_configuration_name,
         };
 
         let compute_property = crate::shasta::bos::template::Property {
-            name: Some(ims_image_name),
+            name: ims_image_name,
             boot_ordinal: Some(2),
             shutdown_ordinal: None,
-            path: Some(ims_image_path),
-            type_prop: Some(ims_image_type),
-            etag: Some(ims_image_etag),
+            path: ims_image_path,
+            type_prop: ims_image_type,
+            etag: ims_image_etag,
             kernel_parameters: Some(
                 "ip=dhcp quiet ksocklnd.skip_mr_route_setup=1 cxi_core.disable_default_svc=0 cxi_core.enable_fgfc=1 cxi_core.disable_default_svc=0 cxi_core.sct_pid_mask=0xf spire_join_token=${SPIRE_JOIN_TOKEN}".to_string(),
             ),
             network: Some("nmn".to_string()),
-            node_list: Some(limit),
+            node_list: limit,
             node_roles_groups: None,
             node_groups: None,
             rootfs_provider: Some("cpss3".to_string()),
