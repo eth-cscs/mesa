@@ -218,7 +218,7 @@ pub mod http_client {
     }
 }
 
-mod utils {
+pub mod utils {
 
     use super::{Component, DesiredState};
 
