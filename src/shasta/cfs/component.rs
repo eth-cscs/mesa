@@ -155,7 +155,7 @@ pub mod http_client {
         }
 
         let api_url =
-            shasta_base_url.to_owned() + "/cfs/v2/components" + &component.clone().id.unwrap();
+            shasta_base_url.to_owned() + "/cfs/v2/component/" + &component.clone().id.unwrap();
 
         let resp = client
             .post(api_url)
@@ -178,7 +178,7 @@ pub mod http_client {
     pub async fn post_component_list(
         shasta_token: &str,
         shasta_base_url: &str,
-        component: Component,
+        component_list: Vec<Component>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
@@ -196,13 +196,12 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let api_url =
-            shasta_base_url.to_owned() + "/cfs/v2/components" + &component.clone().id.unwrap();
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/components";
 
         let resp = client
             .post(api_url)
             .bearer_auth(shasta_token)
-            .json(&component)
+            .json(&component_list)
             .send()
             .await?;
 
@@ -222,7 +221,7 @@ pub mod utils {
 
     use super::{Component, DesiredState};
 
-    pub async fn update_desired_configuration(
+    pub async fn update_component_desired_configuration(
         shasta_token: &str,
         shasta_base_url: &str,
         xname: &str,
@@ -248,6 +247,39 @@ pub mod utils {
         )
         .await;
     }
+
+    pub async fn update_component_list_desired_configuration(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        xnames: Vec<String>,
+        desired_configuration:&str
+    ) {
+        let mut component_list = Vec::new();
+
+        for xname in xnames {
+            let desired_state = DesiredState {
+                boot_artifacts: None,
+                configuration: Some(desired_configuration.to_string()),
+            };
+            let component = Component {
+                desired_state: Some(desired_state),
+                id: Some(xname),
+                actual_state: None,
+                last_action: None,
+                enabled: None,
+                error: None,
+            };
+
+            component_list.push(component);
+        }
+
+        crate::shasta::cfs::component::http_client::post_component_list(
+            shasta_token,
+            shasta_base_url,
+            component_list,
+        )
+        .await;
+    }
 }
 
 #[cfg(test)]
@@ -256,7 +288,7 @@ mod tests {
     async fn update_desired_configuration() {
         let token = "--REDACTED--";
 
-        super::utils::update_desired_configuration(
+        super::utils::update_component_desired_configuration(
             token,
             "https://api.cmn.alps.cscs.ch/apis",
             "x1001c1s5b1n1",
