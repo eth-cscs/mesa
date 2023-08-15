@@ -1,44 +1,29 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LastAction {
-    action: Option<String>,
-    #[serde(rename = "numAttempts")]
-    num_attempts: Option<u8>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BootArtifacts {
-    kernel: Option<String>,
-    kernel_parameters: Option<String>,
-    rootfs: Option<String>,
-    initrd: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ActualState {
-    #[serde(rename = "bootArtifacts")]
-    boot_artifacts: Option<BootArtifacts>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DesiredState {
-    #[serde(rename = "bootArtifacts")]
-    boot_artifacts: Option<BootArtifacts>,
-    configuration: Option<String>,
+pub struct State {
+    #[serde(rename = "cloneUrl")]
+    clone_url: Option<String>,
+    playbook: Option<String>,
+    commit: Option<String>,
+    #[serde(rename = "sesisonName")]
+    session_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Component {
     id: Option<String>,
-    #[serde(rename = "actualState")]
-    actual_state: Option<ActualState>,
-    #[serde(rename = "desiredState")]
-    desired_state: Option<DesiredState>,
-    #[serde(rename = "lastAction")]
-    last_action: Option<LastAction>,
-    enabled: Option<String>,
-    error: Option<String>,
+    state: Option<Vec<State>>,
+    #[serde(rename = "stateAppend")]
+    state_append: Option<State>,
+    #[serde(rename = "desiredConfig")]
+    desired_config: Option<String>,
+    #[serde(rename = "errorCount")]
+    error_count: Option<String>,
+    #[serde(rename = "retryPolicy")]
+    retry_policy: Option<String>,
+    enabled: Option<bool>,
+    // tags: TODO: this is supposed to be an object??? https://csm12-apidocs.svc.cscs.ch/paas/cfs/operation/patch_component/#!path=tags&t=request
 }
 
 pub mod http_client {
@@ -133,7 +118,7 @@ pub mod http_client {
         }
     }
 
-    pub async fn post_component(
+    pub async fn patch_component(
         shasta_token: &str,
         shasta_base_url: &str,
         component: Component,
@@ -155,10 +140,10 @@ pub mod http_client {
         }
 
         let api_url =
-            shasta_base_url.to_owned() + "/cfs/v2/component/" + &component.clone().id.unwrap();
+            shasta_base_url.to_owned() + "/cfs/v2/components/" + &component.clone().id.unwrap();
 
         let resp = client
-            .post(api_url)
+            .patch(api_url)
             .bearer_auth(shasta_token)
             .json(&component)
             .send()
@@ -175,7 +160,7 @@ pub mod http_client {
         }
     }
 
-    pub async fn post_component_list(
+    pub async fn patch_component_list(
         shasta_token: &str,
         shasta_base_url: &str,
         component_list: Vec<Component>,
@@ -199,7 +184,7 @@ pub mod http_client {
         let api_url = shasta_base_url.to_owned() + "/cfs/v2/components";
 
         let resp = client
-            .post(api_url)
+            .patch(api_url)
             .bearer_auth(shasta_token)
             .json(&component_list)
             .send()
@@ -219,7 +204,7 @@ pub mod http_client {
 
 pub mod utils {
 
-    use super::{Component, DesiredState};
+    use super::Component;
 
     pub async fn update_component_desired_configuration(
         shasta_token: &str,
@@ -227,20 +212,17 @@ pub mod utils {
         xname: &str,
         desired_configuration: &str,
     ) {
-        let desired_state = DesiredState {
-            boot_artifacts: None,
-            configuration: Some(desired_configuration.to_string()),
-        };
         let component = Component {
-            desired_state: Some(desired_state),
             id: Some(xname.to_string()),
-            actual_state: None,
-            last_action: None,
+            desired_config: Some(desired_configuration.to_string()),
+            state: None,
+            state_append: None,
+            error_count: None,
+            retry_policy: None,
             enabled: None,
-            error: None,
         };
 
-        crate::shasta::cfs::component::http_client::post_component(
+        crate::shasta::cfs::component::http_client::patch_component(
             shasta_token,
             shasta_base_url,
             component,
@@ -252,28 +234,25 @@ pub mod utils {
         shasta_token: &str,
         shasta_base_url: &str,
         xnames: Vec<String>,
-        desired_configuration:&str
+        desired_configuration: &str,
     ) {
         let mut component_list = Vec::new();
 
         for xname in xnames {
-            let desired_state = DesiredState {
-                boot_artifacts: None,
-                configuration: Some(desired_configuration.to_string()),
-            };
             let component = Component {
-                desired_state: Some(desired_state),
-                id: Some(xname),
-                actual_state: None,
-                last_action: None,
+                id: Some(xname.to_string()),
+                desired_config: Some(desired_configuration.to_string()),
+                state: None,
+                state_append: None,
+                error_count: None,
+                retry_policy: None,
                 enabled: None,
-                error: None,
             };
 
             component_list.push(component);
         }
 
-        crate::shasta::cfs::component::http_client::post_component_list(
+        crate::shasta::cfs::component::http_client::patch_component_list(
             shasta_token,
             shasta_base_url,
             component_list,
