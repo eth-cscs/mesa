@@ -8,15 +8,6 @@ pub struct Link {
     href: Option<String>,
 }
 
-// impl Default for Link {
-//     fn default() -> Self {
-//         Self {
-//             rel: None,
-//             href: None
-//         }
-//     }
-// }
-
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Property {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -123,6 +114,34 @@ pub struct BosTemplate {
     pub boot_sets: Option<BootSet>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub links: Option<Vec<Link>>,
+}
+
+//////////////////////////////////////////////////////////
+
+pub struct BootArtifacts {
+    pub kernel: Option<String>,
+    pub kernel_parameters: Option<String>,
+    pub rootfs: Option<String>,
+    pub initrd: Option<String>,
+}
+
+pub struct DesiredState {
+    pub boot_artifacts: Option<BootArtifacts>,
+    pub configuration: Option<String>
+}
+
+pub struct LastAction {
+    pub action: Option<String>,
+    pub num_attempts: Option<u32>
+}
+
+pub struct Component {
+    pub id: Option<String>,
+    pub actual_state: Option<BootArtifacts>,
+    pub desired_state: Option<DesiredState>,
+    pub last_action: Option<LastAction>,
+    pub enabled: Option<bool>,
+    pub error: Option<String>
 }
 
 impl BosTemplate {

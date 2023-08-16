@@ -221,6 +221,7 @@ pub mod utils {
         shasta_base_url: &str,
         xname: &str,
         desired_configuration: &str,
+        enabled: bool
     ) {
         let component = Component {
             id: Some(xname.to_string()),
@@ -229,7 +230,7 @@ pub mod utils {
             state_append: None,
             error_count: None,
             retry_policy: None,
-            enabled: None,
+            enabled: Some(enabled),
         };
 
         crate::shasta::cfs::component::http_client::patch_component(
@@ -245,6 +246,7 @@ pub mod utils {
         shasta_base_url: &str,
         xnames: Vec<String>,
         desired_configuration: &str,
+        enabled: bool
     ) {
         let mut component_list = Vec::new();
 
@@ -256,7 +258,7 @@ pub mod utils {
                 state_append: None,
                 error_count: None,
                 retry_policy: None,
-                enabled: None,
+                enabled: Some(enabled),
             };
 
             component_list.push(component);
@@ -282,6 +284,7 @@ mod tests {
             "https://api.cmn.alps.cscs.ch/apis",
             "x1001c1s5b1n1",
             "test!",
+            true
         )
         .await;
     }
