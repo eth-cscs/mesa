@@ -402,7 +402,7 @@ pub mod utils {
             let cfs_session_members: Vec<String> = cfs_sessions.last().unwrap()["ansible"]["limit"]
                 .as_str()
                 .unwrap_or_default()
-                .split(",")
+                .split(',')
                 .map(|xname| xname.to_string())
                 .collect();
             if !cfs_session_hsm_groups.contains(hsm_group_name)

@@ -1,4 +1,4 @@
-pub struct BootParameters {
+/* pub struct BootParameters {
     hosts: Option<Vec<String>>,
     macs: Option<Vec<String>>,
     nids: Option<Vec<String>>,
@@ -6,7 +6,7 @@ pub struct BootParameters {
     kernel: Option<String>,
     initrd: Option<String>,
     // cloud-init: Option<>, // TODO: fix this because it is supposed to be an object ????
-}
+} */
 
 pub mod http_client {
 

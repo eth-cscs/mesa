@@ -1,10 +1,10 @@
-use futures_util::StreamExt;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
     api::{AttachParams, AttachedProcess},
     Api,
 };
 use serde_json::Value;
+use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
 use crate::{

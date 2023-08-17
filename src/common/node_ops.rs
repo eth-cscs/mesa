@@ -130,7 +130,7 @@ pub async fn validate_xnames(
 
 
     if xnames.iter().any(|&xname| {
-        !validate_xname_format(&xname)
+        !validate_xname_format(xname)
             || (!hsm_group_members.is_empty() && !hsm_group_members.contains(&xname.to_string()))
     }) {
         return false;

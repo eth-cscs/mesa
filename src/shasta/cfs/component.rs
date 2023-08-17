@@ -233,7 +233,7 @@ pub mod utils {
             enabled: Some(enabled),
         };
 
-        crate::shasta::cfs::component::http_client::patch_component(
+        let _ = crate::shasta::cfs::component::http_client::patch_component(
             shasta_token,
             shasta_base_url,
             component,
@@ -264,7 +264,7 @@ pub mod utils {
             component_list.push(component);
         }
 
-        crate::shasta::cfs::component::http_client::patch_component_list(
+        let _ = crate::shasta::cfs::component::http_client::patch_component_list(
             shasta_token,
             shasta_base_url,
             component_list,

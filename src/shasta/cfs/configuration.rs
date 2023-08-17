@@ -45,6 +45,12 @@ impl Layer {
     }
 }
 
+impl Default for CfsConfiguration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CfsConfiguration {
     pub fn new() -> Self {
         Self {
