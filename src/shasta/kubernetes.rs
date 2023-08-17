@@ -1,16 +1,18 @@
 use core::time;
-use std::{error::Error, str::FromStr, pin::Pin, thread};
+use std::{error::Error, pin::Pin, str::FromStr, thread};
 
+use futures_util::{Stream, StreamExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
-use futures_util::{Stream, StreamExt};
 use k8s_openapi::api::core::v1::{Container, Pod};
 use kube::{
+    api::ListParams,
     client::ConfigExt,
     config::{
         AuthInfo, Cluster, Context, KubeConfigOptions, Kubeconfig, NamedAuthInfo, NamedCluster,
         NamedContext,
-    }, Api, api::ListParams,
+    },
+    Api,
 };
 
 use secrecy::SecretString;
@@ -264,6 +266,12 @@ pub async fn get_container_logs_stream(
     Pin<Box<dyn Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>>,
     Box<dyn Error + Sync + Send>,
 > {
+    log::info!(
+        "Fetching logs for pod {} in namespace {}",
+        cfs_session_pod.clone().metadata.name.unwrap(),
+        cfs_session_pod.clone().metadata.namespace.unwrap()
+    );
+
     let mut container_log_stream: Pin<
         Box<dyn Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>,
     > = tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
@@ -283,6 +291,8 @@ pub async fn get_container_logs_stream(
         .containers
         .iter()
         .find(|x| x.name.eq(&cfs_session_layer_container.name));
+
+    log::info!("Looking for container {}", cfs_session_layer_container.name);
 
     if container_exists.is_none() {
         return Err(format!(
@@ -348,17 +358,26 @@ pub async fn get_cfs_session_logs_stream(
     cfs_session_name: &str,
     layer_id: Option<&u8>,
 ) -> Result<
-    Pin<Box<dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>>,
+    Pin<
+        Box<
+            dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>>
+                + std::marker::Send,
+        >,
+    >,
     Box<dyn Error + Sync + Send>,
 > {
     let mut container_log_stream: Pin<
-        Box<dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>> + std::marker::Send>,
+        Box<
+            dyn futures_util::Stream<Item = Result<hyper::body::Bytes, kube::Error>>
+                + std::marker::Send,
+        >,
     > = tokio_stream::once(Ok(hyper::body::Bytes::copy_from_slice(
         format!("\nFetching logs for CFS session {}\n", cfs_session_name).as_bytes(),
     )))
     .boxed();
 
-    let pods_api: kube::Api<k8s_openapi::api::core::v1::Pod> = kube::Api::namespaced(client, "services");
+    let pods_api: kube::Api<k8s_openapi::api::core::v1::Pod> =
+        kube::Api::namespaced(client, "services");
 
     log::debug!("cfs session: {}", cfs_session_name);
 
@@ -432,21 +451,22 @@ pub async fn get_cfs_session_logs_stream(
     };
 
     // CSM 1.3.x
-    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = if ansible_containers.is_empty() {
-        log::info!("No containers found with name 'ansible-x' trying 'ansible'");
-        // Get ansible container
-        cfs_session_pod
-            .spec
-            .as_ref()
-            .unwrap()
-            .containers
-            .iter()
-            .filter(|container| container.name.contains("ansible"))
-            .collect()
-    } else {
-        eprintln!("No container related to CFS session logs found. Exit");
-        std::process::exit(1);
-    };
+    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> =
+        if ansible_containers.is_empty() {
+            log::info!("No containers found with name 'ansible-x' trying 'ansible'");
+            // Get ansible container
+            cfs_session_pod
+                .spec
+                .as_ref()
+                .unwrap()
+                .containers
+                .iter()
+                .filter(|container| container.name.contains("ansible"))
+                .collect()
+        } else {
+            eprintln!("No container related to CFS session logs found. Exit");
+            std::process::exit(1);
+        };
 
     for ansible_container in ansible_containers {
         container_log_stream = container_log_stream
@@ -471,7 +491,10 @@ pub async fn get_cfs_session_logs_stream(
     Ok(container_log_stream)
 }
 
-fn get_container_state(pod: &k8s_openapi::api::core::v1::Pod, container_name: &String) -> Option<k8s_openapi::api::core::v1::ContainerState> {
+fn get_container_state(
+    pod: &k8s_openapi::api::core::v1::Pod,
+    container_name: &String,
+) -> Option<k8s_openapi::api::core::v1::ContainerState> {
     let container_status = pod
         .status
         .as_ref()
@@ -506,7 +529,8 @@ mod test {
         let vault_secret_path = "shasta";
         let vault_role_id = "b15517de-cabb-06ba-af98-633d216c6d99";
 
-        let shasta_k8s_secrets = fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+        let shasta_k8s_secrets =
+            fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
         println!("\nhasta k8s secrets:\n{:#?}\n", shasta_k8s_secrets);
 
