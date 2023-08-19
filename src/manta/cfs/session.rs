@@ -18,7 +18,7 @@ pub async fn get_sessions(
     .await
     .unwrap_or_default();
 
-    log::debug!("CFS sessions:\n{:#?}", cfs_sessions_resp);
+    log::info!("CFS sessions:\n{:#?}", cfs_sessions_resp);
 
     let bos_sessiontemplate_list =
         shasta::bos::template::http_client::get(shasta_token, shasta_base_url, None, None, None)
