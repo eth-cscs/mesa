@@ -6,7 +6,7 @@ use hyper::Uri;
 use hyper_socks2::SocksConnector;
 use k8s_openapi::api::core::v1::{Container, Pod};
 use kube::{
-    api::ListParams,
+    api::{AttachParams, AttachedProcess, ListParams},
     client::ConfigExt,
     config::{
         AuthInfo, Cluster, Context, KubeConfigOptions, Kubeconfig, NamedAuthInfo, NamedCluster,
@@ -14,6 +14,8 @@ use kube::{
     },
     Api,
 };
+
+use futures::StreamExt;
 
 use secrecy::SecretString;
 use serde_json::Value;
@@ -436,6 +438,159 @@ fn get_container_state(
         Some(container_status_aux) => container_status_aux.state.clone(),
         None => None,
     }
+}
+
+pub async fn attach_cfs_session_container_target_k8s_service_name(
+    client: kube::Client,
+    cfs_session_name: &str,
+) -> AttachedProcess {
+    let pods_fabric: Api<Pod> = Api::namespaced(client.clone(), "services");
+
+    let params = kube::api::ListParams::default()
+        .limit(1)
+        .labels(format!("cfsession={}", cfs_session_name).as_str());
+
+    let mut pods = pods_fabric.list(&params).await.unwrap();
+
+    let mut i = 0;
+    let max = 300;
+
+    // Waiting for pod to start
+    while pods.items.is_empty() && i <= max {
+        format!(
+            "\nPod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}\n",
+            cfs_session_name,
+            i + 1,
+            max
+        );
+        i += 1;
+        thread::sleep(time::Duration::from_secs(2));
+        pods = pods_fabric.list(&params).await.unwrap();
+    }
+
+    if pods.items.is_empty() {
+        eprintln!(
+            "Pod for cfs session {} not ready. Aborting operation",
+            cfs_session_name
+        );
+        std::process::exit(1);
+    }
+
+    let console_operator_pod = &pods.items[0].clone();
+
+    let console_operator_pod_name = console_operator_pod.metadata.name.clone().unwrap();
+
+    let attached = pods_fabric
+        .exec(
+            &console_operator_pod_name,
+            vec![
+                "sh",
+                "-c",
+                "cat /inventory/hosts/01-cfs-generated.yaml | grep cray-ims- | head -n 1",
+            ],
+            &AttachParams::default()
+                .container("cray-console-operator")
+                .stderr(false),
+        )
+        .await
+        .unwrap();
+
+    let mut output = get_output(attached).await;
+    log::info!("{output}");
+
+    output = output.trim().to_string();
+
+    println!("{output}");
+
+    output
+        .strip_prefix("ansible_host: ")
+        .unwrap()
+        .strip_suffix("-service.ims.svc.cluster.local")
+        .unwrap();
+
+    println!("{output}");
+
+    let ansible_target_container_label = output + "-customize";
+
+    println!("{ansible_target_container_label}");
+
+    // Find ansible target container
+
+    let pods_fabric: Api<Pod> = Api::namespaced(client, "ims");
+
+    let params = kube::api::ListParams::default()
+        .limit(1)
+        .labels(format!("job-name={}", ansible_target_container_label).as_str());
+
+    let mut pods = pods_fabric.list(&params).await.unwrap();
+
+    let mut i = 0;
+    let max = 300;
+
+    // Waiting for pod to start
+    while pods.items.is_empty() && i <= max {
+        format!(
+            "\nPod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}\n",
+            cfs_session_name,
+            i + 1,
+            max
+        );
+        i += 1;
+        thread::sleep(time::Duration::from_secs(2));
+        pods = pods_fabric.list(&params).await.unwrap();
+    }
+
+    if pods.items.is_empty() {
+        eprintln!(
+            "Pod for cfs session {} not ready. Aborting operation",
+            cfs_session_name
+        );
+        std::process::exit(1);
+    }
+
+    let console_operator_pod = &pods.items[0].clone();
+
+    log::info!("Connecting to console ansible target container");
+
+    let console_operator_pod_name = console_operator_pod.metadata.name.clone().unwrap();
+
+    let command = vec!["bash"]; // Enter the container and open conman to access node's console
+                                // let command = vec!["bash"]; // Enter the container and open bash to start an interactive
+                                // terminal session
+
+    let attachment_rslt = pods_fabric
+        .exec(
+            &console_operator_pod_name,
+            command,
+            &AttachParams::default()
+                .container("sshd")
+                .stdin(true)
+                .stdout(true)
+                .stderr(false) // Note to self: tty and stderr cannot both be true
+                .tty(true),
+        )
+        .await;
+
+    if attachment_rslt.is_ok() {
+        attachment_rslt.unwrap()
+    } else {
+        eprintln!(
+            "Error attaching to container, check 'kubectl -n services exec -it {} -c sshd'. Exit",
+            console_operator_pod_name
+        );
+        std::process::exit(1);
+    }
+}
+
+pub async fn get_output(mut attached: AttachedProcess) -> String {
+    let stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
+    let out = stdout
+        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+        .collect::<Vec<_>>()
+        .await
+        .join("");
+    attached.join().await.unwrap();
+    out
 }
 
 #[cfg(test)]
