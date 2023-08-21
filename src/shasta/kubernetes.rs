@@ -575,7 +575,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         attachment_rslt.unwrap()
     } else {
         eprintln!(
-            "Error attaching to container, check 'kubectl -n services exec -it {} -c sshd'. Exit",
+            "Error attaching to container 'sshd' in pod {}. Exit",
             console_operator_pod_name
         );
         std::process::exit(1);

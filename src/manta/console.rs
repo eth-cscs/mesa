@@ -63,14 +63,7 @@ pub async fn get_container_attachment_to_conman(
                                                // let command = vec!["bash"]; // Enter the container and open bash to start an interactive
                                                // terminal session
 
-    log::info!(
-        "Alternatively run - kubectl -n services exec -it {} -c cray-console-node -- {}",
-        console_pod_name,
-        command
-            .iter()
-            .map(|x| (*x).to_string() + " ")
-            .collect::<String>()
-    );
+    log::info!("Console pod name: {}", console_pod_name,);
 
     log::info!("Connecting to console {}", xname);
 
@@ -91,7 +84,8 @@ pub async fn get_container_attachment_to_conman(
         attachment_rslt.unwrap()
     } else {
         eprintln!(
-            "Error attaching to container, check 'kubectl -n services exec -it {} -c cray-console-node'. Exit", console_pod_name
+            "Error attaching to container 'cray-console-node' in pod {}. Exit",
+            console_pod_name
         );
         std::process::exit(1);
     }
@@ -243,7 +237,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
         attachment_rslt.unwrap()
     } else {
         eprintln!(
-            "Error attaching to container, check 'kubectl -n services exec -it {} -c sshd'. Exit",
+            "Error attaching to container 'sshd' in pod {}. Exit",
             console_operator_pod_name
         );
         std::process::exit(1);
