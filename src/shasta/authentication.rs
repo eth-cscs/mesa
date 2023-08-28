@@ -31,6 +31,8 @@ pub async fn get_api_token(
 
     for (env, value) in std::env::vars() {
         if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
+            log::info!("Reading CSM authentication token from env 'MANTA_CSM_TOKEN'");
+
             shasta_token = value;
 
             if is_token_valid(shasta_base_url, &shasta_token).await? {
@@ -40,6 +42,8 @@ pub async fn get_api_token(
             }
         }
     }
+
+    log::info!("Reading CSM authentication token from configuration file");
 
     let mut attempts = 0;
 
