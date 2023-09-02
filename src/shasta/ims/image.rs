@@ -49,4 +49,46 @@ pub mod http_client {
             Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }
+
+    // Delete IMS image using CSM API "soft delete" --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/delete_all_v3_images/
+    pub async fn delete(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        image_id: &str,
+    ) -> Result<Value, Box<dyn Error>> {
+        let client;
+
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + image_id;
+
+        let resp = client
+            .delete(api_url)
+            // .get(format!("{}{}", shasta_base_url, "/cfs/v2/configurations"))
+            .bearer_auth(shasta_token)
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            let response = &resp.text().await?;
+            Ok(serde_json::from_str(response)?)
+        } else {
+            eprintln!("FAIL request: {:#?}", resp);
+            let response: String = resp.text().await?;
+            eprintln!("FAIL response: {:#?}", response);
+            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
 }
