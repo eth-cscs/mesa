@@ -210,6 +210,42 @@ pub mod http_client {
             Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }
+
+    pub async fn delete_single_component(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        component_id: &str,
+    ) -> Result<Value, Box<dyn Error>> {
+        let client;
+
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy.
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/components/" + component_id;
+
+        let resp = client
+            .delete(api_url)
+            .bearer_auth(shasta_token)
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let json_response: Value = serde_json::from_str(&resp)?;
+
+        Ok(json_response)
+    }
 }
 
 pub mod utils {

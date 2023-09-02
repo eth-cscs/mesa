@@ -314,6 +314,47 @@ pub mod http_client {
 
         Ok(cluster_cfs_sessions)
     }
+
+    pub async fn delete(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        session_name: &str
+    ) -> Result<Value, Box<dyn Error>> {
+        log::info!("Deleting CFS session id: {}", session_name);
+
+        let client;
+
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions/" + session_name;
+
+        let resp = client
+            .delete(api_url)
+            .bearer_auth(shasta_token)
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            Ok(serde_json::from_str(&resp.text().await?)?)
+        } else {
+            Err(resp.json::<Value>().await?["detail"]
+                .as_str()
+                .unwrap()
+                .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
 }
 
 pub mod utils {
