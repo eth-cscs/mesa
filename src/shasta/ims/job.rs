@@ -34,7 +34,7 @@ pub mod http_client {
 
     use super::{Job, SshContainer};
 
-    /// Create IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
+    /// Get IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
     pub async fn post(
         shasta_token: &str,
         shasta_base_url: &str,
@@ -88,6 +88,43 @@ pub mod http_client {
             .json(&ims_job)
             .send()
             .await?;
+
+        if resp.status().is_success() {
+            let response = &resp.text().await?;
+            Ok(serde_json::from_str(response)?)
+        } else {
+            eprintln!("FAIL request: {:#?}", resp);
+            let response: String = resp.text().await?;
+            eprintln!("FAIL response: {:#?}", response);
+            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
+    /// Create IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
+    pub async fn get(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        job_id: &str,
+    ) -> Result<Value, Box<dyn Error>> {
+        let client;
+
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_owned() + "/ims/v3/jobs" + job_id;
+
+        let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
 
         if resp.status().is_success() {
             let response = &resp.text().await?;
