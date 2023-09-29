@@ -13,6 +13,7 @@ pub mod http_client {
         shasta_base_url: &str,
         hsm_group_name_opt: Option<&String>,
         image_id_opt: Option<&str>,
+        limit_number: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
@@ -49,7 +50,7 @@ pub mod http_client {
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
-        let image_value_vec: &mut Vec<Value> = json_response.as_array_mut().unwrap();
+        let mut image_value_vec: Vec<Value> = json_response.as_array_mut().unwrap().to_vec();
 
         if let Some(hsm_group_name) = hsm_group_name_opt {
             image_value_vec.retain(|image_value| {
@@ -67,6 +68,14 @@ pub mod http_client {
                 .unwrap()
                 .cmp(b["created"].as_str().unwrap())
         });
+
+        // Limiting the number of results to return to client
+        if limit_number.is_some() {
+            image_value_vec = image_value_vec[image_value_vec
+                .len()
+                .saturating_sub(*limit_number.unwrap() as usize)..]
+                .to_vec();
+        }
 
         Ok(image_value_vec.to_vec())
     }
