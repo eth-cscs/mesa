@@ -60,6 +60,14 @@ pub mod http_client {
             });
         }
 
+        // Sort images by creation time order ASC
+        image_value_vec.sort_by(|a, b| {
+            a["created"]
+                .as_str()
+                .unwrap()
+                .cmp(b["created"].as_str().unwrap())
+        });
+
         Ok(image_value_vec.to_vec())
     }
 
