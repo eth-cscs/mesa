@@ -5,11 +5,15 @@ pub mod http_client {
     use serde_json::Value;
 
     /// Fetch IMS image ref --> https://apidocs.svc.cscs.ch/paas/ims/operation/get_v3_image/
+    /// If filtering by HSM group, then image name must include HSM group name (It assumms each image
+    /// is built for a specific cluster based on ansible vars used by the CFS session). The reason
+    /// for this is because CSCS staff deletes all CFS sessions every now and then...
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        hsm_group_name_opt: Option<&String>,
         image_id_opt: Option<&str>,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
         let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
@@ -39,15 +43,24 @@ pub mod http_client {
             .send()
             .await?;
 
-        if resp.status().is_success() {
-            let response = &resp.text().await?;
-            Ok(serde_json::from_str(response)?)
+        let mut json_response: Value = if resp.status().is_success() {
+            serde_json::from_str(&resp.text().await?)?
         } else {
-            eprintln!("FAIL request: {:#?}", resp);
-            let response: String = resp.text().await?;
-            eprintln!("FAIL response: {:#?}", response);
-            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+        };
+
+        let image_value_vec: &mut Vec<Value> = json_response.as_array_mut().unwrap();
+
+        if let Some(hsm_group_name) = hsm_group_name_opt {
+            image_value_vec.retain(|image_value| {
+                image_value["name"]
+                    .as_str()
+                    .unwrap()
+                    .contains(hsm_group_name)
+            });
         }
+
+        Ok(image_value_vec.to_vec())
     }
 
     // Delete IMS image using CSM API "soft delete" --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/delete_all_v3_images/
