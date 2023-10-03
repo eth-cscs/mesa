@@ -127,7 +127,7 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let url_api = format!("{}/bss/boot/v1/bootparameters", shasta_base_url);
+        let url_api = shasta_base_url.to_string() + "/bss/boot/v1/bootparameters";
 
         let params: Vec<_> = xnames.iter().map(|xname| ("name", xname)).collect();
 
@@ -141,7 +141,9 @@ pub mod http_client {
         if resp.status().is_success() {
             Ok(resp.json::<Value>().await?.as_array().unwrap().clone())
         } else {
-            Err(resp.json::<Value>().await?.as_str().unwrap().into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            let response = resp.json::<Value>().await;
+            println!("response:\n{:#?}", response);
+            Err(response?.as_str().unwrap().into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }
 }

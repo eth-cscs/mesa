@@ -614,8 +614,6 @@ mod test {
         let shasta_k8s_secrets =
             fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
-        println!("\nhasta k8s secrets:\n{:#?}\n", shasta_k8s_secrets);
-
         let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
             .await
             .unwrap();

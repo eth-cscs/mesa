@@ -49,6 +49,7 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        id_opt: Option<&str>
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
         let client;
 
@@ -65,12 +66,14 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let mut api_url = shasta_base_url.to_string();
-        api_url.push_str("/bos/v1/session");
+        let mut api_url = shasta_base_url.to_string() + "/bos/v1/session/";
+
+        if let Some(id) = id_opt {
+            api_url = api_url + id
+        }
 
         let resp = client
             .get(api_url)
-            // .get(format!("{}{}", shasta_base_url, "/bos/v1/session"))
             .bearer_auth(shasta_token)
             .send()
             .await?;

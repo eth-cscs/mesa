@@ -1,3 +1,5 @@
+use serde_json::Value;
+
 use crate::shasta;
 
 pub async fn get_sessions(
@@ -174,4 +176,42 @@ pub async fn get_sessions(
     }
 
     cfs_session_table_data_list
+}
+
+pub fn get_image_id_from_cfs_session_related_to_cfs_configuration(
+    cfs_session_value_vec: &Vec<Value>,
+    // cfs_configuration: &str,
+) -> Vec<String> {
+    cfs_session_value_vec
+        .iter()
+        .filter(|cfs_session| {
+            /* cfs_session
+                .pointer("/configuration/name")
+                .unwrap()
+                .eq(cfs_configuration)
+                && */ cfs_session
+                    .pointer("/target/definition")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .eq("image")
+                && cfs_session
+                    .pointer("/status/session/succeeded")
+                    .unwrap_or(&serde_json::json!(false))
+                    .as_bool()
+                    .unwrap()
+                    == true
+                && cfs_session
+                    .pointer("/status/artifacts/0/result_id")
+                    .is_some()
+        })
+        .map(|cfs_session| {
+            cfs_session
+                .pointer("/status/artifacts/0/result_id")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect::<Vec<String>>()
 }

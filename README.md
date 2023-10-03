@@ -33,5 +33,5 @@ cargo release patch --execute
  # Test
 
  ```
- cargo test -- --nocapture
+ cargo test -- --show-output
  ```

@@ -357,7 +357,6 @@ pub mod http_client {
         };
 
         if hsm_group_name.is_some() {
-            println!("json_response for HSM {}", hsm_group_name.unwrap());
             for bos_template in json_response.as_array().unwrap() {
                 for (_key, value) in bos_template["boot_sets"].as_object().unwrap() {
                     if value["node_groups"]
@@ -366,7 +365,6 @@ pub mod http_client {
                         .iter()
                         .any(|node_group| node_group.eq(hsm_group_name.unwrap()))
                     {
-                        println!("BOS sessiontemplate:\n{:#?}", bos_template);
                         cluster_bos_tempalte.push(bos_template.clone());
                     }
                 }
