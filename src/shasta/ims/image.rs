@@ -50,10 +50,18 @@ pub mod http_client {
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
-        let mut image_value_vec: Vec<Value> = json_response
-            .as_array_mut()
-            .unwrap_or(&mut Vec::new())
-            .to_vec();
+        log::info!("ims response:\n{:#?}", json_response);
+
+        let mut image_value_vec:Vec<Value> = if image_id_opt.is_some() {
+            [json_response].to_vec()
+        } else {
+            json_response
+                .as_array_mut()
+                .unwrap_or(&mut Vec::new())
+                .to_vec()
+        };
+
+        log::info!("image_value_vec:\n{:#?}", image_value_vec);
 
         if let Some(hsm_group_name) = hsm_group_name_opt {
             image_value_vec.retain(|image_value| {
