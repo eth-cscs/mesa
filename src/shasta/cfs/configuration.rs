@@ -434,12 +434,12 @@ pub mod http_client {
             .await?;
 
         let json_response: Value = if resp.status().is_success() {
+            log::debug!("{:#?}", resp);
             serde_json::from_str(&resp.text().await?)?
         } else {
+            log::error!("{:#?}", resp);
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
-
-        log::debug!("CFS session deleted:\n{:#?}", json_response);
 
         Ok(json_response)
     }

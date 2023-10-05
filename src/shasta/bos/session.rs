@@ -66,10 +66,10 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let mut api_url = shasta_base_url.to_string() + "/bos/v1/session/";
+        let mut api_url = shasta_base_url.to_string() + "/bos/v1/session";
 
         if let Some(id) = id_opt {
-            api_url = api_url + id
+            api_url = api_url + "/" + id
         }
 
         let resp = client
@@ -79,8 +79,11 @@ pub mod http_client {
             .await?;
 
         let json_response: Value = if resp.status().is_success() {
+            log::debug!("{:#?}", resp);
             serde_json::from_str(&resp.text().await?)?
         } else {
+            log::error!("{:#?}", resp);
+            // let resp_body = resp.text().await?;
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
@@ -118,8 +121,10 @@ pub mod http_client {
             .await?;
 
         let json_response: Value = if resp.status().is_success() {
+            log::debug!("{:#?}", resp);
             serde_json::from_str(&resp.text().await?)?
         } else {
+            log::error!("{:#?}", resp);
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 

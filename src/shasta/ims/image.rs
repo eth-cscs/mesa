@@ -119,13 +119,11 @@ pub mod http_client {
             .await?;
 
         if resp.status().is_success() {
-            let response = &resp.text().await?;
-            Ok(serde_json::from_str(response)?)
+            log::debug!("{:#?}", resp);
+            Ok(serde_json::from_str(&resp.text().await?)?)
         } else {
-            eprintln!("FAIL request: {:#?}", resp);
-            let response: String = resp.text().await?;
-            eprintln!("FAIL response: {:#?}", response);
-            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            log::error!("{:#?}", resp);
+            Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }
 }

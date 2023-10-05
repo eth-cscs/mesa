@@ -318,7 +318,7 @@ pub mod http_client {
     pub async fn delete(
         shasta_token: &str,
         shasta_base_url: &str,
-        session_name: &str
+        session_name: &str,
     ) -> Result<Value, Box<dyn Error>> {
         log::info!("Deleting CFS session id: {}", session_name);
 
@@ -347,8 +347,10 @@ pub mod http_client {
             .await?;
 
         if resp.status().is_success() {
+            log::debug!("{:#?}", resp);
             Ok(serde_json::from_str(&resp.text().await?)?)
         } else {
+            log::error!("{:#?}", resp);
             Err(resp.json::<Value>().await?["detail"]
                 .as_str()
                 .unwrap()
