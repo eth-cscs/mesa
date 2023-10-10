@@ -323,7 +323,7 @@ pub mod http_client {
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
         // println!("Get BOS sessiontemplate from HSM group {:?}", hsm_group_name);
 
-        let mut cluster_bos_tempalte: Vec<Value> = Vec::new();
+        let mut cluster_bos_template: Vec<Value> = Vec::new();
 
         let client;
 
@@ -365,7 +365,7 @@ pub mod http_client {
                         .iter()
                         .any(|node_group| node_group.eq(hsm_group_name.unwrap()))
                     {
-                        cluster_bos_tempalte.push(bos_template.clone());
+                        cluster_bos_template.push(bos_template.clone());
                     }
                 }
             }
@@ -377,24 +377,24 @@ pub mod http_client {
                     .eq(bos_template_name.unwrap())
                 // TODO: investigate why I need to us this ugly 'as_ref'
                 {
-                    cluster_bos_tempalte.push(bos_template.clone());
+                    cluster_bos_template.push(bos_template.clone());
                 }
             }
         } else {
             // Returning all results
-            cluster_bos_tempalte = json_response.as_array().unwrap().clone();
+            cluster_bos_template = json_response.as_array().unwrap().clone();
         }
 
         if limit_number.is_some() {
             // Limiting the number of results to return to client
 
-            cluster_bos_tempalte = cluster_bos_tempalte[cluster_bos_tempalte
+            cluster_bos_template = cluster_bos_template[cluster_bos_template
                 .len()
                 .saturating_sub(*limit_number.unwrap() as usize)..]
                 .to_vec();
         }
 
-        Ok(cluster_bos_tempalte)
+        Ok(cluster_bos_template)
     }
 
     /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
@@ -516,6 +516,35 @@ pub mod http_client {
         } else {
             log::error!("{:#?}", resp);
             Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
+    /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
+    pub async fn get_raw(
+        shasta_token: &str,
+        shasta_base_url: &str,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+            // rest client to authenticate
+            client_builder.proxy(socks5proxy).build()?
+        } else {
+            client_builder.build()?
+        };
+
+        let api_url = shasta_base_url.to_owned() + "/bos/v1/sessiontemplate";
+
+        let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
+
+        match network_response_rslt {
+            Ok(http_response) => http_response.error_for_status(),
+            Err(network_err) => Err(network_err),
         }
     }
 }

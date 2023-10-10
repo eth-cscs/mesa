@@ -97,9 +97,6 @@ impl CfsSession {
         };
 
         if is_target_definition_image {
-            // let base_image_id = "a897aa21-0218-4d07-aefb-13a4c15ccb65"; // TODO: move this to config
-            // file ???
-
             let target_groups: Vec<Group> = groups_name
                 .unwrap()
                 .into_iter()
@@ -355,6 +352,48 @@ pub mod http_client {
                 .as_str()
                 .unwrap()
                 .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
+    /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
+    pub async fn get_raw(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        is_succeded: Option<bool>,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+            // rest client to authenticate
+            client_builder.proxy(socks5proxy).build()?
+        } else {
+            client_builder.build()?
+        };
+
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+
+        // Add params to request
+        let mut request_payload = Vec::new();
+
+        if is_succeded.is_some() {
+            request_payload.push(("succeced", is_succeded));
+        }
+
+        let network_response_rslt = client
+            .get(api_url)
+            .query(&request_payload)
+            .bearer_auth(shasta_token)
+            .send()
+            .await;
+
+        match network_response_rslt {
+            Ok(http_response) => http_response.error_for_status(),
+            Err(network_error) => Err(network_error),
         }
     }
 }

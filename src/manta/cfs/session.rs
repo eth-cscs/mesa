@@ -186,21 +186,22 @@ pub fn get_image_id_from_cfs_session_related_to_cfs_configuration(
         .iter()
         .filter(|cfs_session| {
             /* cfs_session
-                .pointer("/configuration/name")
+            .pointer("/configuration/name")
+            .unwrap()
+            .eq(cfs_configuration)
+            && */
+            cfs_session
+                .pointer("/target/definition")
                 .unwrap()
-                .eq(cfs_configuration)
-                && */ cfs_session
-                    .pointer("/target/definition")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .eq("image")
+                .as_str()
+                .unwrap()
+                .eq("image")
                 && cfs_session
                     .pointer("/status/session/succeeded")
-                    .unwrap_or(&serde_json::json!(false))
+                    .unwrap_or(&serde_json::json!("false"))
                     .as_str()
                     .unwrap()
-                    == "true"
+                    .eq("true")
                 && cfs_session
                     .pointer("/status/artifacts/0/result_id")
                     .is_some()

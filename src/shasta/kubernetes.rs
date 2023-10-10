@@ -604,7 +604,7 @@ mod test {
     use super::get_k8s_client_programmatically;
 
     #[tokio::test]
-    async fn my_test() {
+    async fn test_connection_to_k8s() {
         std::env::set_var("SOCKS5", "socks5h://127.0.0.1:1080");
         let k8s_api_url = "https://10.252.1.12:6442";
         let vault_base_url = "https://hashicorp-vault.cscs.ch:8200";
