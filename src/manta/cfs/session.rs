@@ -198,9 +198,9 @@ pub fn get_image_id_from_cfs_session_related_to_cfs_configuration(
                 && cfs_session
                     .pointer("/status/session/succeeded")
                     .unwrap_or(&serde_json::json!(false))
-                    .as_bool()
+                    .as_str()
                     .unwrap()
-                    == true
+                    == "true"
                 && cfs_session
                     .pointer("/status/artifacts/0/result_id")
                     .is_some()
