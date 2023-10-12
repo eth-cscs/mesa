@@ -314,62 +314,6 @@ pub mod http_client {
 
         let mut cluster_cfs_configs = json_response.as_array().unwrap().clone();
 
-        /* if hsm_group_name.is_some() {
-            let hsm_groups_resp = hsm::http_client::get_hsm_groups(
-                shasta_token,
-                shasta_base_url,
-                Some(hsm_group_name.unwrap()),
-            )
-            .await;
-
-            // println!("hsm_groups_resp: {:#?}", hsm_groups_resp);
-
-            let hsm_group_list = hsm_groups_resp.unwrap();
-
-            // Take all nodes for all hsm_groups found and put them in a Vec
-            let mut hsm_groups_node_list: Vec<String> =
-                hsm::utils::get_members_from_hsm_groups_serde_value(&hsm_group_list)
-                    .into_iter()
-                    .collect();
-
-            hsm_groups_node_list.sort();
-
-            // Get all BOS session templates for HSM group
-            let bos_sessiontemplate_list = shasta::bos::template::http_client::get(
-                shasta_token,
-                shasta_base_url,
-                hsm_group_name,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
-            // Get all CFS configurations so we can link CFS configuration name with its counterpart in the
-            // BOS sessiontemplate, we are doing this because BOS sessiontemplate does not have
-            // creation/update time hence I can't sort by date to loop and find out most recent BOS
-            // sessiontemplate per node. Joining CFS configuration and BOS sessiontemplate will help to
-            // this
-            let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
-                shasta_token,
-                shasta_base_url,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
-            // reverse list in order to have most recent CFS configuration lastUpdate values at front
-            cfs_configuration_list.reverse();
-
-            for node in &hsm_groups_node_list {
-                for cfs_configuration in &cfs_configuration_list {
-
-                }
-            }
-        } */
-
         log::debug!("CFS sessions:\n{:#?}", cluster_cfs_configs);
 
         if configuration_name.is_some() {
@@ -403,7 +347,7 @@ pub mod http_client {
 
         Ok(cluster_cfs_configs)
     }
-    
+
     pub async fn delete(
         shasta_token: &str,
         shasta_base_url: &str,
@@ -439,6 +383,40 @@ pub mod http_client {
         } else {
             log::error!("{:#?}", resp);
             Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
+    pub async fn get_raw(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        // hsm_group_name: Option<&String>,
+        configuration_name: Option<&String>,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+
+        // Build client
+        let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+            // rest client to authenticate
+            client_builder.proxy(socks5proxy).build()?
+        } else {
+            client_builder.build()?
+        };
+
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations";
+
+        let network_response_rslt = client
+            .get(api_url)
+            .bearer_auth(shasta_token)
+            .send()
+            .await;
+
+        match network_response_rslt {
+            Ok(http_response) => http_response.error_for_status(),
+            Err(network_error) => Err(network_error),
         }
     }
 }
