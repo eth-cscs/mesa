@@ -179,7 +179,7 @@ pub async fn get_sessions(
 }
 
 pub fn get_image_id_from_cfs_session_related_to_cfs_configuration(
-    cfs_session_value_vec: &Vec<Value>,
+    cfs_session_value_vec: &[Value],
     // cfs_configuration: &str,
 ) -> Vec<String> {
     cfs_session_value_vec

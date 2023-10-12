@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 pub fn get_hsm_group_from_cfs_session_related_to_cfs_configuration(
-    cfs_session_value_vec: &Vec<Value>,
+    cfs_session_value_vec: &[Value],
     cfs_configuration: &str,
 ) -> Vec<String> {
     let mut hsm_group_from_cfs_session_vec = cfs_session_value_vec
@@ -30,7 +30,7 @@ pub fn get_hsm_group_from_cfs_session_related_to_cfs_configuration(
 }
 
 pub fn get_hsm_group_from_bos_sessiontimplate_related_to_cfs_configuration(
-    bos_sessiontemplate_value_vec: &Vec<Value>,
+    bos_sessiontemplate_value_vec: &[Value],
     cfs_configuration: &str,
 ) -> Vec<String> {
     let hsm_group_from_bos_sessiontemplate_computer_related_to_cfs_configuration =

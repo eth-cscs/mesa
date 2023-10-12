@@ -438,7 +438,7 @@ pub mod http_client {
             Ok(())
         } else {
             log::error!("{:#?}", resp);
-            return Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }
 }

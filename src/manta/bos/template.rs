@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 pub fn get_image_id_from_bos_sessiontemplate_related_to_cfs_configuration(
-    bos_sessiontemplate_value_vec: &Vec<Value>,
+    bos_sessiontemplate_value_vec: &[Value],
     // cfs_configuration: &str,
 ) -> Vec<String> {
     let image_id_compute_iter = bos_sessiontemplate_value_vec
@@ -52,9 +52,7 @@ pub fn get_image_id_from_bos_sessiontemplate_related_to_cfs_configuration(
                 .to_string()
         });
 
-    let image_id_from_bos_session_template = image_id_compute_iter
+    image_id_compute_iter
         .chain(image_id_uan_iter)
-        .collect::<Vec<String>>();
-
-    image_id_from_bos_session_template
+        .collect::<Vec<String>>()
 }

@@ -49,7 +49,7 @@ pub async fn exec(
         }
     }
 
-/*     let hsm_group_nodes_string = hsm_groups_node_list.join(",");
+    /*     let hsm_group_nodes_string = hsm_groups_node_list.join(",");
 
     let components_status = shasta::cfs::component::http_client::get_multiple_components(
         shasta_token,
@@ -160,17 +160,14 @@ pub async fn exec(
 
         // println!("node_boot_params:\n{:#?}", node_boot_params);
 
-        let kernel_image_path_in_boot_params = Some(
-            node_boot_params.unwrap()["kernel"]
-                .as_str()
-                .unwrap()
-                .to_string()
-                .trim_start_matches("s3://boot-images/")
-                .trim_end_matches("/kernel")
-                .to_string()
-                .to_owned(),
-        )
-        .unwrap_or_default();
+        let kernel_image_path_in_boot_params = node_boot_params.unwrap()["kernel"]
+            .as_str()
+            .unwrap()
+            .to_string()
+            .trim_start_matches("s3://boot-images/")
+            .trim_end_matches("/kernel")
+            .to_string()
+            .to_owned();
 
         // node_details.push(kernel_image_path_in_boot_params);
 
@@ -190,7 +187,7 @@ pub async fn exec(
         node_details_list.push(node_details);
     }
 
-/*     let components_status = shasta::cfs::component::http_client::get_multiple_components(
+    /*     let components_status = shasta::cfs::component::http_client::get_multiple_components(
         shasta_token,
         shasta_base_url,
         Some(&hsm_group_nodes_string),
@@ -301,17 +298,14 @@ pub async fn exec(
 
         // println!("node_boot_params:\n{:#?}", node_boot_params);
 
-        let kernel_image_path_in_boot_params = Some(
-            node_boot_params.unwrap()["kernel"]
-                .as_str()
-                .unwrap()
-                .to_string()
-                .trim_start_matches("s3://boot-images/")
-                .trim_end_matches("/kernel")
-                .to_string()
-                .to_owned(),
-        )
-        .unwrap_or_default();
+        let kernel_image_path_in_boot_params = node_boot_params.unwrap()["kernel"]
+            .as_str()
+            .unwrap()
+            .to_string()
+            .trim_start_matches("s3://boot-images/")
+            .trim_end_matches("/kernel")
+            .to_string()
+            .to_owned();
 
         // node_details.push(kernel_image_path_in_boot_params);
 

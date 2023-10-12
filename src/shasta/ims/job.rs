@@ -47,9 +47,7 @@ pub mod http_client {
             jail: true,
         };
 
-        let mut ssh_container_list = Vec::new();
-
-        ssh_container_list.push(ssh_container);
+        let ssh_container_list = vec![ssh_container];
 
         let ims_job = Job {
             job_type: "customize".to_string(),
