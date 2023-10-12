@@ -92,7 +92,7 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         image_id: &str,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error>> {
         let client;
 
         let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
@@ -109,7 +109,7 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + image_id;
+        let api_url = shasta_base_url.to_owned() + "/ims/v2/images/" + image_id;
 
         let resp = client
             .delete(api_url)
@@ -120,7 +120,7 @@ pub mod http_client {
 
         if resp.status().is_success() {
             log::debug!("{:#?}", resp);
-            Ok(serde_json::from_str(&resp.text().await?)?)
+            Ok(())
         } else {
             log::error!("{:#?}", resp);
             Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not

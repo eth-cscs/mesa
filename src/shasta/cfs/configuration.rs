@@ -408,7 +408,7 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         configuration_id: &str,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error>> {
         let client;
 
         let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
@@ -433,15 +433,13 @@ pub mod http_client {
             .send()
             .await?;
 
-        let json_response: Value = if resp.status().is_success() {
+        if resp.status().is_success() {
             log::debug!("{:#?}", resp);
-            serde_json::from_str(&resp.text().await?)?
+            Ok(())
         } else {
             log::error!("{:#?}", resp);
-            return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-        };
-
-        Ok(json_response)
+            return Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
     }
 }
 

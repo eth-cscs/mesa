@@ -319,7 +319,7 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         session_name: &str,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error>> {
         log::info!("Deleting CFS session id: {}", session_name);
 
         let client;
@@ -348,7 +348,7 @@ pub mod http_client {
 
         if resp.status().is_success() {
             log::debug!("{:#?}", resp);
-            Ok(serde_json::from_str(&resp.text().await?)?)
+            Ok(())
         } else {
             log::error!("{:#?}", resp);
             Err(resp.json::<Value>().await?["detail"]
