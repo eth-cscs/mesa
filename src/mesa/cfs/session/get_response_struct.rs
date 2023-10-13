@@ -98,19 +98,19 @@ impl GetResponse {
         let configuration = Configuration {
             name: session_value
                 .pointer("/configuration/name")
-                .and_then(|value| Some(value.as_str().unwrap().to_string())),
+                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
             limit: session_value
                 .pointer("/configuration/limit")
-                .and_then(|value| Some(value.as_str().unwrap().to_string())),
+                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
         };
 
         let ansible = Ansible {
             config: session_value
                 .pointer("/ansible/config")
-                .and_then(|value| Some(value.as_str().unwrap().to_string())),
+                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
             limit: session_value
                 .pointer("/ansible/limit")
-                .and_then(|value| Some(value.as_str().unwrap().to_string())),
+                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
             verbosity: session_value
                 .pointer("/ansible/verbosity")
                 .and_then(|str| Some(str.as_u64().unwrap())),
@@ -127,9 +127,9 @@ impl GetResponse {
                     name: group_value["name"].as_str().map(|str| str.to_string()),
                     members: Some(
                         group_value["members"]
-                            .as_str()
-                            .unwrap()
-                            .split(',')
+                            .as_array()
+                            .unwrap_or(&Vec::new())
+                            .iter()
                             .map(|str| str.to_string())
                             .collect(),
                     ),

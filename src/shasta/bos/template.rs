@@ -554,6 +554,8 @@ pub mod utils {
     use comfy_table::Table;
     use serde_json::Value;
 
+    use crate::mesa::bos::sessiontemplate::SessionTemplate;
+
     pub fn check_hsms_or_xnames_belongs_to_bos_sessiontemplate(
         bos_sessiontemplate: &Value,
         hsm_groups_names: Vec<String>,

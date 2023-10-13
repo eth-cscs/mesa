@@ -94,8 +94,33 @@ pub fn nodes_to_string_format_discrete_columns(
     members
 }
 
-pub fn validate_xname_format(xname: &str) -> bool {
+pub fn string_vec_to_multi_line_string(nodes: Option<&Vec<String>>, num_columns: usize) -> String {
+    let mut members: String;
 
+    match nodes {
+        Some(nodes) if !nodes.is_empty() => {
+            members = nodes.first().unwrap().to_string(); // take first element
+
+            for (i, _) in nodes.iter().enumerate().skip(1) {
+                // iterate for the rest of the list
+                if i % num_columns == 0 {
+                    // breaking the cell content into multiple lines (only 2 xnames per line)
+
+                    members.push_str(",\n");
+                } else {
+                    members.push(',');
+                }
+
+                members.push_str(&nodes[i]);
+            }
+        }
+        _ => members = "".to_string(),
+    }
+
+    members
+}
+
+pub fn validate_xname_format(xname: &str) -> bool {
     let xname_re = Regex::new(r"^x\d{4}c[0-7]s([0-9]|[1-5][0-9]|6[0-4])b[0-1]n[0-7]$").unwrap();
 
     xname_re.is_match(xname)
@@ -127,7 +152,6 @@ pub async fn validate_xnames(
     } else {
         Vec::new()
     };
-
 
     if xnames.iter().any(|&xname| {
         !validate_xname_format(xname)

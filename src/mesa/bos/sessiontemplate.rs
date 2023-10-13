@@ -195,7 +195,7 @@ impl SessionTemplate {
                 .pointer("/cfs_branch")
                 .and_then(|value| value.as_str().map(|str| str.to_string())),
             enable_cfs: sessiontemplate_value
-                .pointer("/enabme_cfs")
+                .pointer("/enable_cfs")
                 .and_then(|value| value.as_bool()),
             cfs: Some(cfs),
             partition: sessiontemplate_value
@@ -245,6 +245,10 @@ pub mod http_client {
 }
 
 pub mod utils {
+    use comfy_table::Table;
+
+    use crate::common::node_ops;
+
     use super::SessionTemplate;
 
     pub async fn filter(
@@ -264,7 +268,7 @@ pub mod utils {
                         boot_set
                             .node_groups
                             .as_ref()
-                            .unwrap()
+                            .unwrap_or(&Vec::new())
                             .contains(hsm_group_name)
                     })
             });
@@ -290,6 +294,57 @@ pub mod utils {
         }
 
         bos_sessiontemplate_vec.to_vec()
+    }
+
+    pub fn print_table_struct(bos_sessiontemplate_vec: Vec<SessionTemplate>) {
+        let mut table = Table::new();
+
+        table.set_header(vec![
+            "Name",
+            "Cfs Configuration",
+            "Cfs Enabled",
+            "Type",
+            "Target",
+            "Compute Etag",
+            "Compute Path",
+        ]);
+
+        for bos_template in bos_sessiontemplate_vec {
+            for boot_set in bos_template.boot_sets.unwrap() {
+                let target: Vec<String> = if boot_set.node_groups.is_some() {
+                    // NOTE: very
+                    // important to
+                    // define target
+                    // variable type to
+                    // tell compiler we
+                    // want a long live
+                    // variable
+                    boot_set.node_groups.unwrap()
+                } else if boot_set.node_list.is_some() {
+                    boot_set.node_list.unwrap()
+                } else {
+                    Vec::new()
+                };
+
+                table.add_row(vec![
+                    bos_template.name.as_ref().unwrap(),
+                    bos_template
+                        .cfs
+                        .as_ref()
+                        .unwrap()
+                        .configuration
+                        .as_ref()
+                        .unwrap(),
+                    &bos_template.enable_cfs.unwrap().to_string(),
+                    &boot_set.property.unwrap(),
+                    &node_ops::string_vec_to_multi_line_string(Some(&target), 2),
+                    &boot_set.etag.unwrap_or("".to_string()),
+                    &boot_set.path.unwrap(),
+                ]);
+            }
+        }
+
+        println!("{table}");
     }
 }
 
