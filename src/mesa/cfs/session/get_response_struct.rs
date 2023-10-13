@@ -168,19 +168,19 @@ impl GetResponse {
         let session = Session {
             job: session_value
                 .pointer("/status/session/job")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             completion_time: session_value
                 .pointer("/status/session/completionTime")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             start_time: session_value
                 .pointer("/status/session/startTime")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             status: session_value
                 .pointer("/status/session/status")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             succeeded: session_value
                 .pointer("/status/session/succeeded")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
         };
 
         let status = Status {
