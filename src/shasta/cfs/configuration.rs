@@ -123,6 +123,7 @@ impl CfsConfiguration {
     pub async fn create_from_repos(
         gitea_token: &str,
         gitea_base_url: &str,
+        shasta_root_cert: &[u8],
         repos: Vec<PathBuf>,
         cfs_configuration_name: &String,
     ) -> Self {
@@ -166,6 +167,7 @@ impl CfsConfiguration {
                 // &format!("/cray/{}", repo_name),
                 &local_last_commit.id().to_string(),
                 gitea_token,
+                shasta_root_cert,
             )
             .await;
 
@@ -222,12 +224,14 @@ pub mod http_client {
     pub async fn put(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         configuration: &CfsConfiguration,
         configuration_name: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -273,13 +277,15 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         // hsm_group_name: Option<&String>,
         configuration_name: Option<&String>,
         limit_number: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -351,11 +357,13 @@ pub mod http_client {
     pub async fn delete(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         configuration_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -389,10 +397,12 @@ pub mod http_client {
     pub async fn get_raw(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         // hsm_group_name: Option<&String>,
         configuration_name: Option<&String>,
     ) -> Result<reqwest::Response, reqwest::Error> {
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
@@ -408,11 +418,7 @@ pub mod http_client {
 
         let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations";
 
-        let network_response_rslt = client
-            .get(api_url)
-            .bearer_auth(shasta_token)
-            .send()
-            .await;
+        let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
         match network_response_rslt {
             Ok(http_response) => http_response.error_for_status(),

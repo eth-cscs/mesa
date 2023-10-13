@@ -217,9 +217,14 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
     ) -> Result<Vec<SessionTemplate>, reqwest::Error> {
-        let bos_sessiontemplate_response_value =
-            shasta::bos::template::http_client::get_raw(shasta_token, shasta_base_url).await;
+        let bos_sessiontemplate_response_value = shasta::bos::template::http_client::get_raw(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+        )
+        .await;
 
         let bos_sessiontemplate_response_value: Value = match bos_sessiontemplate_response_value {
             Ok(bos_sessiontemplate_value) => bos_sessiontemplate_value.json().await.unwrap(),

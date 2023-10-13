@@ -7,13 +7,14 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         // hsm_group_name: Option<&String>,
         configuration_name: Option<&String>,
-        limit_number: Option<&u8>,
     ) -> Result<Vec<CfsConfiguration>, reqwest::Error> {
         let cfs_configuration_response = shasta::cfs::configuration::http_client::get_raw(
             shasta_token,
             shasta_base_url,
+            shasta_root_cert,
             configuration_name,
         )
         .await;
@@ -34,8 +35,6 @@ pub mod utils {
     use crate::mesa::cfs::configuration::get_put_payload::CfsConfiguration;
 
     pub fn filter(
-        shasta_token: &str,
-        shasta_base_url: &str,
         cfs_configuration_vec: &mut Vec<CfsConfiguration>,
         cfs_configuration_name_opt: Option<&String>,
         limit_number: Option<&u8>,

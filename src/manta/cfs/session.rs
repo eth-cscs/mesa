@@ -5,6 +5,7 @@ use crate::shasta;
 pub async fn get_sessions(
     shasta_token: &str,
     shasta_base_url: &str,
+    shasta_root_cert: &[u8],
     hsm_group_name: Option<&String>,
     session_name: Option<&String>,
     limit_number: Option<&u8>,
@@ -12,6 +13,7 @@ pub async fn get_sessions(
     let cfs_sessions_resp = shasta::cfs::session::http_client::get(
         shasta_token,
         shasta_base_url,
+        shasta_root_cert,
         hsm_group_name,
         session_name,
         limit_number,
@@ -23,7 +25,7 @@ pub async fn get_sessions(
     log::info!("CFS sessions:\n{:#?}", cfs_sessions_resp);
 
     let bos_sessiontemplate_list =
-        shasta::bos::template::http_client::get(shasta_token, shasta_base_url, None, None, None)
+        shasta::bos::template::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None, None, None)
             .await
             .unwrap();
 

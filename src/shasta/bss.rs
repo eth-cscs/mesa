@@ -20,6 +20,7 @@ pub mod http_client {
     pub async fn put(
         shasta_base_url: &str,
         shasta_token: &str,
+        shasta_root_cert: &[u8],
         xnames: &Vec<String>,
         params: &String,
         kernel: &String,
@@ -27,7 +28,8 @@ pub mod http_client {
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -64,6 +66,7 @@ pub mod http_client {
     pub async fn patch(
         shasta_base_url: &str,
         shasta_token: &str,
+        shasta_root_cert: &[u8],
         xnames: &Vec<String>,
         params: Option<&String>,
         kernel: Option<&String>,
@@ -71,7 +74,8 @@ pub mod http_client {
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -109,11 +113,13 @@ pub mod http_client {
     pub async fn get_boot_params(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xnames: &[String],
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {

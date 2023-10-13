@@ -51,10 +51,12 @@ pub mod http_client {
     pub async fn get_all_hsm_groups(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -92,9 +94,11 @@ pub mod http_client {
     pub async fn get_hsm_groups(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_group_name: Option<&String>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
-        let json_response = get_all_hsm_groups(shasta_token, shasta_base_url).await?;
+        let json_response =
+            get_all_hsm_groups(shasta_token, shasta_base_url, shasta_root_cert).await?;
 
         let mut hsm_groups: Vec<Value> = Vec::new();
 
@@ -117,11 +121,13 @@ pub mod http_client {
     pub async fn get_hsm_group(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_group_name: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -155,11 +161,13 @@ pub mod http_client {
     pub async fn get_component_status(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xname: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -196,11 +204,13 @@ pub mod http_client {
     pub async fn get_components_status(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xnames: Vec<String>,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -239,11 +249,13 @@ pub mod http_client {
     pub async fn get_hw_inventory(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xname: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -328,10 +340,11 @@ pub mod utils {
     pub async fn get_members_ids(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_group: &str,
     ) -> Vec<String> {
         // Take all nodes for all hsm_groups found and put them in a Vec
-        http_client::get_hsm_group(shasta_token, shasta_base_url, hsm_group)
+        http_client::get_hsm_group(shasta_token, shasta_base_url, shasta_root_cert, hsm_group)
             .await
             .unwrap()["members"]["ids"]
             .as_array()
@@ -344,11 +357,13 @@ pub mod utils {
     pub async fn get_hsm_group_from_xname(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xname: &String,
     ) -> Option<String> {
-        let hsm_groups_details = get_all_hsm_groups(shasta_token, shasta_base_url)
-            .await
-            .unwrap();
+        let hsm_groups_details =
+            get_all_hsm_groups(shasta_token, shasta_base_url, shasta_root_cert)
+                .await
+                .unwrap();
 
         for hsm_group_details in hsm_groups_details.iter() {
             if hsm_group_details["members"]["ids"]
@@ -376,6 +391,7 @@ pub mod utils {
     pub async fn validate_config_hsm_group_and_hsm_group_accessed(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_group: Option<&String>,
         session_name: Option<&String>,
         cfs_sessions: &[Value],
@@ -384,6 +400,7 @@ pub mod utils {
             let hsm_group_details = crate::shasta::hsm::http_client::get_hsm_groups(
                 shasta_token,
                 shasta_base_url,
+                shasta_root_cert,
                 hsm_group,
             )
             .await

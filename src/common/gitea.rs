@@ -9,6 +9,7 @@ pub mod http_client {
         repo_url: &str,
         commitid: &str,
         gitea_token: &str,
+        shasta_root_cert: &[u8],
     ) -> core::result::Result<Value, Box<dyn std::error::Error>> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
@@ -28,7 +29,8 @@ pub mod http_client {
 
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -69,12 +71,14 @@ pub mod http_client {
         gitea_api_base_url: &str,
         repo_name: &str,
         gitea_token: &str,
+        shasta_root_cert: &[u8],
     ) -> core::result::Result<Value, Box<dyn std::error::Error>> {
         let repo_url = gitea_api_base_url.to_owned() + "/api/v1/repos" + repo_name + "/commits";
 
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -116,11 +120,18 @@ pub mod http_client {
         gitea_api_base_url: &str,
         repo_url: &str,
         gitea_token: &str,
+        shasta_root_cert: &[u8],
     ) -> core::result::Result<Value, Box<dyn std::error::Error>> {
         let repo_name = repo_url
             .trim_start_matches("https://api-gw-service-nmn.local/vcs/")
             .trim_end_matches(".git");
 
-        get_last_commit_from_repo_name(gitea_api_base_url, repo_name, gitea_token).await
+        get_last_commit_from_repo_name(
+            gitea_api_base_url,
+            repo_name,
+            gitea_token,
+            shasta_root_cert,
+        )
+        .await
     }
 }

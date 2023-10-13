@@ -13,6 +13,7 @@ pub struct ClusterDetails {
 pub async fn get_details(
     shasta_token: &str,
     shasta_base_url: &str,
+    shasta_root_cert: &[u8],
     cluster_name: &str,
 ) -> Vec<ClusterDetails> {
     let mut clusters_details = vec![];
@@ -21,6 +22,7 @@ pub async fn get_details(
     let hsm_groups = get_hsm_groups(
         shasta_token,
         shasta_base_url,
+        shasta_root_cert,
         Some(&cluster_name.to_string()),
     )
     .await
@@ -36,6 +38,7 @@ pub async fn get_details(
         let cfs_sessions_value_vec = crate::shasta::cfs::session::http_client::get(
             shasta_token,
             shasta_base_url,
+            shasta_root_cert,
             None,
             None,
             None,
@@ -85,6 +88,7 @@ pub async fn get_details(
                 let cfs_configuration_vec = configuration::http_client::get(
                     shasta_token,
                     shasta_base_url,
+                    shasta_root_cert,
                     Some(
                         &most_recent_cfs_session
                             .pointer("/configuration/name")

@@ -9,11 +9,16 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         is_succeded: Option<bool>,
     ) -> Result<Vec<GetResponse>, reqwest::Error> {
-        let cfs_session_response =
-            shasta::cfs::session::http_client::get_raw(shasta_token, shasta_base_url, is_succeded)
-                .await;
+        let cfs_session_response = shasta::cfs::session::http_client::get_raw(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            is_succeded,
+        )
+        .await;
 
         let cfs_session_response_value: Value = match cfs_session_response {
             Ok(cfs_session_value) => cfs_session_value.json().await.unwrap(),
@@ -44,6 +49,7 @@ pub mod utils {
     pub async fn filter(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         cfs_session_vec: &mut Vec<GetResponse>,
         hsm_group_name_opt: Option<&String>,
         cfs_session_name_opt: Option<&String>,
@@ -53,6 +59,7 @@ pub mod utils {
             let hsm_group_resp = crate::shasta::hsm::http_client::get_hsm_group(
                 shasta_token,
                 shasta_base_url,
+                shasta_root_cert,
                 hsm_group_name,
             )
             .await;

@@ -170,6 +170,7 @@ impl CfsConfiguration {
     pub async fn create_from_repos(
         gitea_token: &str,
         gitea_base_url: &str,
+        shasta_root_cert: &[u8],
         repos: Vec<PathBuf>,
         cfs_configuration_name: &String,
     ) -> Self {
@@ -213,6 +214,7 @@ impl CfsConfiguration {
                 // &format!("/cray/{}", repo_name),
                 &local_last_commit.id().to_string(),
                 gitea_token,
+                shasta_root_cert,
             )
             .await;
 

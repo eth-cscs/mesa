@@ -132,6 +132,7 @@ pub fn validate_xname_format(xname: &str) -> bool {
 pub async fn validate_xnames(
     shasta_token: &str,
     shasta_base_url: &str,
+    shasta_root_cert: &[u8],
     xnames: &[&str],
     hsm_group_name: Option<&String>,
 ) -> bool {
@@ -139,6 +140,7 @@ pub async fn validate_xnames(
         crate::shasta::hsm::http_client::get_hsm_group(
             shasta_token,
             shasta_base_url,
+            shasta_root_cert,
             hsm_group_name.unwrap(),
         )
         .await

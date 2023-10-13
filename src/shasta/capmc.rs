@@ -64,6 +64,7 @@ pub mod http_client {
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
+            shasta_root_cert: &[u8],
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
@@ -74,7 +75,8 @@ pub mod http_client {
 
             let client;
 
-            let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
             // Build client
             if std::env::var("SOCKS5").is_ok() {
@@ -111,6 +113,7 @@ pub mod http_client {
         pub async fn post_sync(
             shasta_token: &str,
             shasta_base_url: &str,
+            shasta_root_cert: &[u8],
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
@@ -120,6 +123,7 @@ pub mod http_client {
             let capmc_shutdown_nodes_resp = post(
                 shasta_token,
                 shasta_base_url,
+                shasta_root_cert,
                 xname_list.clone(),
                 reason,
                 force,
@@ -132,6 +136,7 @@ pub mod http_client {
             let mut nodes_status_resp = hsm::http_client::get_components_status(
                 shasta_token,
                 shasta_base_url,
+                shasta_root_cert,
                 xname_list.clone(),
             )
             .await;
@@ -159,6 +164,7 @@ pub mod http_client {
                 nodes_status_resp = hsm::http_client::get_components_status(
                     shasta_token,
                     shasta_base_url,
+                    shasta_root_cert,
                     xname_list.clone(),
                 )
                 .await;
@@ -182,6 +188,7 @@ pub mod http_client {
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
+            shasta_root_cert: &[u8],
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
@@ -192,7 +199,8 @@ pub mod http_client {
 
             let client;
 
-            let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
             // Build client
             if std::env::var("SOCKS5").is_ok() {
@@ -237,6 +245,7 @@ pub mod http_client {
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
+            shasta_root_cert: &[u8],
             reason: Option<&String>,
             xnames: Vec<String>,
             force: bool,
@@ -247,7 +256,8 @@ pub mod http_client {
 
             let client;
 
-            let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
             // Build client
             if std::env::var("SOCKS5").is_ok() {
@@ -292,6 +302,7 @@ pub mod http_client {
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
+            shasta_root_cert: &[u8],
             xnames: &Vec<String>,
         ) -> core::result::Result<Value, Box<dyn Error>> {
             log::info!("Checking nodes status: {:?}", xnames);
@@ -301,7 +312,8 @@ pub mod http_client {
 
             let client;
 
-            let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
             // Build client
             if std::env::var("SOCKS5").is_ok() {

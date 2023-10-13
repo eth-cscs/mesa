@@ -8,11 +8,13 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         username_opt: Option<&str>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -61,11 +63,19 @@ pub mod http_client {
     pub async fn get_single(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         username_opt: Option<&str>,
     ) -> Option<Value> {
-        if let Ok(public_key_value_list) = get(shasta_token, shasta_base_url, username_opt).await {
+        if let Ok(public_key_value_list) = get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            username_opt,
+        )
+        .await
+        {
             if public_key_value_list.len() == 1 {
-                return public_key_value_list.first().cloned()
+                return public_key_value_list.first().cloned();
             };
         }
 

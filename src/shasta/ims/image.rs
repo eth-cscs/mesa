@@ -11,13 +11,15 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_group_name_opt: Option<&String>,
         image_id_opt: Option<&str>,
         limit_number: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -50,7 +52,7 @@ pub mod http_client {
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
-        let mut image_value_vec:Vec<Value> = if image_id_opt.is_some() {
+        let mut image_value_vec: Vec<Value> = if image_id_opt.is_some() {
             [json_response].to_vec()
         } else {
             json_response
@@ -91,11 +93,13 @@ pub mod http_client {
     pub async fn delete(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         image_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {

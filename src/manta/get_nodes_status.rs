@@ -17,6 +17,7 @@ pub struct NodeDetails {
 pub async fn exec(
     shasta_token: &str,
     shasta_base_url: &str,
+    shasta_root_cert: &[u8],
     hsm_groups_node_list: Vec<String>,
 ) -> Vec<NodeDetails> {
     let chunk_size = 30;
@@ -28,6 +29,7 @@ pub async fn exec(
     for sub_node_list in hsm_groups_node_list.chunks(chunk_size) {
         let shasta_token_string = shasta_token.to_string();
         let shasta_base_url_string = shasta_base_url.to_string();
+        let shata_root_cert_vec = shasta_root_cert.to_vec();
 
         let hsm_subgroup_nodes_string: String = sub_node_list.join(",");
 
@@ -35,6 +37,7 @@ pub async fn exec(
             shasta::cfs::component::http_client::get_multiple_components(
                 &shasta_token_string,
                 &shasta_base_url_string,
+                &shata_root_cert_vec,
                 Some(&hsm_subgroup_nodes_string),
                 None,
             )
@@ -64,6 +67,7 @@ pub async fn exec(
     let nodes_boot_params_list = shasta::bss::http_client::get_boot_params(
         shasta_token,
         shasta_base_url,
+        &shasta_root_cert,
         &hsm_groups_node_list,
     )
     .await
@@ -77,6 +81,7 @@ pub async fn exec(
     let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
         shasta_token,
         shasta_base_url,
+        &shasta_root_cert,
         None,
         None,
         // None,
@@ -93,6 +98,7 @@ pub async fn exec(
     let nodes_hsm_info_resp = hsm::http_client::get_components_status(
         shasta_token,
         shasta_base_url,
+        &shasta_root_cert,
         hsm_groups_node_list.clone(),
     )
     .await
@@ -200,6 +206,7 @@ pub async fn exec(
     let nodes_boot_params_list = shasta::bss::http_client::get_boot_params(
         shasta_token,
         shasta_base_url,
+        &shasta_root_cert,
         &hsm_groups_node_list,
     )
     .await
@@ -213,6 +220,7 @@ pub async fn exec(
     let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
         shasta_token,
         shasta_base_url,
+        &shasta_root_cert,
         None,
         None,
         // None,
@@ -229,6 +237,7 @@ pub async fn exec(
     let nodes_hsm_info_resp = hsm::http_client::get_components_status(
         shasta_token,
         shasta_base_url,
+        &shasta_root_cert,
         hsm_groups_node_list.clone(),
     )
     .await

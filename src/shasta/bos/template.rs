@@ -266,22 +266,15 @@ pub mod http_client {
     pub async fn post(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         bos_template: &BosTemplate,
     ) -> Result<Value, Box<dyn std::error::Error>> {
         log::debug!("Bos template:\n{:#?}", bos_template);
 
-        // // socks5 proxy
-        // let socks5proxy = reqwest::Proxy::all("socks5h://127.0.0.1:1080")?;
-
-        // // rest client create new cfs sessions
-        // let client = reqwest::Client::builder()
-        //     .danger_accept_invalid_certs(true)
-        //     .proxy(socks5proxy)
-        //     .build()?;
-
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -317,6 +310,7 @@ pub mod http_client {
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_group_name: Option<&String>,
         bos_template_name: Option<&String>,
         limit_number: Option<&u8>,
@@ -327,7 +321,8 @@ pub mod http_client {
 
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -403,6 +398,7 @@ pub mod http_client {
     pub async fn get_for_multiple_hsm_groups(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         hsm_groups_names: Vec<String>,
         nodes: Vec<String>,
         bos_template_name: Option<&String>,
@@ -412,7 +408,8 @@ pub mod http_client {
 
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -484,11 +481,13 @@ pub mod http_client {
     pub async fn delete(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         bos_template_id: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -523,8 +522,10 @@ pub mod http_client {
     pub async fn get_raw(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
     ) -> Result<reqwest::Response, reqwest::Error> {
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
@@ -553,8 +554,6 @@ pub mod utils {
 
     use comfy_table::Table;
     use serde_json::Value;
-
-    use crate::mesa::bos::sessiontemplate::SessionTemplate;
 
     pub fn check_hsms_or_xnames_belongs_to_bos_sessiontemplate(
         bos_sessiontemplate: &Value,

@@ -47,11 +47,13 @@ pub mod http_client {
     pub async fn get_single_component(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         component_id: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -84,6 +86,7 @@ pub mod http_client {
     pub async fn get_multiple_components(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         components_ids: Option<&str>,
         status: Option<&str>,
         // enabled: Option<bool>,
@@ -93,7 +96,8 @@ pub mod http_client {
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -131,11 +135,13 @@ pub mod http_client {
     pub async fn patch_component(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         component: Component,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -173,11 +179,13 @@ pub mod http_client {
     pub async fn patch_component_list(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         component_list: Vec<Component>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -214,11 +222,13 @@ pub mod http_client {
     pub async fn delete_single_component(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         component_id: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
 
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
         if std::env::var("SOCKS5").is_ok() {
@@ -255,9 +265,10 @@ pub mod utils {
     pub async fn update_component_desired_configuration(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xname: &str,
         desired_configuration: &str,
-        enabled: bool
+        enabled: bool,
     ) {
         let component = Component {
             id: Some(xname.to_string()),
@@ -272,6 +283,7 @@ pub mod utils {
         let _ = crate::shasta::cfs::component::http_client::patch_component(
             shasta_token,
             shasta_base_url,
+            shasta_root_cert,
             component,
         )
         .await;
@@ -280,9 +292,10 @@ pub mod utils {
     pub async fn update_component_list_desired_configuration(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         xnames: Vec<String>,
         desired_configuration: &str,
-        enabled: bool
+        enabled: bool,
     ) {
         let mut component_list = Vec::new();
 
@@ -303,6 +316,7 @@ pub mod utils {
         let _ = crate::shasta::cfs::component::http_client::patch_component_list(
             shasta_token,
             shasta_base_url,
+            shasta_root_cert,
             component_list,
         )
         .await;
@@ -314,13 +328,15 @@ mod tests {
     #[tokio::test]
     async fn update_desired_configuration() {
         let token = "--REDACTED--";
+        let shasta_root_cert = "--REDACTED--".as_bytes();
 
         super::utils::update_component_desired_configuration(
             token,
             "https://api.cmn.alps.cscs.ch/apis",
+            shasta_root_cert,
             "x1001c1s5b1n1",
             "test!",
-            true
+            true,
         )
         .await;
     }

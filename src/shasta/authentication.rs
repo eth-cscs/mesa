@@ -15,6 +15,7 @@ use termion::color;
 ///      --> https://cray-hpe.github.io/docs-csm/en-12/operations/security_and_authentication/retrieve_an_authentication_token/
 pub async fn get_api_token(
     shasta_base_url: &str,
+    shasta_root_cert: &[u8],
     keycloak_base_url: &str,
 ) -> Result<String, Box<dyn Error>> {
     let mut shasta_token: String;
@@ -35,7 +36,7 @@ pub async fn get_api_token(
 
             shasta_token = value;
 
-            if is_token_valid(shasta_base_url, &shasta_token).await? {
+            if is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert).await? {
                 return Ok(shasta_token);
             } else {
                 return Err("Authentication unsucessful".into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
@@ -59,7 +60,7 @@ pub async fn get_api_token(
         String::new()
     };
 
-    while !is_token_valid(shasta_base_url, &shasta_token)
+    while !is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert)
         .await
         .unwrap()
         && attempts < 3
@@ -72,7 +73,7 @@ pub async fn get_api_token(
         let username: String = Input::new().with_prompt("username").interact_text()?;
         let password = Password::new().with_prompt("password").interact()?;
 
-        match get_token_from_shasta_endpoint(keycloak_base_url, &username, &password).await {
+        match get_token_from_shasta_endpoint(keycloak_base_url, shasta_root_cert, &username, &password).await {
             Ok(shasta_token_aux) => {
                 log::debug!("Shasta token received");
                 file = File::create(&path).expect("Error encountered while creating file!");
@@ -108,10 +109,12 @@ pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, Box<d
 pub async fn is_token_valid(
     shasta_base_url: &str,
     shasta_token: &str,
+    shasta_root_cert: &[u8],
 ) -> Result<bool, Box<dyn Error>> {
     let client;
 
-    let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+    let client_builder = reqwest::Client::builder()
+        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
     if std::env::var("SOCKS5").is_ok() {
@@ -153,6 +156,7 @@ pub async fn is_token_valid(
 
 pub async fn get_token_from_shasta_endpoint(
     keycloak_base_url: &str,
+    shasta_root_cert: &[u8],
     username: &str,
     password: &str,
 ) -> Result<String, Box<dyn Error>> {
@@ -166,7 +170,7 @@ pub async fn get_token_from_shasta_endpoint(
 
     let client;
 
-    let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+    let client_builder = reqwest::Client::builder().add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
     if std::env::var("SOCKS5").is_ok() {
