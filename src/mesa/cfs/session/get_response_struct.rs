@@ -6,7 +6,7 @@ pub struct GetResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub configuration: Option<String>,
+    pub configuration: Option<Configuration>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ansible: Option<Ansible>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -15,6 +15,14 @@ pub struct GetResponse {
     pub status: Option<Status>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Configuration {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -87,25 +95,34 @@ pub struct Tag {
 
 impl GetResponse {
     pub fn from_csm_api_json(session_value: Value) -> Self {
+        let configuration = Configuration {
+            name: session_value
+                .pointer("/configuration/name")
+                .and_then(|value| Some(value.as_str().unwrap().to_string())),
+            limit: session_value
+                .pointer("/configuration/limit")
+                .and_then(|value| Some(value.as_str().unwrap().to_string())),
+        };
+
         let ansible = Ansible {
             config: session_value
                 .pointer("/ansible/config")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .and_then(|value| Some(value.as_str().unwrap().to_string())),
             limit: session_value
                 .pointer("/ansible/limit")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .and_then(|value| Some(value.as_str().unwrap().to_string())),
             verbosity: session_value
                 .pointer("/ansible/verbosity")
-                .map(|str| str.as_u64().unwrap()),
+                .and_then(|str| Some(str.as_u64().unwrap())),
             passthrough: session_value
                 .pointer("/ansible/passthrough")
-                .map(|value| value.as_str().unwrap().to_string()),
+                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
         };
 
         let mut group_vec = Vec::new();
 
         if let Some(group_vec_value) = session_value.pointer("/target/groups") {
-            for group_value in group_vec_value.as_array().unwrap() {
+            for group_value in group_vec_value.as_array().unwrap_or(&Vec::new()) {
                 let group = Group {
                     name: group_value["name"].as_str().map(|str| str.to_string()),
                     members: Some(
@@ -150,19 +167,19 @@ impl GetResponse {
 
         let session = Session {
             job: session_value
-                .get("/status/session/job")
+                .pointer("/status/session/job")
                 .map(|value| value.as_str().unwrap().to_string()),
             completion_time: session_value
-                .get("/status/session/completionTime")
+                .pointer("/status/session/completionTime")
                 .map(|value| value.as_str().unwrap().to_string()),
             start_time: session_value
-                .get("/status/session/startTime")
+                .pointer("/status/session/startTime")
                 .map(|value| value.as_str().unwrap().to_string()),
             status: session_value
-                .get("/status/session/status")
+                .pointer("/status/session/status")
                 .map(|value| value.as_str().unwrap().to_string()),
             succeeded: session_value
-                .get("/status/session/succeeded")
+                .pointer("/status/session/succeeded")
                 .map(|value| value.as_str().unwrap().to_string()),
         };
 
@@ -186,9 +203,7 @@ impl GetResponse {
 
         let session = GetResponse {
             name: session_value["name"].as_str().map(|str| str.to_string()),
-            configuration: session_value
-                .get("configuration")
-                .map(|configuration_value| configuration_value.as_str().unwrap().to_string()),
+            configuration: Some(configuration),
             ansible: Some(ansible),
             target: Some(target),
             status: Some(status),
