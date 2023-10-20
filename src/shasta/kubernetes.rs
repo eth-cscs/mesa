@@ -297,7 +297,7 @@ pub async fn get_container_logs_stream(
     let max = 300;
 
     // Waiting for container ansible-x to start
-    while container_state.as_ref().unwrap().waiting.is_some() && i <= max {
+    while container_state.as_ref().is_none() || container_state.as_ref().unwrap().waiting.is_some() && i <= max {
         format!(
             "\nWaiting for container {} to be ready. Checking again in 2 secs. Attempt {} of {}\n",
             cfs_session_layer_container.name,
@@ -430,9 +430,8 @@ fn get_container_state(
         .unwrap()
         .container_statuses
         .as_ref()
-        .unwrap()
-        .iter()
-        .find(|container_status| container_status.name.eq(container_name));
+        .and_then(|status_vec| status_vec.iter()
+        .find(|container_status| container_status.name.eq(container_name)));
 
     match container_status {
         Some(container_status_aux) => container_status_aux.state.clone(),
