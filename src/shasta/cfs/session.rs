@@ -354,7 +354,7 @@ pub mod http_client {
             log::debug!("{:#?}", resp);
             Ok(())
         } else {
-            log::error!("{:#?}", resp);
+            log::debug!("{:#?}", resp);
             Err(resp.json::<Value>().await?["detail"]
                 .as_str()
                 .unwrap()

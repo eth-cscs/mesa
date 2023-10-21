@@ -513,7 +513,7 @@ pub mod http_client {
             log::debug!("{:#?}", resp);
             Ok(())
         } else {
-            log::error!("{:#?}", resp);
+            log::debug!("{:#?}", resp);
             Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }

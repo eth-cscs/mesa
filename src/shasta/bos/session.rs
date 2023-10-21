@@ -82,7 +82,7 @@ pub mod http_client {
             log::debug!("{:#?}", resp);
             serde_json::from_str(&resp.text().await?)?
         } else {
-            log::error!("{:#?}", resp);
+            log::debug!("{:#?}", resp);
             // let resp_body = resp.text().await?;
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
@@ -126,7 +126,7 @@ pub mod http_client {
             log::debug!("{:#?}", resp);
             serde_json::from_str(&resp.text().await?)?
         } else {
-            log::error!("{:#?}", resp);
+            log::debug!("{:#?}", resp);
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
