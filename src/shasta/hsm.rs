@@ -460,6 +460,8 @@ pub mod utils {
                         processor
                             .pointer("/PopulatedFRU/ProcessorFRUInfo/Model")
                             .unwrap()
+                            .as_str()
+                            .unwrap()
                             .to_string()
                     })
                     .collect::<Vec<String>>()
@@ -478,6 +480,28 @@ pub mod utils {
                         accelerator
                             .pointer("/PopulatedFRU/NodeAccelFRUInfo/Model")
                             .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string()
+                    })
+                    .collect::<Vec<String>>()
+            })
+    }
+
+    pub fn get_list_hsn_nics_model_from_hw_inventory_value(
+        hw_inventory: &Value,
+    ) -> Option<Vec<String>> {
+        hw_inventory["Nodes"].as_array().unwrap().first().unwrap()["NodeHsnNics"]
+            .as_array()
+            .map(|hsn_nic_list| {
+                hsn_nic_list
+                    .iter()
+                    .map(|hsn_nic| {
+                        hsn_nic
+                            .pointer("/NodeHsnNicLocationInfo/Description")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
                             .to_string()
                     })
                     .collect::<Vec<String>>()
@@ -495,6 +519,8 @@ pub mod utils {
                     .map(|memory| {
                         memory
                             .pointer("/PopulatedFRU/MemoryFRUInfo/CapacityMiB")
+                            .unwrap()
+                            .as_str()
                             .unwrap()
                             .to_string()
                     })
