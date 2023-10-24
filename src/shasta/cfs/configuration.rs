@@ -77,19 +77,17 @@ impl CfsConfiguration {
                 let repo_url = layer_yaml["git"]["url"].as_str().unwrap().to_string();
                 let layer = Layer::new(
                     repo_url,
-                    // Some(layer_json["git"]["commit"].as_str().unwrap_or_default().to_string()),
-                    None,
+                    layer_yaml["git"]["commit"]
+                        .as_str()
+                        .and_then(|commit| Some(commit.to_string())),
                     repo_name,
                     layer_yaml["playbook"]
                         .as_str()
                         .unwrap_or_default()
                         .to_string(),
-                    Some(
-                        layer_yaml["git"]["branch"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .to_string(),
-                    ),
+                    layer_yaml["git"]["branch"]
+                        .as_str()
+                        .and_then(|branch| Some(branch.to_string())),
                 );
                 cfs_configuration.add_layer(layer);
             } else {
