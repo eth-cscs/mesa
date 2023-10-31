@@ -15,7 +15,7 @@ use termion::color;
 ///      --> https://cray-hpe.github.io/docs-csm/en-12/operations/security_and_authentication/retrieve_an_authentication_token/
 pub async fn get_api_token(
     shasta_base_url: &str,
-    shasta_root_cert: &Vec<u8>,
+    shasta_root_cert: &[u8],
     keycloak_base_url: &str,
 ) -> Result<String, Box<dyn Error>> {
     let mut shasta_token: String;

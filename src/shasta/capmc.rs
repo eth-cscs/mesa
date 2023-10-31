@@ -146,6 +146,7 @@ pub mod http_client {
             // Check all nodes are OFF
             let mut i = 0;
             let max = 60;
+            let delay_secs = 3;
             while i <= max
                 && !nodes_status_resp.as_ref().unwrap()["Components"]
                     .as_array()
@@ -154,11 +155,12 @@ pub mod http_client {
                     .all(|node| node["State"].as_str().unwrap().to_string().eq("Off"))
             {
                 print!(
-                    "\rWaiting nodes to shutdown. Trying again in 2 seconds. Attempt {} of {}",
+                    "\rWaiting nodes to shutdown. Trying again in {} seconds. Attempt {} of {}",
+                    delay_secs,
                     i + 1,
                     max
                 );
-                thread::sleep(time::Duration::from_secs(2));
+                thread::sleep(time::Duration::from_secs(delay_secs));
                 i += 1;
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
                 nodes_status_resp = hsm::http_client::get_components_status(

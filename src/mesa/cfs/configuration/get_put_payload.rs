@@ -29,12 +29,13 @@ pub struct AdditionalInventory {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
-pub struct CfsConfiguration {
+pub struct CfsConfigurationResponse {
     pub name: String,
-    #[serde(rename = "lastUpdate")]
-    pub last_update: String,
+    #[serde(rename = "lastUpdated")]
+    pub last_updated: String,
     pub layers: Vec<Layer>,
-    pub additional_inventory: AdditionalInventory,
+    #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
+    pub additional_inventory: Option<AdditionalInventory>,
 }
 
 impl Layer {
@@ -90,19 +91,19 @@ impl AdditionalInventory {
     }
 }
 
-impl Default for CfsConfiguration {
+impl Default for CfsConfigurationResponse {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CfsConfiguration {
+impl CfsConfigurationResponse {
     pub fn new() -> Self {
         Self {
             name: String::default(),
-            last_update: String::default(),
+            last_updated: String::default(),
             layers: Vec::default(),
-            additional_inventory: AdditionalInventory::default(),
+            additional_inventory: None,
         }
     }
 
@@ -175,7 +176,7 @@ impl CfsConfiguration {
         cfs_configuration_name: &String,
     ) -> Self {
         // Create CFS configuration
-        let mut cfs_configuration = CfsConfiguration::new();
+        let mut cfs_configuration = CfsConfigurationResponse::new();
         cfs_configuration.name = cfs_configuration_name.to_string();
 
         for repo_path in &repos {
@@ -249,7 +250,7 @@ impl CfsConfiguration {
                 None,
             );
 
-            CfsConfiguration::add_layer(&mut cfs_configuration, cfs_layer);
+            CfsConfigurationResponse::add_layer(&mut cfs_configuration, cfs_layer);
         }
 
         cfs_configuration

@@ -356,17 +356,19 @@ pub async fn get_cfs_session_logs_stream(
 
     let mut i = 0;
     let max = 300;
+    let delay_secs = 2;
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
         format!(
-            "\nPod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}\n",
+            "\nPod for cfs session {} not ready. Trying again in {} secs. Attempt {} of {}\n",
+            delay_secs,
             cfs_session_name,
             i + 1,
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        thread::sleep(time::Duration::from_secs(delay_secs));
         pods = pods_api.list(&params).await?;
     }
 

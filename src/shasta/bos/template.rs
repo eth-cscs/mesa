@@ -93,7 +93,7 @@ pub struct Cfs {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BosTemplate {
+pub struct BosTemplateRequest {
     pub name: String,
     #[serde(rename = "templateUrl")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,7 +144,7 @@ pub struct Component {
     pub error: Option<String>,
 }
 
-impl BosTemplate {
+impl BosTemplateRequest {
     /* pub fn from_sat_file_serde_yaml(bos_template_yaml: &serde_yaml::Value) -> Self {
 
         BosTemplate
@@ -189,7 +189,7 @@ impl BosTemplate {
             compute: Some(compute_property),
         };
 
-        crate::shasta::bos::template::BosTemplate {
+        crate::shasta::bos::template::BosTemplateRequest {
             name: bos_session_template_name,
             template_url: None,
             description: None,
@@ -242,7 +242,7 @@ impl BosTemplate {
             compute: Some(compute_property),
         };
 
-        crate::shasta::bos::template::BosTemplate {
+        crate::shasta::bos::template::BosTemplateRequest {
             name: bos_session_template_name,
             template_url: None,
             description: None,
@@ -261,13 +261,13 @@ pub mod http_client {
 
     use serde_json::Value;
 
-    use super::{utils::check_hsms_or_xnames_belongs_to_bos_sessiontemplate, BosTemplate};
+    use super::{utils::check_hsms_or_xnames_belongs_to_bos_sessiontemplate, BosTemplateRequest};
 
     pub async fn post(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        bos_template: &BosTemplate,
+        bos_template: &BosTemplateRequest,
     ) -> Result<Value, Box<dyn std::error::Error>> {
         log::debug!("Bos template:\n{:#?}", bos_template);
 

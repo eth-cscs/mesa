@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetResponse {
+pub struct CfsSessionGetResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,7 +93,7 @@ pub struct Tag {
     pub value: String,
 }
 
-impl GetResponse {
+impl CfsSessionGetResponse {
     pub fn from_csm_api_json(session_value: Value) -> Self {
         let configuration = Configuration {
             name: session_value
@@ -201,7 +201,7 @@ impl GetResponse {
             }
         }
 
-        let session = GetResponse {
+        let session = CfsSessionGetResponse {
             name: session_value["name"].as_str().map(|str| str.to_string()),
             configuration: Some(configuration),
             ansible: Some(ansible),

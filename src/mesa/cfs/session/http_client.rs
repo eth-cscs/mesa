@@ -2,7 +2,10 @@ pub mod http_client {
 
     use serde_json::Value;
 
-    use crate::{mesa::cfs::session::get_response_struct::GetResponse, shasta};
+    use crate::{
+        mesa::cfs::session::get_response_struct::CfsSessionGetResponse,
+        shasta::{self, cfs::session::CfsSessionRequest},
+    };
 
     /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
     /// Returns list of CFS sessions ordered by start time
@@ -11,7 +14,7 @@ pub mod http_client {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         is_succeded: Option<bool>,
-    ) -> Result<Vec<GetResponse>, reqwest::Error> {
+    ) -> Result<Vec<CfsSessionGetResponse>, reqwest::Error> {
         let cfs_session_response = shasta::cfs::session::http_client::get_raw(
             shasta_token,
             shasta_base_url,
@@ -29,13 +32,41 @@ pub mod http_client {
 
         if cfs_session_response_value.is_array() {
             for cfs_session_value in cfs_session_response_value.as_array().unwrap() {
-                cfs_session_vec.push(GetResponse::from_csm_api_json(cfs_session_value.clone()));
+                cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
+                    cfs_session_value.clone(),
+                ));
             }
         } else {
-            cfs_session_vec.push(GetResponse::from_csm_api_json(cfs_session_response_value));
+            cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
+                cfs_session_response_value,
+            ));
         }
 
         Ok(cfs_session_vec)
+    }
+
+    pub async fn post(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        session: &CfsSessionRequest,
+    ) -> Result<CfsSessionGetResponse, reqwest::Error> {
+        let cfs_session_response = shasta::cfs::session::http_client::post_raw(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            session,
+        )
+        .await;
+
+        let cfs_session_response_value: Value = match cfs_session_response {
+            Ok(cfs_session_value) => cfs_session_value.json().await.unwrap(),
+            Err(error) => return Err(error),
+        };
+
+        Ok(CfsSessionGetResponse::from_csm_api_json(
+            cfs_session_response_value,
+        ))
     }
 }
 
@@ -44,17 +75,17 @@ pub mod utils {
 
     use termion::color;
 
-    use crate::{mesa::cfs::session::get_response_struct::GetResponse, shasta};
+    use crate::{mesa::cfs::session::get_response_struct::CfsSessionGetResponse, shasta};
 
     pub async fn filter(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        cfs_session_vec: &mut Vec<GetResponse>,
+        cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
         hsm_group_name_opt: Option<&String>,
         cfs_session_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
-    ) -> Vec<GetResponse> {
+    ) -> Vec<CfsSessionGetResponse> {
         if let Some(hsm_group_name) = hsm_group_name_opt {
             let hsm_group_resp = crate::shasta::hsm::http_client::get_hsm_group(
                 shasta_token,
@@ -173,7 +204,7 @@ async fn test_cfs_session_serde_json_to_struct_conversion() {
     });
 
     let cfs_session =
-        crate::mesa::cfs::session::get_response_struct::GetResponse::from_csm_api_json(
+        crate::mesa::cfs::session::get_response_struct::CfsSessionGetResponse::from_csm_api_json(
             cfs_session_value,
         );
 

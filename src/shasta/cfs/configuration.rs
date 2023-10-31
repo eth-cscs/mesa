@@ -22,7 +22,7 @@ pub struct Layer {
 }
 
 #[derive(Debug, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
-pub struct CfsConfiguration {
+pub struct CfsConfigurationRequest {
     pub name: String,
     pub layers: Vec<Layer>,
 }
@@ -45,13 +45,13 @@ impl Layer {
     }
 }
 
-impl Default for CfsConfiguration {
+impl Default for CfsConfigurationRequest {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CfsConfiguration {
+impl CfsConfigurationRequest {
     pub fn new() -> Self {
         Self {
             name: String::default(),
@@ -126,7 +126,7 @@ impl CfsConfiguration {
         cfs_configuration_name: &String,
     ) -> Self {
         // Create CFS configuration
-        let mut cfs_configuration = configuration::CfsConfiguration::new();
+        let mut cfs_configuration = configuration::CfsConfigurationRequest::new();
         cfs_configuration.name = cfs_configuration_name.to_string();
 
         for repo_path in &repos {
@@ -200,7 +200,7 @@ impl CfsConfiguration {
                 None,
             );
 
-            CfsConfiguration::add_layer(&mut cfs_configuration, cfs_layer);
+            CfsConfigurationRequest::add_layer(&mut cfs_configuration, cfs_layer);
         }
 
         cfs_configuration
@@ -216,14 +216,14 @@ pub mod http_client {
 
     use std::error::Error;
 
-    use super::CfsConfiguration;
+    use super::CfsConfigurationRequest;
     use serde_json::Value;
 
     pub async fn put(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        configuration: &CfsConfiguration,
+        configuration: &CfsConfigurationRequest,
         configuration_name: &str,
     ) -> Result<Value, Box<dyn Error>> {
         let client;
@@ -396,8 +396,6 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        // hsm_group_name: Option<&String>,
-        configuration_name: Option<&String>,
     ) -> Result<reqwest::Response, reqwest::Error> {
         let client_builder = reqwest::Client::builder()
             .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -417,6 +415,43 @@ pub mod http_client {
         let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations";
 
         let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
+
+        match network_response_rslt {
+            Ok(http_response) => http_response.error_for_status(),
+            Err(network_error) => Err(network_error),
+        }
+    }
+
+    pub async fn put_raw(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        configuration: &CfsConfigurationRequest,
+        configuration_name: &str,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+            // rest client to authenticate
+            client_builder.proxy(socks5proxy).build()?
+        } else {
+            client_builder.build()?
+        };
+
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations/" + configuration_name;
+
+        let network_response_rslt = client
+            .put(api_url)
+            .json(&serde_json::json!({"layers": configuration.layers})) // Encapsulating configuration.layers
+            .bearer_auth(shasta_token)
+            .send()
+            .await;
 
         match network_response_rslt {
             Ok(http_response) => http_response.error_for_status(),

@@ -29,7 +29,7 @@ impl Default for Target {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CfsSession {
+pub struct CfsSessionRequest {
     pub name: String,
     #[serde(rename = "configurationName")]
     pub configuration_name: String,
@@ -56,7 +56,7 @@ pub struct CfsSession {
     pub base_image_id: Option<String>,
 }
 
-impl Default for CfsSession {
+impl Default for CfsSessionRequest {
     fn default() -> Self {
         Self {
             name: String::default(),
@@ -73,7 +73,7 @@ impl Default for CfsSession {
     }
 }
 
-impl CfsSession {
+impl CfsSessionRequest {
     pub fn new(
         name: String,
         configuration_name: String,
@@ -121,7 +121,7 @@ impl CfsSession {
             .map(|group_name| group_name.as_str().unwrap().to_string())
             .collect();
 
-        let cfs_session = crate::shasta::cfs::session::CfsSession::new(
+        let cfs_session = crate::shasta::cfs::session::CfsSessionRequest::new(
             session_yaml["name"].as_str().unwrap().to_string(),
             session_yaml["configuration"].as_str().unwrap().to_string(),
             None,
@@ -140,7 +140,7 @@ pub mod http_client {
 
     use crate::shasta;
 
-    use super::CfsSession;
+    use super::CfsSessionRequest;
     use serde_json::Value;
     use std::collections::HashSet;
     use std::error::Error;
@@ -151,7 +151,7 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        session: &CfsSession,
+        session: &CfsSessionRequest,
     ) -> Result<Value, Box<dyn Error>> {
         log::debug!("Session:\n{:#?}", session);
 
@@ -397,6 +397,45 @@ pub mod http_client {
             .get(api_url)
             .query(&request_payload)
             .bearer_auth(shasta_token)
+            .send()
+            .await;
+
+        match network_response_rslt {
+            Ok(http_response) => http_response.error_for_status(),
+            Err(network_error) => Err(network_error),
+        }
+    }
+
+    pub async fn post_raw(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        session: &CfsSessionRequest,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        log::debug!("Session:\n{:#?}", session);
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+            // rest client to authenticate
+            client_builder.proxy(socks5proxy).build()?
+        } else {
+            client_builder.build()?
+        };
+
+        let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+
+        let network_response_rslt = client
+            .post(api_url)
+            // .post(format!("{}{}", shasta_base_url, "/cfs/v2/sessions"))
+            .bearer_auth(shasta_token)
+            .json(&session)
             .send()
             .await;
 
