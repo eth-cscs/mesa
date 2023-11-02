@@ -226,22 +226,20 @@ pub mod http_client {
         configuration: &CfsConfigurationRequest,
         configuration_name: &str,
     ) -> Result<Value, Box<dyn Error>> {
-        let client;
-
         let client_builder = reqwest::Client::builder()
             .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
         // Build client
-        if std::env::var("SOCKS5").is_ok() {
+        let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
             // socks5 proxy
             log::debug!("SOCKS5 enabled");
-            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+            let socks5proxy = reqwest::Proxy::all(socks5_env)?;
 
             // rest client to authenticate
-            client = client_builder.proxy(socks5proxy).build()?;
+            client_builder.proxy(socks5proxy).build()?
         } else {
-            client = client_builder.build()?;
-        }
+            client_builder.build()?
+        };
 
         let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations/" + configuration_name;
 

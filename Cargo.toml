@@ -35,7 +35,7 @@ rustls-pemfile = "1.0.3"
 # https://github.com/kube-rs/kube-rs/discussions/1012 and https://crates.io/crates/hyper-socks2
 hyper-socks2 = { version = "0.8.0", default-features = false, features = ["rustls"] } # needed by kube-rs (to operate with kube api) 
 hyper = { version = "0.14", features = ["full"] } # needed by kube-rs (to operate with kube api)
-hyper-rustls = "0.24.0" # used by kube-rs to configure client with socks proxy
+hyper-rustls = { version = "0.24.0", features = ["webpki-roots"] } # used by kube-rs to configure client with socks proxy
 # hyper-tls = "0.5.0" # needed by kube-rs (to operate with kube api) -- REMOVE ???
 tower = "0.4.13"
 # native-tls = "0.2.10"
@@ -60,6 +60,11 @@ termion = "2.0.1" # used by manta_console to enable terminal raw
 dhat = "0.3.2"
 base64 = "0.13.1"
 jsonwebtoken = "8.3.0"
+aws-sdk-s3 = "0.34.0" # used to download IMS images from S3 endpoint
+aws-config = "0.56.1" # used to configure the http connector to s3 endpoint with socks5 and CSM CA root
+aws-smithy-client = "0.56.1"
+# aws-smithy-runtime-api = "0.56.1"
+# aws-smithy-runtime = "0.56.1"
 
 [build-dependencies]
 clap = "4.0.32"
