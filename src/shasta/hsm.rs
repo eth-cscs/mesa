@@ -95,19 +95,19 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        hsm_group_name: Option<&String>,
+        hsm_group_name_opt: Option<&String>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let json_response =
             get_all_hsm_groups(shasta_token, shasta_base_url, shasta_root_cert).await?;
 
         let mut hsm_groups: Vec<Value> = Vec::new();
 
-        if hsm_group_name.is_some() {
+        if let Some(hsm_group_name) = hsm_group_name_opt {
             for hsm_group in json_response {
                 if hsm_group["label"]
                     .as_str()
                     .unwrap()
-                    .contains(hsm_group_name.unwrap())
+                    .contains(hsm_group_name)
                 {
                     hsm_groups.push(hsm_group.clone());
                 }

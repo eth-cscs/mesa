@@ -134,14 +134,14 @@ pub async fn validate_xnames(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     xnames: &[&str],
-    hsm_group_name: Option<&String>,
+    hsm_group_name_opt: Option<&String>,
 ) -> bool {
-    let hsm_group_members: Vec<_> = if hsm_group_name.is_some() {
+    let hsm_group_members: Vec<_> = if let Some(hsm_group_name) = hsm_group_name_opt {
         crate::shasta::hsm::http_client::get_hsm_group(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            hsm_group_name.unwrap(),
+            hsm_group_name,
         )
         .await
         .unwrap()["members"]["ids"]

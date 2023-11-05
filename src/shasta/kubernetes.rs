@@ -297,7 +297,9 @@ pub async fn get_container_logs_stream(
     let max = 300;
 
     // Waiting for container ansible-x to start
-    while container_state.as_ref().is_none() || container_state.as_ref().unwrap().waiting.is_some() && i <= max {
+    while container_state.as_ref().is_none()
+        || container_state.as_ref().unwrap().waiting.is_some() && i <= max
+    {
         format!(
             "\nWaiting for container {} to be ready. Checking again in 2 secs. Attempt {} of {}\n",
             cfs_session_layer_container.name,
@@ -340,7 +342,7 @@ pub async fn get_container_logs_stream(
 pub async fn get_cfs_session_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
-    layer_id: Option<&u8>,
+    layer_id_opt: Option<&u8>,
 ) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + std::marker::Send + Sync>> {
     let mut container_log_stream_rslt =
         Err("No container related to CFS session logs found. Exit".into());
@@ -393,21 +395,22 @@ pub async fn get_cfs_session_logs_stream(
         containers
     );
 
-    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> = if layer_id.is_some() {
-        let layer = layer_id.unwrap().to_string();
+    let ansible_containers: Vec<&k8s_openapi::api::core::v1::Container> =
+        if let Some(layer_id) = layer_id_opt {
+            let layer = layer_id.to_string();
 
-        let container_name = format!("ansible-{}", layer);
+            let container_name = format!("ansible-{}", layer);
 
-        // Get single ansible-x container
-        containers
-            .filter(|container| container.name.eq(&container_name))
-            .collect()
-    } else {
-        // Get all ansible containers
-        containers
-            .filter(|container| container.name.contains("ansible"))
-            .collect()
-    };
+            // Get single ansible-x container
+            containers
+                .filter(|container| container.name.eq(&container_name))
+                .collect()
+        } else {
+            // Get all ansible containers
+            containers
+                .filter(|container| container.name.contains("ansible"))
+                .collect()
+        };
 
     for ansible_container in ansible_containers {
         format!(
@@ -432,8 +435,11 @@ fn get_container_state(
         .unwrap()
         .container_statuses
         .as_ref()
-        .and_then(|status_vec| status_vec.iter()
-        .find(|container_status| container_status.name.eq(container_name)));
+        .and_then(|status_vec| {
+            status_vec
+                .iter()
+                .find(|container_status| container_status.name.eq(container_name))
+        });
 
     match container_status {
         Some(container_status_aux) => container_status_aux.state.clone(),
@@ -572,8 +578,8 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         )
         .await;
 
-    if attachment_rslt.is_ok() {
-        attachment_rslt.unwrap()
+    if let Ok(attachment) = attachment_rslt {
+        attachment
     } else {
         eprintln!(
             "Error attaching to container 'sshd' in pod {}. Exit",

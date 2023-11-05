@@ -15,7 +15,7 @@ pub mod http_client {
         hsm_group_name_opt: Option<&String>,
         image_id_opt: Option<&str>,
         image_name_opt: Option<&str>,
-        limit_number: Option<&u8>,
+        limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
@@ -80,15 +80,14 @@ pub mod http_client {
         });
 
         // Limiting the number of results to return to client
-        if limit_number.is_some() {
-            image_value_vec = image_value_vec[image_value_vec
-                .len()
-                .saturating_sub(*limit_number.unwrap() as usize)..]
+        if let Some(limit_number) = limit_number_opt {
+            image_value_vec = image_value_vec
+                [image_value_vec.len().saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 
-        if image_name_opt.is_some() {
-            image_value_vec.retain(|image_value| image_value["name"].eq(image_name_opt.unwrap()));
+        if let Some(image_name) = image_name_opt {
+            image_value_vec.retain(|image_value| image_value["name"].eq(image_name));
         }
 
         Ok(image_value_vec.to_vec())

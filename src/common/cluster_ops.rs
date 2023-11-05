@@ -53,24 +53,16 @@ pub async fn get_details(
         for cfs_session_value in cfs_sessions_value_vec {
             // println!("cfs_session_value:\n{:#?}", cfs_session_value);
             let target_groups_option = cfs_session_value.pointer("/target/groups");
-            let target_groups = if Some(Value::Null) == target_groups_option.cloned()
-                || target_groups_option.is_none()
-            {
-                Vec::new()
+            let target_groups = if let Some(Value::Array(target_group_vec)) = target_groups_option {
+                target_group_vec.clone()
             } else {
-                target_groups_option
-                    .unwrap()
-                    .as_array()
-                    .cloned()
-                    .unwrap_or_default()
+                Vec::new()
             };
             let ansible_limit_option = cfs_session_value.pointer("/ansible/limit");
-            let ansible_limit = if Some(Value::Null) == ansible_limit_option.cloned()
-                || ansible_limit_option.is_none()
-            {
-                ""
+            let ansible_limit = if let Some(ansible_limit) = ansible_limit_option {
+                ansible_limit.as_str().unwrap().to_string()
             } else {
-                ansible_limit_option.unwrap().as_str().unwrap()
+                "".to_string()
             };
 
             // Check CFS session is linkged to HSM GROUP name or any of its members

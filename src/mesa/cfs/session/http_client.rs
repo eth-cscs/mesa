@@ -49,7 +49,7 @@ pub mod http_client {
         }
 
         if let Some(hsm_group) = hsm_group_name {
-            let hsm_group_resp = crate::shasta::hsm::http_client::get_hsm_group(
+            let hsm_group_resp_rslt = crate::shasta::hsm::http_client::get_hsm_group(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -57,8 +57,8 @@ pub mod http_client {
             )
             .await;
 
-            let hsm_group_nodes = if hsm_group_resp.is_ok() {
-                shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group_resp.unwrap())
+            let hsm_group_nodes = if let Ok(hsm_group_resp) = hsm_group_resp_rslt {
+                shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group_resp)
             } else {
                 eprintln!(
                     "No HSM group {}{}{} found!",
@@ -108,7 +108,7 @@ pub mod http_client {
                 .as_ref()
                 .unwrap()
                 .cmp(
-                    &b.status
+                    b.status
                         .as_ref()
                         .unwrap()
                         .session
@@ -173,7 +173,7 @@ pub mod utils {
         limit_number_opt: Option<&u8>,
     ) -> Vec<CfsSessionGetResponse> {
         if let Some(hsm_group_name) = hsm_group_name_opt {
-            let hsm_group_resp = crate::shasta::hsm::http_client::get_hsm_group(
+            let hsm_group_resp_rslt = crate::shasta::hsm::http_client::get_hsm_group(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -181,8 +181,8 @@ pub mod utils {
             )
             .await;
 
-            let hsm_group_nodes = if hsm_group_resp.is_ok() {
-                shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group_resp.unwrap())
+            let hsm_group_nodes = if let Ok(hsm_group_resp) = hsm_group_resp_rslt {
+                shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group_resp)
             } else {
                 eprintln!(
                     "No HSM group {}{}{} found!",
@@ -201,7 +201,7 @@ pub mod utils {
                     .clone()
                     .unwrap()
                     .groups
-                    .unwrap_or(Vec::new())
+                    .unwrap_or_default()
                     .iter()
                     .any(|group| group.name.clone().unwrap().to_string().eq(hsm_group_name))
                     || cfs_session

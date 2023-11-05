@@ -84,7 +84,7 @@ pub mod utils {
     pub fn filter(
         cfs_configuration_vec: &mut Vec<CfsConfigurationResponse>,
         cfs_configuration_name_opt: Option<&String>,
-        limit_number: Option<&u8>,
+        limit_number_opt: Option<&u8>,
     ) -> Vec<CfsConfigurationResponse> {
         if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
             cfs_configuration_vec
@@ -95,12 +95,12 @@ pub mod utils {
             cfs_session_1.last_updated.cmp(&cfs_session_2.last_updated)
         });
 
-        if limit_number.is_some() {
+        if let Some(limit_number) = limit_number_opt {
             // Limiting the number of results to return to client
 
             *cfs_configuration_vec = cfs_configuration_vec[cfs_configuration_vec
                 .len()
-                .saturating_sub(*limit_number.unwrap() as usize)..]
+                .saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 

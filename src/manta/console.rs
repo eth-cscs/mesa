@@ -80,8 +80,8 @@ pub async fn get_container_attachment_to_conman(
         )
         .await;
 
-    if attachment_rslt.is_ok() {
-        attachment_rslt.unwrap()
+    if let Ok(attachment) = attachment_rslt {
+        attachment
     } else {
         eprintln!(
             "Error attaching to container 'cray-console-node' in pod {}. Exit",
@@ -233,8 +233,8 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
         )
         .await;
 
-    if attachment_rslt.is_ok() {
-        attachment_rslt.unwrap()
+    if let Ok(attachment) = attachment_rslt {
+        attachment
     } else {
         eprintln!(
             "Error attaching to container 'sshd' in pod {}. Exit",

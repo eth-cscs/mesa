@@ -79,7 +79,7 @@ impl CfsConfigurationRequest {
                     repo_url,
                     layer_yaml["git"]["commit"]
                         .as_str()
-                        .and_then(|commit| Some(commit.to_string())),
+                        .map(|commit| commit.to_string()),
                     repo_name,
                     layer_yaml["playbook"]
                         .as_str()
@@ -87,7 +87,7 @@ impl CfsConfigurationRequest {
                         .to_string(),
                     layer_yaml["git"]["branch"]
                         .as_str()
-                        .and_then(|branch| Some(branch.to_string())),
+                        .map(|branch| branch.to_string()),
                 );
                 cfs_configuration.add_layer(layer);
             } else {
@@ -277,8 +277,8 @@ pub mod http_client {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         // hsm_group_name: Option<&String>,
-        configuration_name: Option<&String>,
-        limit_number: Option<&u8>,
+        configuration_name_opt: Option<&String>,
+        limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
@@ -320,12 +320,12 @@ pub mod http_client {
 
         log::debug!("CFS sessions:\n{:#?}", cluster_cfs_configs);
 
-        if configuration_name.is_some() {
+        if let Some(configuration_name) = configuration_name_opt {
             cluster_cfs_configs.retain(|cfs_configuration| {
                 cfs_configuration["name"]
                     .as_str()
                     .unwrap()
-                    .eq(configuration_name.unwrap())
+                    .eq(configuration_name)
             });
         }
 
@@ -338,12 +338,12 @@ pub mod http_client {
                 .cmp(b["lastUpdated"].as_str().unwrap())
         });
 
-        if limit_number.is_some() {
+        if let Some(limit_number) = limit_number_opt {
             // Limiting the number of results to return to client
 
             cluster_cfs_configs = cluster_cfs_configs[cluster_cfs_configs
                 .len()
-                .saturating_sub(*limit_number.unwrap() as usize)..]
+                .saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 

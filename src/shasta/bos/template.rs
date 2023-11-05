@@ -311,9 +311,9 @@ pub mod http_client {
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        hsm_group_name: Option<&String>,
-        bos_template_name: Option<&String>,
-        limit_number: Option<&u8>,
+        hsm_group_name_opt: Option<&String>,
+        bos_template_name_opt: Option<&String>,
+        limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
         // println!("Get BOS sessiontemplate from HSM group {:?}", hsm_group_name);
 
@@ -351,27 +351,22 @@ pub mod http_client {
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
-        if hsm_group_name.is_some() {
+        if let Some(hsm_group_name) = hsm_group_name_opt {
             for bos_template in json_response.as_array().unwrap() {
                 for (_key, value) in bos_template["boot_sets"].as_object().unwrap() {
                     if value["node_groups"]
                         .as_array()
                         .unwrap_or(&Vec::new())
                         .iter()
-                        .any(|node_group| node_group.eq(hsm_group_name.unwrap()))
+                        .any(|node_group| node_group.eq(hsm_group_name))
                     {
                         cluster_bos_template.push(bos_template.clone());
                     }
                 }
             }
-        } else if bos_template_name.is_some() {
+        } else if let Some(bos_template_name) = bos_template_name_opt {
             for bos_template in json_response.as_array().unwrap() {
-                if bos_template["name"]
-                    .as_str()
-                    .unwrap()
-                    .eq(bos_template_name.unwrap())
-                // TODO: investigate why I need to us this ugly 'as_ref'
-                {
+                if bos_template["name"].as_str().unwrap().eq(bos_template_name) {
                     cluster_bos_template.push(bos_template.clone());
                 }
             }
@@ -380,12 +375,12 @@ pub mod http_client {
             cluster_bos_template = json_response.as_array().unwrap().clone();
         }
 
-        if limit_number.is_some() {
+        if let Some(limit_number) = limit_number_opt {
             // Limiting the number of results to return to client
 
             cluster_bos_template = cluster_bos_template[cluster_bos_template
                 .len()
-                .saturating_sub(*limit_number.unwrap() as usize)..]
+                .saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 
@@ -401,8 +396,8 @@ pub mod http_client {
         shasta_root_cert: &[u8],
         hsm_groups_names: Vec<String>,
         nodes: Vec<String>,
-        bos_template_name: Option<&String>,
-        limit_number: Option<&u8>,
+        bos_template_name_opt: Option<&String>,
+        limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
         let mut cluster_bos_tempalte: Vec<Value> = Vec::new();
 
@@ -448,14 +443,9 @@ pub mod http_client {
                     cluster_bos_tempalte.push(bos_template.clone());
                 }
             }
-        } else if bos_template_name.is_some() {
+        } else if let Some(bos_template_name) = bos_template_name_opt {
             for bos_template in json_response.as_array().unwrap() {
-                if bos_template["name"]
-                    .as_str()
-                    .unwrap()
-                    .eq(bos_template_name.unwrap())
-                // TODO: investigate why I need to us this ugly 'as_ref'
-                {
+                if bos_template["name"].as_str().unwrap().eq(bos_template_name) {
                     cluster_bos_tempalte.push(bos_template.clone());
                 }
             }
@@ -465,12 +455,12 @@ pub mod http_client {
             cluster_bos_tempalte = json_response.as_array().unwrap().clone();
         }
 
-        if limit_number.is_some() {
+        if let Some(limit_number) = limit_number_opt {
             // Limiting the number of results to return to client
 
             cluster_bos_tempalte = cluster_bos_tempalte[cluster_bos_tempalte
                 .len()
-                .saturating_sub(*limit_number.unwrap() as usize)..]
+                .saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 
