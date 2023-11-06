@@ -1,4 +1,4 @@
-use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object};
+use crate::shasta::ims::s3::s3::{s3_auth,s3_download_object};
 
 /// # DOCS
 ///
@@ -132,48 +132,43 @@ pub async fn test_s3_connection() {
 pub async fn test_s3_auth() {
     println!("----- TEST S3 AUTH -----");
 
-    let shasta_token = std::env::var("TOKEN").unwrap();
+    let shasta_token = std::env::var("MANTA_CSM_TOKEN").unwrap();
     let shasta_base_url = "https://api-gw-service-nmn.local/apis";
 
     let _sts_value = match s3_auth(&shasta_token, &shasta_base_url).await {
         // Ok(sts_value) => sts_value,
         Ok(_sts_value) => assert!(true),
-        Err(error) => assert!(
-            false,
-            "Error getting temporary s3 token from STS. Error returned: '{}'",
-            error
-        ),
+        Err(error) => assert!(false,"Error getting temporary s3 token from STS. Error returned: '{}'", error),
     };
 }
 #[tokio::test]
 pub async fn test_s3_get_object() {
-    tracing_subscriber::fmt::init();
-
     println!("----- TEST S3 GET OBJECT -----");
 
-    let shasta_token = std::env::var("TOKEN").unwrap();
+    let shasta_token = std::env::var("MANTA_CSM_TOKEN").unwrap();
     let shasta_base_url = "https://api-gw-service-nmn.local/apis";
-    let destination_path: &str = "/tmp/58a205ff-d98a-46ad-a32d-87657c90814e";
-    /* let sts_value = match s3_auth(&shasta_token, &shasta_base_url).await {
+    let destination_path: &str = "/Users/miguelgi/tmp/58a205ff-d98a-46ad-a32d-87657c90814e";
+    let sts_value = match s3_auth(&shasta_token, &shasta_base_url).await {
         // Ok(sts_value) => sts_value,
         Ok(sts_value) => {
             println!("Debug - STS token:\n{:#?}", sts_value);
             sts_value
-        }
+        },
         Err(error) => {
             panic!("{}", error.to_string())
-        }
-    }; */
-    let object_path: String = "58a205ff-d98a-46ad-a32d-87657c90814e/manifest.json".to_string();
-    let bucket: String = "boot-images".to_string();
-    let _result =
-        match s3_download_object(&serde_json::json!({}), &object_path, &bucket, &destination_path).await {
-            Ok(result) => assert!(true, "OK {}", result.to_string()),
-            Err(error) => assert!(false, "Error {}", error.to_string()),
-        };
+        },
+    };
+    let object_path:String = "58a205ff-d98a-46ad-a32d-87657c90814e/manifest.json".to_string();
+    let bucket:String = "boot-images".to_string();
+    let _result = match s3_download_object(&sts_value,
+                                          &object_path,
+                                          &bucket,
+                                          &destination_path).await {
+        Ok(result) => assert!(true, "OK {}", result.to_string()),
+        Err(error) => assert!(false, "Error {}", error.to_string())
+    };
     // println!("Result: {}", result.to_string());
     //     Ok(result) => assert!(true),
     //     Err(error) => assert!(false,"Error getting object from s3"),
     // };
 }
-
