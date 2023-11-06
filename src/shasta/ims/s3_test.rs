@@ -1,4 +1,6 @@
-use crate::shasta::ims::s3::s3::{s3_auth,s3_download_object};
+use std::path::Path;
+use std::env::temp_dir;
+use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object};
 
 /// # DOCS
 ///
@@ -149,7 +151,10 @@ pub async fn test_s3_get_object() {
 
     let shasta_token = std::env::var("MANTA_CSM_TOKEN").unwrap();
     let shasta_base_url = "https://api-gw-service-nmn.local/apis";
-    let destination_path: &str = "/Users/miguelgi/tmp/58a205ff-d98a-46ad-a32d-87657c90814e";
+    let image_id = "58a205ff-d98a-46ad-a32d-87657c90814e";
+    let files = ["manifest.json", "initrd"];
+    let bucket_name = "boot-images";
+
     let sts_value = match s3_auth(&shasta_token, &shasta_base_url).await {
         // Ok(sts_value) => sts_value,
         Ok(sts_value) => {
@@ -160,17 +165,21 @@ pub async fn test_s3_get_object() {
             panic!("{}", error.to_string())
         },
     };
-    let object_path:String = "58a205ff-d98a-46ad-a32d-87657c90814e/manifest.json".to_string();
-    let bucket:String = "boot-images".to_string();
-    let _result = match s3_download_object(&sts_value,
-                                          &object_path,
-                                          &bucket,
-                                          &destination_path).await {
-        Ok(result) => assert!(true, "OK {}", result.to_string()),
-        Err(error) => assert!(false, "Error {}", error.to_string())
-    };
-    // println!("Result: {}", result.to_string());
-    //     Ok(result) => assert!(true),
-    //     Err(error) => assert!(false,"Error getting object from s3"),
-    // };
+
+    let destination_path:String = temp_dir().join(image_id).display().to_string();
+    for file in files {
+        let object_path:String = Path::new(&image_id).join(&file).display().to_string();
+        println!("Downloading file {}/{}", &object_path, &file);
+        let _result = match s3_download_object(&sts_value,
+                                               &object_path,
+                                               &bucket_name,
+                                               &destination_path).await {
+            Ok(_result) => {
+                println!("Download completed.");
+            },
+            Err(error) => assert!(false, "Error {}", error.to_string())
+        };
+    }
+
+    assert!(true, "OK all files completed downloading.")
 }

@@ -6,15 +6,10 @@ pub mod s3 {
     use aws_config::SdkConfig;
     use hyper::client::HttpConnector;
 
-
-    use aws_config::meta::region::RegionProviderChain;
-    use aws_sdk_s3::{config::Region, meta::PKG_VERSION, Client};
-
     use serde_json::Value;
-    use termion::input::TermRead;
     use tokio_stream::StreamExt;
 
-    use anyhow::{anyhow, bail, Context, Result};
+    use anyhow::Result;
     // Get a token for S3 and return the result
     // If something breaks, return an error
     pub async fn s3_auth (
@@ -65,10 +60,7 @@ pub mod s3 {
                     .as_str()
                     .unwrap(),
             );
-            std::env::set_var(
-                "S3_FORCE_PATH_STYLE",
-                "true"
-            );
+
             Ok(sts_value)
         } else {
             eprintln!("FAIL request: {:#?}", resp);
@@ -100,8 +92,8 @@ pub mod s3 {
         // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
         let region_provider =
             aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
-        // let config: aws_types::sdk_config;
         let config:SdkConfig;
+
         if let Ok(socks5_env) = std::env::var("SOCKS5") {
             log::debug!("SOCKS5 enabled");
 
@@ -109,7 +101,6 @@ pub mod s3 {
             http_connector.enforce_http(false);
 
             let socks_http_connector = hyper_socks2::SocksConnector {
-                // proxy_addr: "socks5h://127.0.0.1:1081".parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
                 proxy_addr:socks5_env.to_string().parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
                 auth: None,
                 connector: http_connector.clone(),
@@ -122,22 +113,16 @@ pub mod s3 {
                         .build(),
                 )
                 .build(socks_http_connector);
+
             config = aws_config::from_env()
                 .region(region_provider)
                 .http_connector(smithy_connector)
-                .endpoint_url("http://rgw-vip.nmn") // sts_value["Credentials"]["EndpointURL"].as_str().unwrap())
+                .endpoint_url(sts_value["Credentials"]["EndpointURL"].as_str().unwrap())
                 .app_name(aws_config::AppName::new("manta").unwrap())
                 // .no_credentials()
                 .load()
                 .await;
         } else {
-             // let smithy_connector = aws_smithy_client::hyper_ext::Adapter::builder()
-             //    // Optionally set things like timeouts as well
-             //    .connector_settings(
-             //        aws_smithy_client::http_connector::ConnectorSettings::builder()
-             //            .connect_timeout(std::time::Duration::from_secs(5))
-             //            .build(),
-             //    );
             config = aws_config::from_env()
                 .region(region_provider)
                 .endpoint_url(sts_value["Credentials"]["EndpointURL"].as_str().unwrap())
@@ -147,7 +132,8 @@ pub mod s3 {
                 .await;
         }
 
-        let client = aws_sdk_s3::Client::new(&config);
+        let client = aws_sdk_s3::Client::from_conf(aws_sdk_s3::Client::new(&config).config().to_builder().force_path_style(true).build());
+
         let filename = Path::new(object_path).file_name().unwrap();
         let file_path = Path::new(destination_path).join(filename);
         log::debug!("Create directory '{}'", destination_path);
@@ -165,45 +151,39 @@ pub mod s3 {
         };
 
         // --- list buckets ---
-        let resp_rslt = client.list_buckets().send().await;
-        match resp_rslt {
-            Ok(resp) => {
-                // println!("DEBUG - DATA:\n{:#?}", resp);
-
-                let buckets = resp.buckets().unwrap();
-                // let buckets = resp.buckets();
-
-                println!("Debug - Buckets:\n{:?}", buckets);
-            }
-            Err(error) => eprintln!("Error: {:#?}", error),
-        };
-        let resp = client.list_objects_v2().bucket(bucket).send().await;
-        match resp {
-            Ok(resp) => println!("DEBUG - DATA:\n{:#?}", resp),
-            Err(error) => eprintln!("Error: {:#?}", error),
-        }
-        // let resp = client.list_objects_v2().bucket(bucket).send().await?;
-        // // let ob = resp.contents();
+        // let resp_rslt = client.list_buckets().send().await;
+        // match resp_rslt {
+        //     Ok(resp) => {
+        //         // println!("DEBUG - DATA:\n{:#?}", resp);
         //
-        // // ob.
-        // for ob in resp.contents() {
-        // //     println!("{}", ob.key().unwrap_or_default());
-        //     println!("test");
+        //         let buckets = resp.buckets().unwrap();
+        //         // let buckets = resp.buckets();
+        //
+        //         println!("Debug - Buckets:\n{:?}", buckets);
+        //     }
+        //     Err(error) => eprintln!("Error: {:#?}", error),
+        // };
+
+        // let resp = client.list_objects_v2().bucket(bucket).send().await;
+        // match resp {
+        //     Ok(resp) => println!("DEBUG - DATA:\n{:#?}", resp),
+        //     Err(error) => eprintln!("Error: {:#?}", error),
         // }
-        //
-        // let mut object = client
-        //     .get_object()
-        //     .bucket(bucket)
-        //     .key(object_path)
-        //     .send()
-        //     .await?;
-        //
+
+        // --- Download file from the specified bucket ---
+        let mut object = client
+            .get_object()
+            .bucket(bucket)
+            .key(object_path)
+            .send()
+            .await?;
+
         // // let byte_count = 0_usize;
-        // while let Some(bytes) = object.body.try_next().await? {
-        //     let bytes = file.write(&bytes)?;
-        //     // byte_count += bytes;
-        //     println!("Intermediate write of {bytes}");
-        // }
+        while let Some(bytes) = object.body.try_next().await? {
+            let bytes = file.write(&bytes)?;
+            // byte_count += bytes;
+            println!("Intermediate write of {bytes} bytes...");
+        }
         //
 
         Ok(file_path.to_string_lossy().to_string())
