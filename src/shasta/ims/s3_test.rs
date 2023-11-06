@@ -118,7 +118,8 @@ pub async fn test_s3_connection() {
         Ok(resp) => {
             // println!("DEBUG - DATA:\n{:#?}", resp);
 
-            let buckets = resp.buckets().unwrap();
+            // let buckets = resp.buckets().unwrap();
+            let buckets = resp.buckets();
 
             println!("Debug - Buckets:\n{:?}", buckets);
         }
@@ -143,6 +144,7 @@ pub async fn test_s3_auth() {
 }
 #[tokio::test]
 pub async fn test_s3_get_object() {
+    tracing_subscriber::fmt::init();
     println!("----- TEST S3 GET OBJECT -----");
 
     let shasta_token = std::env::var("MANTA_CSM_TOKEN").unwrap();

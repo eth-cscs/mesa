@@ -6,6 +6,7 @@ pub mod s3 {
     use aws_config::SdkConfig;
     use hyper::client::HttpConnector;
 
+
     use aws_config::meta::region::RegionProviderChain;
     use aws_sdk_s3::{config::Region, meta::PKG_VERSION, Client};
 
@@ -13,6 +14,7 @@ pub mod s3 {
     use termion::input::TermRead;
     use tokio_stream::StreamExt;
 
+    use anyhow::{anyhow, bail, Context, Result};
     // Get a token for S3 and return the result
     // If something breaks, return an error
     pub async fn s3_auth (
@@ -63,6 +65,10 @@ pub mod s3 {
                     .as_str()
                     .unwrap(),
             );
+            std::env::set_var(
+                "S3_FORCE_PATH_STYLE",
+                "true"
+            );
             Ok(sts_value)
         } else {
             eprintln!("FAIL request: {:#?}", resp);
@@ -94,8 +100,8 @@ pub mod s3 {
         // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
         let region_provider =
             aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
-        let config: SdkConfig;
-
+        // let config: aws_types::sdk_config;
+        let config:SdkConfig;
         if let Ok(socks5_env) = std::env::var("SOCKS5") {
             log::debug!("SOCKS5 enabled");
 
@@ -142,7 +148,6 @@ pub mod s3 {
         }
 
         let client = aws_sdk_s3::Client::new(&config);
-
         let filename = Path::new(object_path).file_name().unwrap();
         let file_path = Path::new(destination_path).join(filename);
         log::debug!("Create directory '{}'", destination_path);
@@ -166,6 +171,7 @@ pub mod s3 {
                 // println!("DEBUG - DATA:\n{:#?}", resp);
 
                 let buckets = resp.buckets().unwrap();
+                // let buckets = resp.buckets();
 
                 println!("Debug - Buckets:\n{:?}", buckets);
             }
