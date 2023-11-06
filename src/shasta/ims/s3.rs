@@ -1,10 +1,10 @@
 pub mod s3 {
+    use aws_config::SdkConfig;
+    use hyper::client::HttpConnector;
     use std::error::Error;
     use std::fs::File;
     use std::io::Write;
     use std::path::Path;
-    use aws_config::SdkConfig;
-    use hyper::client::HttpConnector;
 
     use aws_config::meta::region::RegionProviderChain;
     use aws_sdk_s3::{config::Region, meta::PKG_VERSION, Client};
@@ -13,11 +13,13 @@ pub mod s3 {
     use termion::input::TermRead;
     use tokio_stream::StreamExt;
 
+    use anyhow::{anyhow, bail, Context, Result};
+
     // Get a token for S3 and return the result
     // If something breaks, return an error
-    pub async fn s3_auth (
+    pub async fn s3_auth(
         shasta_token: &str,
-        shasta_base_url: &str
+        shasta_base_url: &str,
     ) -> Result<Value, Box<dyn Error>> {
         // STS
         let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
@@ -84,17 +86,18 @@ pub mod s3 {
     /// # Returns
     ///   * String: full path of the object downloaded OR
     ///   * Box<dyn Error>: descriptive error if not possible to download or to store the object
-    pub async fn s3_download_object (
+    pub async fn s3_download_object(
         sts_value: &Value,
         object_path: &str,
-        bucket: &str,
-        destination_path: &str
+        bucket_name: &str,
+        destination_path: &str,
     ) -> Result<String, Box<dyn Error>> {
-
         // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
-        let region_provider =
-            aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
+        let region_provider = aws_config::meta::region::RegionProviderChain::default_provider()
+            .or_else("us-region-1");
         let config: SdkConfig;
+
+        println!("DEBUG - Region: {:#?}", region_provider.region().await);
 
         if let Ok(socks5_env) = std::env::var("SOCKS5") {
             log::debug!("SOCKS5 enabled");
@@ -104,7 +107,7 @@ pub mod s3 {
 
             let socks_http_connector = hyper_socks2::SocksConnector {
                 // proxy_addr: "socks5h://127.0.0.1:1081".parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
-                proxy_addr:socks5_env.to_string().parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
+                proxy_addr: socks5_env.to_string().parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
                 auth: None,
                 connector: http_connector.clone(),
             };
@@ -125,13 +128,13 @@ pub mod s3 {
                 .load()
                 .await;
         } else {
-             // let smithy_connector = aws_smithy_client::hyper_ext::Adapter::builder()
-             //    // Optionally set things like timeouts as well
-             //    .connector_settings(
-             //        aws_smithy_client::http_connector::ConnectorSettings::builder()
-             //            .connect_timeout(std::time::Duration::from_secs(5))
-             //            .build(),
-             //    );
+            // let smithy_connector = aws_smithy_client::hyper_ext::Adapter::builder()
+            //    // Optionally set things like timeouts as well
+            //    .connector_settings(
+            //        aws_smithy_client::http_connector::ConnectorSettings::builder()
+            //            .connect_timeout(std::time::Duration::from_secs(5))
+            //            .build(),
+            //    );
             config = aws_config::from_env()
                 .region(region_provider)
                 .endpoint_url(sts_value["Credentials"]["EndpointURL"].as_str().unwrap())
@@ -145,37 +148,117 @@ pub mod s3 {
 
         let filename = Path::new(object_path).file_name().unwrap();
         let file_path = Path::new(destination_path).join(filename);
+
         log::debug!("Create directory '{}'", destination_path);
 
         match std::fs::create_dir_all(destination_path) {
             Ok(_) => log::debug!("Created directory '{}' successfully", destination_path),
             Err(error) => panic!("Error creating directory {}: {}", destination_path, error),
         };
-        let mut file = match File::create(&file_path) {
+
+        /* let file = match File::create(&file_path) {
             Ok(file) => {
                 log::debug!("Created file '{}' successfully", &file_path.to_string_lossy());
                 file
             }
             Err(error) => panic!("Error creating file {}: {}", &file_path.to_string_lossy(), error),
-        };
+        }; */
+
+        let shasta_token = std::env::var("TOKEN").unwrap();
+        let shasta_base_url = "https://api-gw-service-nmn.local/apis";
+        let destination_path: &str = "/tmp/58a205ff-d98a-46ad-a32d-87657c90814e";
 
         // --- list buckets ---
-        let resp_rslt = client.list_buckets().send().await;
-        match resp_rslt {
-            Ok(resp) => {
-                // println!("DEBUG - DATA:\n{:#?}", resp);
+        println!("DEBUG - Fetch buckets");
 
-                let buckets = resp.buckets().unwrap();
-
-                println!("Debug - Buckets:\n{:?}", buckets);
+        let sts_value = match s3_auth(&shasta_token, &shasta_base_url).await {
+            // Ok(sts_value) => sts_value,
+            Ok(sts_value) => {
+                println!("Debug - STS token:\n{:#?}", sts_value);
+                sts_value
             }
-            Err(error) => eprintln!("Error: {:#?}", error),
+            Err(error) => {
+                panic!("{}", error.to_string())
+            }
         };
+
+        let resp = match client.list_buckets().send().await {
+            Ok(response) => response,
+            Err(error) => {
+                eprintln!("ERROR:\n{:#?}", error);
+                std::process::exit(1);
+            }
+        };
+
+        let bucket_list = resp.buckets().unwrap();
+
+        println!("Debug - Buckets:\n{:?}", bucket_list);
+
+        for bucket in bucket_list {
+            println!("DEBUG - processing bucket {}", bucket.name().unwrap());
+
+            let sts_value = match s3_auth(&shasta_token, &shasta_base_url).await {
+                // Ok(sts_value) => sts_value,
+                Ok(sts_value) => {
+                    println!("Debug - STS token:\n{:#?}", sts_value);
+                    sts_value
+                }
+                Err(error) => {
+                    panic!("{}", error.to_string())
+                }
+            };
+
+            let req = client.list_objects_v2().prefix("").bucket(bucket_name);
+
+            println!("4");
+
+            let resp = match req.send().await {
+                Ok(response) => response,
+                Err(error) => {
+                    eprintln!("ERROR:\n{:#?}", error);
+                    std::process::exit(1);
+                }
+            };
+
+            println!("5");
+
+            let keys = resp.contents().unwrap_or_default();
+
+            println!("6");
+
+            println!("DEBUG - keys: {:#?}", keys);
+
+            println!("7");
+
+            /* let resp_bucket_location = client
+                .get_bucket_location()
+                .bucket(bucket.name().unwrap())
+                .send()
+                .await;
+
+            match resp_bucket_location {
+                Ok(value) => println!("OK - {:#?}", value),
+                Err(error) => println!("ERROR - {:#?}", error),
+            } */
+
+            /* println!(
+                "DEBUG - bucket: {}, location: {:?}",
+                bucket.name().unwrap(),
+                resp_bucket_location.location_constraint().unwrap()
+            ); */
+        }
+
+        /* println!("DEBUG - bucket target: {}", bucket);
+
         let resp = client.list_objects_v2().bucket(bucket).send().await;
+
         match resp {
             Ok(resp) => println!("DEBUG - DATA:\n{:#?}", resp),
-            Err(error) => eprintln!("Error: {:#?}", error),
-        }
+            Err(error) => {
+                eprintln!("Error: {:#?}", error);
+            }
+        } */
+
         // let resp = client.list_objects_v2().bucket(bucket).send().await?;
         // // let ob = resp.contents();
         //
@@ -203,3 +286,4 @@ pub mod s3 {
         Ok(file_path.to_string_lossy().to_string())
     }
 }
+
