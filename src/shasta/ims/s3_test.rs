@@ -169,7 +169,7 @@ pub async fn test_s3_get_object() {
     let destination_path:String = temp_dir().join(image_id).display().to_string();
     for file in files {
         let object_path:String = Path::new(&image_id).join(&file).display().to_string();
-        println!("Downloading file {}/{}", &object_path, &file);
+        println!("Downloading file {} to {}/{}", &object_path, &destination_path,&file);
         let _result = match s3_download_object(&sts_value,
                                                &object_path,
                                                &bucket_name,

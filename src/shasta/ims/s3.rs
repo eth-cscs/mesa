@@ -10,6 +10,8 @@ pub mod s3 {
     use tokio_stream::StreamExt;
 
     use anyhow::Result;
+    use aws_sdk_s3::Client;
+
     // Get a token for S3 and return the result
     // If something breaks, return an error
     pub async fn s3_auth (
@@ -70,25 +72,9 @@ pub mod s3 {
         }
     }
 
-    /// Gets an object from S3
-    ///
-    /// # Needs
-    /// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
-    /// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
-    /// - `bucket` bucket where the object is contained.
-    /// - `destination_path` <p>path in the local filesystem where the file will be downloaded to
-    ///         e.g. `/tmp/my_images/392o1h-1-234-w1` the file will be downloaded then to
-    ///             `/tmp/my_images/392o1h-1-234-w1/manifest.json`</p>
-    /// # Returns
-    ///   * String: full path of the object downloaded OR
-    ///   * Box<dyn Error>: descriptive error if not possible to download or to store the object
-    pub async fn s3_download_object (
+    async fn setup_client (
         sts_value: &Value,
-        object_path: &str,
-        bucket: &str,
-        destination_path: &str
-    ) -> Result<String, Box<dyn Error>> {
-
+        ) -> Client {
         // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
         let region_provider =
             aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
@@ -133,6 +119,27 @@ pub mod s3 {
         }
 
         let client = aws_sdk_s3::Client::from_conf(aws_sdk_s3::Client::new(&config).config().to_builder().force_path_style(true).build());
+        client
+    }
+    /// Gets an object from S3
+    ///
+    /// # Needs
+    /// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
+    /// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
+    /// - `bucket` bucket where the object is contained.
+    /// - `destination_path` <p>path in the local filesystem where the file will be downloaded to
+    ///         e.g. `/tmp/my_images/392o1h-1-234-w1` the file will be downloaded then to
+    ///             `/tmp/my_images/392o1h-1-234-w1/manifest.json`</p>
+    /// # Returns
+    ///   * String: full path of the object downloaded OR
+    ///   * Box<dyn Error>: descriptive error if not possible to download or to store the object
+    pub async fn s3_download_object (
+        sts_value: &Value,
+        object_path: &str,
+        bucket: &str,
+        destination_path: &str
+    ) -> Result<String, Box<dyn Error>> {
+        let client = setup_client(&sts_value).await;
 
         let filename = Path::new(object_path).file_name().unwrap();
         let file_path = Path::new(destination_path).join(filename);
@@ -189,3 +196,22 @@ pub mod s3 {
         Ok(file_path.to_string_lossy().to_string())
     }
 }
+//
+// Uploads an object to S3
+//
+// # Needs
+// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
+// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
+// - `bucket` bucket where the object is contained.
+// - `file_path` <p>path in the local filesystem where the file is located
+// # Returns
+//   * String: size the object uploaded OR
+//   * Box<dyn Error>: descriptive error if not possible to upload the object
+// pub async fn s3_upload_object (
+//     sts_value: &Value,
+//     object_path: &str,
+//     bucket: &str,
+//     file_path: &str
+// ) -> Result<String, Box<dyn Error>> {
+//
+// }
