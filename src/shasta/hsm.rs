@@ -295,7 +295,7 @@ pub mod utils {
 
     use std::collections::{HashMap, HashSet};
 
-    use serde_json::Value;
+    use serde_json::{Value, json};
 
     use crate::shasta::hsm::http_client::get_all_hsm_groups;
 
@@ -510,7 +510,7 @@ pub mod utils {
 
     pub fn get_list_memory_capacity_from_hw_inventory_value(
         hw_inventory: &Value,
-    ) -> Option<Vec<String>> {
+    ) -> Option<Vec<u64>> {
         hw_inventory["Nodes"].as_array().unwrap().first().unwrap()["Memory"]
             .as_array()
             .map(|memory_list| {
@@ -519,12 +519,11 @@ pub mod utils {
                     .map(|memory| {
                         memory
                             .pointer("/PopulatedFRU/MemoryFRUInfo/CapacityMiB")
+                            .unwrap_or(&json!(0))
+                            .as_u64()
                             .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string()
                     })
-                    .collect::<Vec<String>>()
+                    .collect::<Vec<u64>>()
             })
     }
 }
