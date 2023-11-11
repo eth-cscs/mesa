@@ -64,6 +64,7 @@ aws-config = "0.56.1" # used to configure the http connector to s3 endpoint with
 aws-smithy-client = "0.56.1"
 mime_guess = "2"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+rand = "0.8.5"
 # aws-smithy-runtime-api = "0.56.1"
 # aws-smithy-runtime = "0.56.1"
 

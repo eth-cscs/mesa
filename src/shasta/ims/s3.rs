@@ -11,6 +11,7 @@ pub mod s3 {
 
     use anyhow::Result;
     use aws_sdk_s3::Client;
+    use aws_sdk_s3::primitives::ByteStream;
 
     // Get a token for S3 and return the result
     // If something breaks, return an error
@@ -195,23 +196,42 @@ pub mod s3 {
 
         Ok(file_path.to_string_lossy().to_string())
     }
+
+    /// Uploads an object to S3
+    ///
+    /// # Needs
+    /// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
+    /// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
+    /// - `bucket` bucket where the object will be stored
+    /// - `file_path` <p>path in the local filesystem where the file is located
+    /// # Returns
+    ///   * String: size the object uploaded OR
+    ///   * Box<dyn Error>: descriptive error if not possible to upload the object
+    pub async fn s3_upload_object (
+        sts_value: &Value,
+        object_path: &str,
+        bucket: &str,
+        file_path: &str
+    ) -> Result<String, Box<dyn Error>> {
+        let client = setup_client(&sts_value).await;
+
+        let body = ByteStream::from_path(Path::new(&file_path)).await;
+
+        match client
+            .put_object()
+            .bucket(bucket)
+            .key(object_path)
+            .body(body.unwrap())
+            .send()
+            .await
+        {
+            Ok(file) => {
+                log::debug!("Uploaded file '{}' successfully", &file_path);
+                Ok(String::from("client"))
+            }
+            Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
+            //
+        }
+    }
 }
-//
-// Uploads an object to S3
-//
-// # Needs
-// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
-// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
-// - `bucket` bucket where the object is contained.
-// - `file_path` <p>path in the local filesystem where the file is located
-// # Returns
-//   * String: size the object uploaded OR
-//   * Box<dyn Error>: descriptive error if not possible to upload the object
-// pub async fn s3_upload_object (
-//     sts_value: &Value,
-//     object_path: &str,
-//     bucket: &str,
-//     file_path: &str
-// ) -> Result<String, Box<dyn Error>> {
-//
-// }
+

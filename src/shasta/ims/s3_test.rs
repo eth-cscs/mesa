@@ -1,5 +1,11 @@
+use std::cmp;
 use std::path::Path;
 use std::env::temp_dir;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use rand::Rng;
+// use tokio::fs::File;
+// use tokio::io::{AsyncWriteExt, BufWriter};
 use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object};
 
 /// # DOCS
@@ -182,4 +188,30 @@ pub async fn test_s3_get_object() {
     }
 
     assert!(true, "OK all files completed downloading.")
+}
+
+#[tokio::test]
+pub async fn test_s3_put_object() {
+    tracing_subscriber::fmt::init();
+    println!("----- TEST S3 PUT OBJECT -----");
+    let size = 100;
+    // create dummy file on the local filesystem
+    let f = File::create("/tmp/whatever.txt").unwrap();
+    let mut writer = BufWriter::new(f);
+
+    let mut rng = rand::thread_rng();
+    let mut buffer = [0; 1024];
+    let mut remaining_size = size;
+
+    while remaining_size > 0 {
+        let to_write = cmp::min(remaining_size, buffer.len());
+        let buffer=  &mut buffer[..to_write];
+        rng.fill(buffer);
+        writer.write(buffer).unwrap();
+
+        remaining_size -= to_write;
+    }
+    // upload dummy file
+
+    // remove dummy file from the local filesystem
 }
