@@ -6,15 +6,15 @@ pub async fn get_sessions(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    hsm_group_name: Option<&String>,
+    hsm_group_name_vec: &Vec<String>,
     session_name: Option<&String>,
     limit_number: Option<&u8>,
 ) -> Vec<Vec<String>> {
-    let cfs_sessions_resp = shasta::cfs::session::http_client::get(
+    let cfs_sessions_resp = shasta::cfs::session::http_client::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        hsm_group_name,
+        hsm_group_name_vec,
         session_name,
         limit_number,
         None,
@@ -24,11 +24,11 @@ pub async fn get_sessions(
 
     log::info!("CFS sessions:\n{:#?}", cfs_sessions_resp);
 
-    let bos_sessiontemplate_list = shasta::bos::template::http_client::get(
+    let bos_sessiontemplate_list = shasta::bos::template::http_client::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        None,
+        hsm_group_name_vec,
         None,
         None,
     )

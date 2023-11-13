@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::shasta::{cfs::configuration, hsm::http_client::get_hsm_groups};
+use crate::shasta::{cfs::configuration, hsm::http_client::get_hsm_group_vec};
 
 #[derive(Debug)]
 pub struct ClusterDetails {
@@ -14,32 +14,32 @@ pub async fn get_details(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    cluster_name: &str,
+    hsm_group_name: &str,
 ) -> Vec<ClusterDetails> {
     let mut clusters_details = vec![];
 
     // Get HSM groups matching cluster name
-    let hsm_groups = get_hsm_groups(
+    let hsm_group_value_vec = get_hsm_group_vec(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        Some(&cluster_name.to_string()),
+        Some(&hsm_group_name.to_string()),
     )
     .await
     .unwrap();
 
-    for hsm_group in hsm_groups {
+    for hsm_group in hsm_group_value_vec {
         let hsm_group_name = hsm_group["label"].as_str().unwrap();
 
         let hsm_group_members: String =
-            crate::shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group).join(",");
+            crate::shasta::hsm::utils::get_member_vec_from_hsm_group_value(&hsm_group).join(",");
 
         // Get all CFS sessions
-        let cfs_sessions_value_vec = crate::shasta::cfs::session::http_client::get(
+        let cfs_sessions_value_vec = crate::shasta::cfs::session::http_client::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            None,
+            &vec![hsm_group_name.to_string()],
             None,
             None,
             None,
@@ -81,6 +81,7 @@ pub async fn get_details(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
+                    None,
                     Some(
                         &most_recent_cfs_session
                             .pointer("/configuration/name")

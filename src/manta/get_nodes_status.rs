@@ -78,13 +78,10 @@ pub async fn exec(
     // creation/update time hence i can't sort by date to loop and find out most recent bos
     // sessiontemplate per node. joining cfs configuration and bos sessiontemplate will help to
     // this
-    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
+    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        None,
-        None,
-        // None,
     )
     .await
     .unwrap();
@@ -217,13 +214,10 @@ pub async fn exec(
     // creation/update time hence i can't sort by date to loop and find out most recent bos
     // sessiontemplate per node. joining cfs configuration and bos sessiontemplate will help to
     // this
-    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
+    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        None,
-        None,
-        // None,
     )
     .await
     .unwrap();

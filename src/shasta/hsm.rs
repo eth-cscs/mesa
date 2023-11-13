@@ -91,7 +91,7 @@ pub mod http_client {
 
     /// Get list of HSM groups using --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
     /// NOTE: this returns all HSM groups which name contains hsm_groupu_name param value
-    pub async fn get_hsm_groups(
+    pub async fn get_hsm_group_vec(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
@@ -295,13 +295,13 @@ pub mod utils {
 
     use std::collections::{HashMap, HashSet};
 
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
 
     use crate::shasta::hsm::http_client::get_all_hsm_groups;
 
     use super::http_client;
 
-    pub fn get_members_from_hsm_group_serde_value(hsm_group: &Value) -> Vec<String> {
+    pub fn get_member_vec_from_hsm_group_value(hsm_group: &Value) -> Vec<String> {
         // Take all nodes for all hsm_groups found and put them in a Vec
         hsm_group["members"]["ids"]
             .as_array()
@@ -311,22 +311,59 @@ pub mod utils {
             .collect()
     }
 
-    pub fn get_members_from_hsm_groups_serde_value(hsm_groups: &[Value]) -> HashSet<String> {
+    /* pub fn get_member_vec_from_hsm_name_vec(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_name_vec: &Vec<String>,
+    ) -> Vec<String> {
+        let hsm_value_vec = get_all_hsm_groups(shasta_token, shasta_base_url, shasta_root_cert);
+        get_member_vec_from_hsm_name_vec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_name_vec,
+        )
+    } */
+
+    pub async fn get_member_vec_from_hsm_name_vec(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_name_vec: &Vec<String>,
+    ) -> Vec<String> {
+        let mut hsm_group_value_vec =
+            get_all_hsm_groups(shasta_token, shasta_base_url, shasta_root_cert)
+                .await
+                .unwrap();
+
+        hsm_group_value_vec.retain(|hsm_value| {
+            hsm_name_vec.contains(&hsm_value["label"].as_str().unwrap().to_string())
+        });
+
+        Vec::from_iter(
+            get_member_vec_from_hsm_group_value_vec(&hsm_group_value_vec)
+                .iter()
+                .cloned(),
+        )
+    }
+
+    pub fn get_member_vec_from_hsm_group_value_vec(hsm_groups: &[Value]) -> HashSet<String> {
         hsm_groups
             .iter()
-            .flat_map(get_members_from_hsm_group_serde_value)
+            .flat_map(get_member_vec_from_hsm_group_value)
             .collect()
     }
 
     /// Returns a Map with nodes and the list of hsm groups that node belongs to.
     /// eg "x1500b5c1n3 --> [ psi-dev, psi-dev_cn ]"
-    pub fn group_members_by_hsm_group_from_hsm_groups_serde_value(
+    pub fn group_members_by_hsm_group_from_hsm_groups_value(
         hsm_groups: &Vec<Value>,
     ) -> HashMap<String, Vec<String>> {
         let mut member_hsm_map: HashMap<String, Vec<String>> = HashMap::new();
         for hsm_group_value in hsm_groups {
             let hsm_group_name = hsm_group_value["label"].as_str().unwrap().to_string();
-            for member in get_members_from_hsm_group_serde_value(hsm_group_value) {
+            for member in get_member_vec_from_hsm_group_value(hsm_group_value) {
                 member_hsm_map
                     .entry(member)
                     .and_modify(|hsm_groups| hsm_groups.push(hsm_group_name.clone()))
@@ -397,7 +434,7 @@ pub mod utils {
         cfs_sessions: &[Value],
     ) {
         if let Some(hsm_group_name) = hsm_group {
-            let hsm_group_details = crate::shasta::hsm::http_client::get_hsm_groups(
+            let hsm_group_details = crate::shasta::hsm::http_client::get_hsm_group_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -406,7 +443,7 @@ pub mod utils {
             .await
             .unwrap();
             let hsm_group_members =
-                crate::shasta::hsm::utils::get_members_from_hsm_groups_serde_value(
+                crate::shasta::hsm::utils::get_member_vec_from_hsm_group_value_vec(
                     &hsm_group_details,
                 );
             let cfs_session_hsm_groups: Vec<String> = cfs_sessions.last().unwrap()["target"]

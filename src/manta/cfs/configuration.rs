@@ -62,46 +62,39 @@ impl Layer {
     }
 }
 
+/// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
+/// is built for a specific cluster based on ansible vars used by the CFS session). The reason
+/// for this is because CSCS staff deletes all CFS sessions every now and then...
 pub async fn get_configuration(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_name: Option<&String>,
-    // contains: Option<&String>,
-    most_recent: Option<bool>,
-    limit: Option<&u8>,
+    hsm_group_name_vec: &Vec<String>,
+    most_recent_opt: Option<bool>,
+    limit_number_opt: Option<&u8>,
 ) -> Vec<Value> {
-    // let configuration_name = cli_get_configuration.get_one::<String>("name");
 
-    /* let hsm_group_name = match hsm_group {
-        // ref: https://stackoverflow.com/a/32487173/1918003
-        None => cli_get_configuration.get_one::<String>("hsm-group"),
-        Some(hsm_group_val) => Some(hsm_group_val),
-    }; */
-
-    // let most_recent = cli_get_configuration.get_one::<bool>("most-recent");
-
-    let limit_number;
-
-    if let Some(true) = most_recent {
-        limit_number = Some(&1);
-    } else if let Some(false) = most_recent {
-        limit_number = limit;
-    } else {
-        limit_number = None;
-    }
-
-    // Get CFS configurations
-    shasta::cfs::configuration::http_client::get(
+    let cfs_configuration_value_vec = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        // hsm_group_name,
-        configuration_name,
-        limit_number,
     )
     .await
-    .unwrap_or_default()
+    .unwrap_or_default();
+
+    shasta::cfs::configuration::http_client::filter(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        cfs_configuration_value_vec,
+        Some(hsm_group_name_vec),
+        configuration_name,
+        most_recent_opt,
+        limit_number_opt,
+    )
+    .await
+    .unwrap()
 }
 
 impl fmt::Display for Layer {

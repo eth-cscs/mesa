@@ -214,7 +214,7 @@ pub mod http_client {
 
     use super::SessionTemplate;
 
-    pub async fn get(
+    pub async fn get_all(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
@@ -258,26 +258,36 @@ pub mod utils {
 
     pub async fn filter(
         bos_sessiontemplate_vec: &mut Vec<SessionTemplate>,
-        hsm_group_name_opt: Option<&String>,
+        hsm_group_name_vec: &Vec<String>,
+        hsm_member_vec: &Vec<String>,
         bos_sessiontemplate_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
     ) -> Vec<SessionTemplate> {
-        if let Some(hsm_group_name) = hsm_group_name_opt {
-            bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
-                bos_sessiontemplate
-                    .boot_sets
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .any(|boot_set| {
-                        boot_set
+        bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
+            bos_sessiontemplate
+                .boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|boot_set| {
+                    (boot_set.node_groups.is_some()
+                        && !boot_set.node_groups.as_ref().unwrap().is_empty()
+                        && boot_set
                             .node_groups
                             .as_ref()
-                            .unwrap_or(&Vec::new())
-                            .contains(hsm_group_name)
-                    })
-            });
-        }
+                            .unwrap()
+                            .iter()
+                            .all(|node_group| hsm_group_name_vec.contains(node_group)))
+                        || (boot_set.node_list.is_some()
+                            && !boot_set.node_list.as_ref().unwrap().is_empty()
+                            && boot_set
+                                .node_list
+                                .as_ref()
+                                .unwrap()
+                                .iter()
+                                .all(|node| hsm_member_vec.contains(node)))
+                })
+        });
 
         if let Some(bos_sessiontemplate_name) = bos_sessiontemplate_name_opt {
             bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {

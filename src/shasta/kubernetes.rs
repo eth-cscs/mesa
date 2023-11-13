@@ -233,7 +233,7 @@ pub async fn get_k8s_client_programmatically(
             .with_safe_defaults()
             .with_root_certificates(root_cert_store)
             // .with_no_client_auth();
-            .with_single_cert(client_certs, client_key)?;
+            .with_client_auth_cert(client_certs, client_key)?;
 
         let rustls_config = std::sync::Arc::new(rustls_config);
 

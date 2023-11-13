@@ -306,19 +306,11 @@ pub mod http_client {
         }
     }
 
-    /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
-    pub async fn get(
+    pub async fn get_all(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        hsm_group_name_opt: Option<&String>,
-        bos_template_name_opt: Option<&String>,
-        limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-        // println!("Get BOS sessiontemplate from HSM group {:?}", hsm_group_name);
-
-        let mut cluster_bos_template: Vec<Value> = Vec::new();
-
         let client;
 
         let client_builder = reqwest::Client::builder()
@@ -351,28 +343,45 @@ pub mod http_client {
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
-        if let Some(hsm_group_name) = hsm_group_name_opt {
-            for bos_template in json_response.as_array().unwrap() {
-                for (_key, value) in bos_template["boot_sets"].as_object().unwrap() {
-                    if value["node_groups"]
-                        .as_array()
-                        .unwrap_or(&Vec::new())
-                        .iter()
-                        .any(|node_group| node_group.eq(hsm_group_name))
-                    {
-                        cluster_bos_template.push(bos_template.clone());
-                    }
+        Ok(json_response.as_array().unwrap_or(&Vec::new()).to_vec())
+    }
+
+    /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
+    pub async fn filter(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_vec: &Vec<String>,
+        bos_template_name_opt: Option<&String>,
+        limit_number_opt: Option<&u8>,
+    ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+        let mut cluster_bos_template = Vec::new();
+
+        let bos_template: Vec<Value> = get_all(shasta_token, shasta_base_url, shasta_root_cert)
+            .await
+            .unwrap();
+
+        for bos_template in bos_template.clone() {
+            for (_, value) in bos_template["boot_sets"].as_object().unwrap() {
+                if value["node_groups"]
+                    .as_array()
+                    .unwrap_or(&Vec::new())
+                    .iter()
+                    .all(|node_group| {
+                        hsm_group_name_vec.contains(&node_group.as_str().unwrap().to_string())
+                    })
+                {
+                    cluster_bos_template.push(bos_template.clone());
                 }
             }
-        } else if let Some(bos_template_name) = bos_template_name_opt {
-            for bos_template in json_response.as_array().unwrap() {
+        }
+
+        if let Some(bos_template_name) = bos_template_name_opt {
+            for bos_template in bos_template {
                 if bos_template["name"].as_str().unwrap().eq(bos_template_name) {
                     cluster_bos_template.push(bos_template.clone());
                 }
             }
-        } else {
-            // Returning all results
-            cluster_bos_template = json_response.as_array().unwrap().clone();
         }
 
         if let Some(limit_number) = limit_number_opt {
