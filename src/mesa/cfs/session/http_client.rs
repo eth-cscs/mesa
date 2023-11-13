@@ -64,7 +64,7 @@ pub mod http_client {
             cfs_session.target.clone().is_some_and(|target| {
                 target.groups.is_some_and(|groups| {
                     !groups.is_empty()
-                        && groups.iter().all(|group| {
+                        && groups.iter().any(|group| {
                             group
                                 .name
                                 .clone()

@@ -392,7 +392,8 @@ pub mod http_client {
                 shasta_base_url,
                 shasta_root_cert,
                 hsm_group_name_vec,
-            ).await;
+            )
+            .await;
 
             let cfs_session_vec = mesa::cfs::session::http_client::http_client::get(
                 shasta_token,

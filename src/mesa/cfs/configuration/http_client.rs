@@ -65,8 +65,16 @@ pub mod http_client {
             configuration,
             configuration_name,
         )
-        .await
-        .unwrap();
+        .await;
+
+        /* if cfs_configuration_response.is_err() {
+            println!(
+                "DEBUG - ERROR creating cfs configuration:\n{:#?}",
+                cfs_configuration_response.as_ref().unwrap_err()
+            )
+        } */
+
+        let cfs_configuration_response = cfs_configuration_response.unwrap();
 
         if cfs_configuration_response.status().is_success() {
             let cfs_configuration: CfsConfigurationResponse =
