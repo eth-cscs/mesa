@@ -5,9 +5,9 @@ use std::fmt;
 use crate::shasta;
 
 pub struct Configuration {
-    name: String,
-    last_updated: String,
-    config_layers: Vec<Layer>,
+    pub name: String,
+    pub last_updated: String,
+    pub config_layers: Vec<Layer>,
 }
 
 impl Configuration {
