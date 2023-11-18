@@ -1,23 +1,23 @@
 pub mod s3 {
+    use aws_config::SdkConfig;
+    use hyper::client::HttpConnector;
     use std::error::Error;
     use std::fs::File;
     use std::io::Write;
     use std::path::Path;
-    use aws_config::SdkConfig;
-    use hyper::client::HttpConnector;
 
     use serde_json::Value;
     use tokio_stream::StreamExt;
 
     use anyhow::Result;
-    use aws_sdk_s3::Client;
     use aws_sdk_s3::primitives::ByteStream;
+    use aws_sdk_s3::Client;
 
     // Get a token for S3 and return the result
     // If something breaks, return an error
-    pub async fn s3_auth (
+    pub async fn s3_auth(
         shasta_token: &str,
-        shasta_base_url: &str
+        shasta_base_url: &str,
     ) -> Result<Value, Box<dyn Error>> {
         // STS
         let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
@@ -73,13 +73,11 @@ pub mod s3 {
         }
     }
 
-    async fn setup_client (
-        sts_value: &Value,
-        ) -> Client {
+    async fn setup_client(sts_value: &Value) -> Client {
         // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
         let region_provider =
             aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
-        let config:SdkConfig;
+        let config: SdkConfig;
 
         if let Ok(socks5_env) = std::env::var("SOCKS5") {
             log::debug!("SOCKS5 enabled");
@@ -88,7 +86,7 @@ pub mod s3 {
             http_connector.enforce_http(false);
 
             let socks_http_connector = hyper_socks2::SocksConnector {
-                proxy_addr:socks5_env.to_string().parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
+                proxy_addr: socks5_env.to_string().parse::<hyper::Uri>().unwrap(), // scheme is required by HttpConnector
                 auth: None,
                 connector: http_connector.clone(),
             };
@@ -119,7 +117,13 @@ pub mod s3 {
                 .await;
         }
 
-        let client = aws_sdk_s3::Client::from_conf(aws_sdk_s3::Client::new(&config).config().to_builder().force_path_style(true).build());
+        let client = aws_sdk_s3::Client::from_conf(
+            aws_sdk_s3::Client::new(&config)
+                .config()
+                .to_builder()
+                .force_path_style(true)
+                .build(),
+        );
         client
     }
     /// Gets an object from S3
@@ -134,11 +138,11 @@ pub mod s3 {
     /// # Returns
     ///   * String: full path of the object downloaded OR
     ///   * Box<dyn Error>: descriptive error if not possible to download or to store the object
-    pub async fn s3_download_object (
+    pub async fn s3_download_object(
         sts_value: &Value,
         object_path: &str,
         bucket: &str,
-        destination_path: &str
+        destination_path: &str,
     ) -> Result<String, Box<dyn Error>> {
         let client = setup_client(&sts_value).await;
 
@@ -152,10 +156,17 @@ pub mod s3 {
         };
         let mut file = match File::create(&file_path) {
             Ok(file) => {
-                log::debug!("Created file '{}' successfully", &file_path.to_string_lossy());
+                log::debug!(
+                    "Created file '{}' successfully",
+                    &file_path.to_string_lossy()
+                );
                 file
             }
-            Err(error) => panic!("Error creating file {}: {}", &file_path.to_string_lossy(), error),
+            Err(error) => panic!(
+                "Error creating file {}: {}",
+                &file_path.to_string_lossy(),
+                error
+            ),
         };
 
         // --- list buckets ---
@@ -207,11 +218,11 @@ pub mod s3 {
     /// # Returns
     ///   * String: size the object uploaded OR
     ///   * Box<dyn Error>: descriptive error if not possible to upload the object
-    pub async fn s3_upload_object (
+    pub async fn s3_upload_object(
         sts_value: &Value,
         object_path: &str,
         bucket: &str,
-        file_path: &str
+        file_path: &str,
     ) -> Result<String, Box<dyn Error>> {
         let client = setup_client(&sts_value).await;
 
@@ -233,5 +244,37 @@ pub mod s3 {
             //
         }
     }
-}
 
+    /// Removes an object from S3
+    ///
+    /// # Needs
+    /// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
+    /// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
+    /// - `bucket` bucket where the object will be stored
+    /// # Returns
+    ///   * String: size the object uploaded OR
+    ///   * Box<dyn Error>: descriptive error if not possible to upload the object
+    pub async fn s3_remove_object(
+        sts_value: &Value,
+        object_path: &str,
+        bucket: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        let client = setup_client(&sts_value).await;
+
+
+        match client
+            .delete_object()
+            .bucket(bucket)
+            .key(object_path)
+            .send()
+            .await
+        {
+            Ok(file) => {
+                log::debug!("Cleaned file '{}' successfully", &object_path);
+                Ok(String::from("client"))
+            }
+            Err(error) => panic!("Error cleaning file {}: {}", &object_path, error),
+            //
+        }
+    }
+}
