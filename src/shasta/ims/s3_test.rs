@@ -79,8 +79,6 @@ pub async fn test_2_s3_put_object() {
     };
 
     // Connect and auth to S3
-
-
     let sts_value = match authenticate_with_s3().await {
         Ok(sts_value) => {
             println!("Debug - STS token:\n{:#?}", sts_value);
