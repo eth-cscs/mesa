@@ -64,14 +64,14 @@ pub async fn test_2_s3_put_object() {
     };
 
     let text = "This is a temporary object used by Manta tests that can be deleted.";
-    let result = match file1.write_all(text.as_bytes()) {
+    let _result = match file1.write_all(text.as_bytes()) {
         Ok(r) =>  r,
         Err(error) => panic!("{}", error.to_string())
     };
 
     let mut buf = String::new();
     match file2.read_to_string(&mut buf){
-        Ok(p) => println!("Contents of the file that will be uploaded: {}", buf),
+        Ok(_p) => println!("Contents of the file that will be uploaded: {}", buf),
         Err(error) => panic!("{}", error.to_string())
     };
 

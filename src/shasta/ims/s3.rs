@@ -236,7 +236,7 @@ pub mod s3 {
             .send()
             .await
         {
-            Ok(file) => {
+            Ok(_file) => {
                 log::debug!("Uploaded file '{}' successfully", &file_path);
                 Ok(String::from("client"))
             }
@@ -269,7 +269,7 @@ pub mod s3 {
             .send()
             .await
         {
-            Ok(file) => {
+            Ok(_file) => {
                 log::debug!("Cleaned file '{}' successfully", &object_path);
                 Ok(String::from("client"))
             }
