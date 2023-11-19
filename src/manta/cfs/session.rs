@@ -6,15 +6,15 @@ pub async fn get_sessions(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    hsm_group_name: Option<&String>,
+    hsm_group_name_vec: &Vec<String>,
     session_name: Option<&String>,
     limit_number: Option<&u8>,
 ) -> Vec<Vec<String>> {
-    let cfs_sessions_resp = shasta::cfs::session::http_client::get(
+    let cfs_sessions_resp = shasta::cfs::session::http_client::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        hsm_group_name,
+        hsm_group_name_vec,
         session_name,
         limit_number,
         None,
@@ -24,10 +24,16 @@ pub async fn get_sessions(
 
     log::info!("CFS sessions:\n{:#?}", cfs_sessions_resp);
 
-    let bos_sessiontemplate_list =
-        shasta::bos::template::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None, None, None)
-            .await
-            .unwrap();
+    let bos_sessiontemplate_list = shasta::bos::template::http_client::filter(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        hsm_group_name_vec,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     let mut cfs_session_table_data_list = Vec::new();
 
@@ -142,7 +148,7 @@ pub async fn get_sessions(
 
         let mut image_id_from_bos_sessiontemplate = "";
         if !cfs_session_status_artifacts_result_id.is_empty() {
-            let bos_sessiontemplate =
+            let bos_sessiontemplate_opt =
                 bos_sessiontemplate_list
                     .iter()
                     .find(|bos_session_template| {
@@ -153,10 +159,9 @@ pub async fn get_sessions(
                             .unwrap()
                             .eq(cfs_session_configuration_name)
                     });
-            if bos_sessiontemplate.is_some() {
-                for (_boot_sets_param, boot_sets_value) in bos_sessiontemplate.unwrap()["boot_sets"]
-                    .as_object()
-                    .unwrap()
+            if let Some(bos_sessiontemplate) = bos_sessiontemplate_opt {
+                for (_boot_sets_param, boot_sets_value) in
+                    bos_sessiontemplate["boot_sets"].as_object().unwrap()
                 {
                     if boot_sets_value.get("path").is_some() {
                         image_id_from_bos_sessiontemplate = boot_sets_value["path"]

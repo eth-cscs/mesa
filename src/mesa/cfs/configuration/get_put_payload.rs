@@ -5,7 +5,7 @@ use substring::Substring;
 
 use crate::common::{gitea, local_git_repo};
 
-#[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+#[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
 pub struct Layer {
     #[serde(rename = "cloneUrl")]
     clone_url: String,
@@ -17,7 +17,7 @@ pub struct Layer {
     branch: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+#[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
 pub struct AdditionalInventory {
     #[serde(rename = "cloneUrl")]
     clone_url: String,
@@ -39,16 +39,6 @@ pub struct CfsConfigurationResponse {
 }
 
 impl Layer {
-    pub fn default() -> Self {
-        Self {
-            clone_url: String::default(),
-            commit: None,
-            name: String::default(),
-            playbook: String::default(),
-            branch: None,
-        }
-    }
-
     pub fn new(
         clone_url: String,
         commit: Option<String>,
@@ -67,15 +57,6 @@ impl Layer {
 }
 
 impl AdditionalInventory {
-    pub fn default() -> Self {
-        Self {
-            clone_url: String::default(),
-            commit: None,
-            name: String::default(),
-            branch: None,
-        }
-    }
-
     pub fn new(
         clone_url: String,
         commit: Option<String>,

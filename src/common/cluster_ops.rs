@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::shasta::{cfs::configuration, hsm::http_client::get_hsm_groups};
+use crate::shasta::{cfs::configuration, hsm::http_client::get_hsm_group_vec};
 
 #[derive(Debug)]
 pub struct ClusterDetails {
@@ -14,32 +14,32 @@ pub async fn get_details(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    cluster_name: &str,
+    hsm_group_name: &str,
 ) -> Vec<ClusterDetails> {
     let mut clusters_details = vec![];
 
     // Get HSM groups matching cluster name
-    let hsm_groups = get_hsm_groups(
+    let hsm_group_value_vec = get_hsm_group_vec(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        Some(&cluster_name.to_string()),
+        Some(&hsm_group_name.to_string()),
     )
     .await
     .unwrap();
 
-    for hsm_group in hsm_groups {
+    for hsm_group in hsm_group_value_vec {
         let hsm_group_name = hsm_group["label"].as_str().unwrap();
 
         let hsm_group_members: String =
-            crate::shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group).join(",");
+            crate::shasta::hsm::utils::get_member_vec_from_hsm_group_value(&hsm_group).join(",");
 
         // Get all CFS sessions
-        let cfs_sessions_value_vec = crate::shasta::cfs::session::http_client::get(
+        let cfs_sessions_value_vec = crate::shasta::cfs::session::http_client::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            None,
+            &vec![hsm_group_name.to_string()],
             None,
             None,
             None,
@@ -53,24 +53,16 @@ pub async fn get_details(
         for cfs_session_value in cfs_sessions_value_vec {
             // println!("cfs_session_value:\n{:#?}", cfs_session_value);
             let target_groups_option = cfs_session_value.pointer("/target/groups");
-            let target_groups = if Some(Value::Null) == target_groups_option.cloned()
-                || target_groups_option.is_none()
-            {
-                Vec::new()
+            let target_groups = if let Some(Value::Array(target_group_vec)) = target_groups_option {
+                target_group_vec.clone()
             } else {
-                target_groups_option
-                    .unwrap()
-                    .as_array()
-                    .cloned()
-                    .unwrap_or_default()
+                Vec::new()
             };
             let ansible_limit_option = cfs_session_value.pointer("/ansible/limit");
-            let ansible_limit = if Some(Value::Null) == ansible_limit_option.cloned()
-                || ansible_limit_option.is_none()
-            {
-                ""
+            let ansible_limit = if let Some(ansible_limit) = ansible_limit_option {
+                ansible_limit.as_str().unwrap().to_string()
             } else {
-                ansible_limit_option.unwrap().as_str().unwrap()
+                "".to_string()
             };
 
             // Check CFS session is linkged to HSM GROUP name or any of its members
@@ -89,6 +81,7 @@ pub async fn get_details(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
+                    None,
                     Some(
                         &most_recent_cfs_session
                             .pointer("/configuration/name")

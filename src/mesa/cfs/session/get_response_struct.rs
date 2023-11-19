@@ -98,25 +98,25 @@ impl CfsSessionGetResponse {
         let configuration = Configuration {
             name: session_value
                 .pointer("/configuration/name")
-                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             limit: session_value
                 .pointer("/configuration/limit")
-                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
         };
 
         let ansible = Ansible {
             config: session_value
                 .pointer("/ansible/config")
-                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             limit: session_value
                 .pointer("/ansible/limit")
-                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
             verbosity: session_value
                 .pointer("/ansible/verbosity")
-                .and_then(|str| Some(str.as_u64().unwrap())),
+                .map(|str| str.as_u64().unwrap()),
             passthrough: session_value
                 .pointer("/ansible/passthrough")
-                .and_then(|value| Some(value.as_str().unwrap_or("").to_string())),
+                .map(|value| value.as_str().unwrap_or("").to_string()),
         };
 
         let mut group_vec = Vec::new();

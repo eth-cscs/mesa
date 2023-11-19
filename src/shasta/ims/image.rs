@@ -4,18 +4,11 @@ pub mod http_client {
 
     use serde_json::Value;
 
-    /// Fetch IMS image ref --> https://apidocs.svc.cscs.ch/paas/ims/operation/get_v3_image/
-    /// If filtering by HSM group, then image name must include HSM group name (It assumms each image
-    /// is built for a specific cluster based on ansible vars used by the CFS session). The reason
-    /// for this is because CSCS staff deletes all CFS sessions every now and then...
-    pub async fn get(
+    pub async fn get_all(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        hsm_group_name_opt: Option<&String>,
         image_id_opt: Option<&str>,
-        image_name_opt: Option<&str>,
-        limit_number: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let client;
 
@@ -49,11 +42,14 @@ pub mod http_client {
 
         let mut json_response: Value = if resp.status().is_success() {
             serde_json::from_str(&resp.text().await?)?
+        } else if image_id_opt.is_some() && resp.status() == 404 {
+            return Ok(Vec::new()); // http status 404 means image not found, we return empty Vec
+                                   // (which could happen if using SAT because it renames the image changing its ID
         } else {
             return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
-        let mut image_value_vec: Vec<Value> = if image_id_opt.is_some() {
+        let image_value_vec: Vec<Value> = if image_id_opt.is_some() {
             [json_response].to_vec()
         } else {
             json_response
@@ -62,14 +58,40 @@ pub mod http_client {
                 .to_vec()
         };
 
-        if let Some(hsm_group_name) = hsm_group_name_opt {
-            image_value_vec.retain(|image_value| {
+        Ok(image_value_vec.to_vec())
+    }
+
+    /// Fetch IMS image ref --> https://apidocs.svc.cscs.ch/paas/ims/operation/get_v3_image/
+    /// If filtering by HSM group, then image name must include HSM group name (It assumms each image
+    /// is built for a specific cluster based on ansible vars used by the CFS session). The reason
+    /// for this is because CSCS staff deletes all CFS sessions every now and then...
+    pub async fn get(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_vec: &Vec<String>,
+        image_id_opt: Option<&str>,
+        image_name_opt: Option<&str>,
+        limit_number_opt: Option<&u8>,
+    ) -> Result<Vec<Value>, Box<dyn Error>> {
+        let mut image_value_vec: Vec<Value> = get_all(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            image_id_opt,
+        )
+        .await
+        .unwrap();
+
+        image_value_vec.retain(|image_value| {
+            hsm_group_name_vec.iter().any(|hsm_group_name| {
                 image_value["name"]
                     .as_str()
                     .unwrap()
+                    .to_string()
                     .contains(hsm_group_name)
-            });
-        }
+            })
+        });
 
         // Sort images by creation time order ASC
         image_value_vec.sort_by(|a, b| {
@@ -80,15 +102,14 @@ pub mod http_client {
         });
 
         // Limiting the number of results to return to client
-        if limit_number.is_some() {
-            image_value_vec = image_value_vec[image_value_vec
-                .len()
-                .saturating_sub(*limit_number.unwrap() as usize)..]
+        if let Some(limit_number) = limit_number_opt {
+            image_value_vec = image_value_vec
+                [image_value_vec.len().saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 
-        if image_name_opt.is_some() {
-            image_value_vec.retain(|image_value| image_value["name"].eq(image_name_opt.unwrap()));
+        if let Some(image_name) = image_name_opt {
+            image_value_vec.retain(|image_value| image_value["name"].eq(image_name));
         }
 
         Ok(image_value_vec.to_vec())

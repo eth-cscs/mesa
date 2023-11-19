@@ -67,7 +67,7 @@ pub async fn exec(
     let nodes_boot_params_list = shasta::bss::http_client::get_boot_params(
         shasta_token,
         shasta_base_url,
-        &shasta_root_cert,
+        shasta_root_cert,
         &hsm_groups_node_list,
     )
     .await
@@ -78,13 +78,10 @@ pub async fn exec(
     // creation/update time hence i can't sort by date to loop and find out most recent bos
     // sessiontemplate per node. joining cfs configuration and bos sessiontemplate will help to
     // this
-    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
+    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,
-        &shasta_root_cert,
-        None,
-        None,
-        // None,
+        shasta_root_cert,
     )
     .await
     .unwrap();
@@ -98,7 +95,7 @@ pub async fn exec(
     let nodes_hsm_info_resp = hsm::http_client::get_components_status(
         shasta_token,
         shasta_base_url,
-        &shasta_root_cert,
+        shasta_root_cert,
         hsm_groups_node_list.clone(),
     )
     .await
@@ -206,7 +203,7 @@ pub async fn exec(
     let nodes_boot_params_list = shasta::bss::http_client::get_boot_params(
         shasta_token,
         shasta_base_url,
-        &shasta_root_cert,
+        shasta_root_cert,
         &hsm_groups_node_list,
     )
     .await
@@ -217,13 +214,10 @@ pub async fn exec(
     // creation/update time hence i can't sort by date to loop and find out most recent bos
     // sessiontemplate per node. joining cfs configuration and bos sessiontemplate will help to
     // this
-    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get(
+    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,
-        &shasta_root_cert,
-        None,
-        None,
-        // None,
+        shasta_root_cert,
     )
     .await
     .unwrap();
@@ -237,7 +231,7 @@ pub async fn exec(
     let nodes_hsm_info_resp = hsm::http_client::get_components_status(
         shasta_token,
         shasta_base_url,
-        &shasta_root_cert,
+        shasta_root_cert,
         hsm_groups_node_list.clone(),
     )
     .await

@@ -3,20 +3,22 @@ pub mod http_client {
     use std::collections::HashSet;
 
     use serde_json::Value;
-    use termion::color;
 
     use crate::{
         mesa::cfs::session::get_response_struct::CfsSessionGetResponse,
-        shasta::{self, cfs::session::CfsSessionRequest},
+        shasta::{
+            self, cfs::session::CfsSessionRequest, hsm::utils::get_member_vec_from_hsm_name_vec,
+        },
     };
 
     /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
-    /// Returns list of CFS sessions ordered by start time
+    /// Returns list of CFS sessions ordered by start time.
+    /// This methods filter by either HSM group name or HSM group members or both
     pub async fn get(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        hsm_group_name: Option<&String>,
+        hsm_group_name_vec: &Vec<String>,
         session_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
         is_succeded_opt: Option<bool>,
@@ -48,48 +50,37 @@ pub mod http_client {
             ));
         }
 
-        if let Some(hsm_group) = hsm_group_name {
-            let hsm_group_resp = crate::shasta::hsm::http_client::get_hsm_group(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group,
-            )
-            .await;
+        let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+        )
+        .await;
 
-            let hsm_group_nodes = if hsm_group_resp.is_ok() {
-                shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group_resp.unwrap())
-            } else {
-                eprintln!(
-                    "No HSM group {}{}{} found!",
-                    color::Fg(color::Red),
-                    hsm_group_name.unwrap(),
-                    color::Fg(color::Reset)
-                );
-                std::process::exit(1);
-            };
-
-            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
-            // hsm_group.members.ids
-            cfs_session_vec.retain(|cfs_session| {
-                cfs_session.target.clone().is_some_and(|target| {
-                    target.groups.is_some_and(|group| {
-                        !group.is_empty()
-                            && group.iter().any(|group| {
-                                group.name.clone().is_some_and(|name| name.eq(hsm_group))
-                            })
-                    })
-                }) || cfs_session.ansible.clone().is_some_and(|ansible| {
-                    ansible.limit.is_some_and(|limit| {
-                        limit
-                            .split(',')
-                            .map(|node| node.trim().to_string())
-                            .collect::<HashSet<_>>()
-                            .is_subset(&HashSet::from_iter(hsm_group_nodes.clone()))
-                    })
+        // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
+        // hsm_group.members.ids
+        cfs_session_vec.retain(|cfs_session| {
+            cfs_session.target.clone().is_some_and(|target| {
+                target.groups.is_some_and(|groups| {
+                    !groups.is_empty()
+                        && groups.iter().any(|group| {
+                            group
+                                .name
+                                .clone()
+                                .is_some_and(|group_name| hsm_group_name_vec.contains(&group_name))
+                        })
                 })
-            });
-        }
+            }) || cfs_session.ansible.clone().is_some_and(|ansible| {
+                ansible.limit.is_some_and(|limit| {
+                    limit
+                        .split(',')
+                        .map(|node| node.trim().to_string())
+                        .collect::<HashSet<_>>()
+                        .is_subset(&HashSet::from_iter(hsm_group_member_vec.clone()))
+                })
+            })
+        });
 
         if let Some(session_name) = session_name_opt {
             cfs_session_vec
@@ -108,7 +99,7 @@ pub mod http_client {
                 .as_ref()
                 .unwrap()
                 .cmp(
-                    &b.status
+                    b.status
                         .as_ref()
                         .unwrap()
                         .session
@@ -159,63 +150,52 @@ pub mod http_client {
 pub mod utils {
     use std::collections::HashSet;
 
-    use termion::color;
-
-    use crate::{mesa::cfs::session::get_response_struct::CfsSessionGetResponse, shasta};
+    use crate::{
+        mesa::cfs::session::get_response_struct::CfsSessionGetResponse,
+        shasta::hsm::utils::get_member_vec_from_hsm_name_vec,
+    };
 
     pub async fn filter(
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
-        hsm_group_name_opt: Option<&String>,
+        hsm_group_name_vec: &Vec<String>,
         cfs_session_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
     ) -> Vec<CfsSessionGetResponse> {
-        if let Some(hsm_group_name) = hsm_group_name_opt {
-            let hsm_group_resp = crate::shasta::hsm::http_client::get_hsm_group(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name,
-            )
-            .await;
+        let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+        )
+        .await;
 
-            let hsm_group_nodes = if hsm_group_resp.is_ok() {
-                shasta::hsm::utils::get_members_from_hsm_group_serde_value(&hsm_group_resp.unwrap())
-            } else {
-                eprintln!(
-                    "No HSM group {}{}{} found!",
-                    color::Fg(color::Red),
-                    hsm_group_name,
-                    color::Fg(color::Reset)
-                );
-                std::process::exit(1);
-            };
-
-            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
-            // hsm_group.members.ids
-            cfs_session_vec.retain(|cfs_session| {
-                cfs_session
-                    .target
+        // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
+        // hsm_group.members.ids
+        cfs_session_vec.retain(|cfs_session| {
+            cfs_session
+                .target
+                .clone()
+                .unwrap()
+                .groups
+                .unwrap_or_default()
+                .iter()
+                .any(|group| {
+                    hsm_group_member_vec.contains(&group.name.clone().unwrap().to_string())
+                })
+                || cfs_session
+                    .ansible
                     .clone()
                     .unwrap()
-                    .groups
-                    .unwrap_or(Vec::new())
-                    .iter()
-                    .any(|group| group.name.clone().unwrap().to_string().eq(hsm_group_name))
-                    || cfs_session
-                        .ansible
-                        .clone()
-                        .unwrap()
-                        .limit
-                        .unwrap_or("".to_string())
-                        .split(',')
-                        .map(|node| node.trim().to_string())
-                        .collect::<HashSet<_>>()
-                        .is_subset(&HashSet::from_iter(hsm_group_nodes.clone()))
-            });
-        }
+                    .limit
+                    .unwrap_or("".to_string())
+                    .split(',')
+                    .map(|node| node.trim().to_string())
+                    .collect::<HashSet<_>>()
+                    .is_subset(&HashSet::from_iter(hsm_group_member_vec.clone()))
+        });
 
         if let Some(session_name) = cfs_session_name_opt {
             cfs_session_vec
