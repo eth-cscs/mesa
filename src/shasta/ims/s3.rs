@@ -201,7 +201,7 @@ pub mod s3 {
         while let Some(bytes) = object.body.try_next().await? {
             let bytes = file.write(&bytes)?;
             // byte_count += bytes;
-            println!("Intermediate write of {bytes} bytes...");
+            log::debug!("Intermediate write of {bytes} bytes...");
         }
         //
 
