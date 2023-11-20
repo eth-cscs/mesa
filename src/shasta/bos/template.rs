@@ -360,22 +360,22 @@ pub mod http_client {
         let bos_template: Vec<Value> = get_all(shasta_token, shasta_base_url, shasta_root_cert)
             .await
             .unwrap();
-
-        for bos_template in bos_template.clone() {
-            for (_, value) in bos_template["boot_sets"].as_object().unwrap() {
-                if value["node_groups"]
-                    .as_array()
-                    .unwrap_or(&Vec::new())
-                    .iter()
-                    .all(|node_group| {
-                        hsm_group_name_vec.contains(&node_group.as_str().unwrap().to_string())
-                    })
-                {
-                    cluster_bos_template.push(bos_template.clone());
+        if ! hsm_group_name_vec.is_empty() {
+            for bos_template in bos_template.clone() {
+                for (_, value) in bos_template["boot_sets"].as_object().unwrap() {
+                    if value["node_groups"]
+                        .as_array()
+                        .unwrap_or(&Vec::new())
+                        .iter()
+                        .all(|node_group| {
+                            hsm_group_name_vec.contains(&node_group.as_str().unwrap().to_string())
+                        })
+                    {
+                        cluster_bos_template.push(bos_template.clone());
+                    }
                 }
             }
         }
-
         if let Some(bos_template_name) = bos_template_name_opt {
             for bos_template in bos_template {
                 if bos_template["name"].as_str().unwrap().eq(bos_template_name) {

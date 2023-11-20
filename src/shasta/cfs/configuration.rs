@@ -382,30 +382,31 @@ pub mod http_client {
         most_recent_opt: Option<bool>,
         limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
+
         // FILTER BY HSM GROUP NAMES
+        if ! hsm_group_name_vec_opt.unwrap().is_empty() {
+            if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
+                let hsm_group_member_vec = hsm::utils::get_member_vec_from_hsm_name_vec(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    hsm_group_name_vec,
+                )
+                    .await;
 
-        if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
-            let hsm_group_member_vec = hsm::utils::get_member_vec_from_hsm_name_vec(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name_vec,
-            )
-            .await;
+                let cfs_session_vec = mesa::cfs::session::http_client::http_client::get(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    hsm_group_name_vec,
+                    None,
+                    None,
+                    None,
+                )
+                    .await
+                    .unwrap();
 
-            let cfs_session_vec = mesa::cfs::session::http_client::http_client::get(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name_vec,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
-            /* println!("DEBUG - CFS SESSION");
+                /* println!("DEBUG - CFS SESSION");
             for cfs_session in &cfs_session_vec {
                 println!(
                     "DEBUG - hsm_group {:?} cfs_configuration {:?}",
@@ -414,43 +415,43 @@ pub mod http_client {
                 );
             } */
 
-            let cfs_configuration_name_vec_from_cfs_session = cfs_session_vec
-                .iter()
-                .map(|cfs_session| cfs_session.configuration.clone().unwrap().name.unwrap())
-                .collect::<Vec<_>>();
-
-            let bos_sessiontemplate_vec = mesa::bos::sessiontemplate::http_client::get_all(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-            )
-            .await
-            .unwrap()
-            .into_iter()
-            .filter(|bos_sessiontemplate| {
-                let boot_set_vec = bos_sessiontemplate
-                    .clone()
-                    .boot_sets
-                    .clone()
-                    .unwrap_or_default();
-
-                let mut boot_set_node_groups_vec = boot_set_vec
+                let cfs_configuration_name_vec_from_cfs_session = cfs_session_vec
                     .iter()
-                    .flat_map(|boot_set| boot_set.clone().node_groups.clone().unwrap_or_default());
+                    .map(|cfs_session| cfs_session.configuration.clone().unwrap().name.unwrap())
+                    .collect::<Vec<_>>();
 
-                let mut boot_set_node_list_vec = boot_set_vec
-                    .iter()
-                    .flat_map(|boot_set| boot_set.clone().node_list.clone().unwrap_or_default());
+                let bos_sessiontemplate_vec = mesa::bos::sessiontemplate::http_client::get_all(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                )
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .filter(|bos_sessiontemplate| {
+                        let boot_set_vec = bos_sessiontemplate
+                            .clone()
+                            .boot_sets
+                            .clone()
+                            .unwrap_or_default();
 
-                boot_set_node_groups_vec.clone().count() > 0
-                    && boot_set_node_groups_vec
-                        .all(|node_group| hsm_group_name_vec.contains(&node_group))
-                    || boot_set_node_list_vec.clone().count() > 0
-                        && boot_set_node_list_vec.all(|xname| hsm_group_member_vec.contains(&xname))
-            })
-            .collect::<Vec<_>>();
+                        let mut boot_set_node_groups_vec = boot_set_vec
+                            .iter()
+                            .flat_map(|boot_set| boot_set.clone().node_groups.clone().unwrap_or_default());
 
-            /* println!("DEBUG - BOS SESSIONTEMPLATE");
+                        let mut boot_set_node_list_vec = boot_set_vec
+                            .iter()
+                            .flat_map(|boot_set| boot_set.clone().node_list.clone().unwrap_or_default());
+
+                        boot_set_node_groups_vec.clone().count() > 0
+                            && boot_set_node_groups_vec
+                            .all(|node_group| hsm_group_name_vec.contains(&node_group))
+                            || boot_set_node_list_vec.clone().count() > 0
+                            && boot_set_node_list_vec.all(|xname| hsm_group_member_vec.contains(&xname))
+                    })
+                    .collect::<Vec<_>>();
+
+                /* println!("DEBUG - BOS SESSIONTEMPLATE");
             for bos_sessiontemplate in &bos_sessiontemplate_vec {
                 println!(
                     "DEBUG - hsm_group {:?} cfs_configuration {:?}",
@@ -465,42 +466,42 @@ pub mod http_client {
                 );
             } */
 
-            let cfs_configuration_name_from_bos_sessiontemplate = bos_sessiontemplate_vec
-                .iter()
-                .map(|bos_sessiontemplate| {
-                    bos_sessiontemplate
-                        .cfs
-                        .clone()
-                        .unwrap()
-                        .configuration
-                        .clone()
-                        .unwrap()
-                })
-                .collect::<Vec<_>>();
+                let cfs_configuration_name_from_bos_sessiontemplate = bos_sessiontemplate_vec
+                    .iter()
+                    .map(|bos_sessiontemplate| {
+                        bos_sessiontemplate
+                            .cfs
+                            .clone()
+                            .unwrap()
+                            .configuration
+                            .clone()
+                            .unwrap()
+                    })
+                    .collect::<Vec<_>>();
 
-            let cfs_configuration_name_from_cfs_session_and_bos_settiontemplate = [
-                cfs_configuration_name_vec_from_cfs_session,
-                cfs_configuration_name_from_bos_sessiontemplate,
-            ]
-            .concat();
+                let cfs_configuration_name_from_cfs_session_and_bos_settiontemplate = [
+                    cfs_configuration_name_vec_from_cfs_session,
+                    cfs_configuration_name_from_bos_sessiontemplate,
+                ]
+                    .concat();
 
-            /* println!(
+                /* println!(
                 "DEBUG - cfs configuration names:\n{:#?}",
                 cfs_configuration_name_from_cfs_session_and_bos_settiontemplate
             ); */
 
-            configuration_value_vec.retain(|cfs_configuration| {
-                cfs_configuration_name_from_cfs_session_and_bos_settiontemplate
-                    .contains(&cfs_configuration["name"].as_str().unwrap().to_string())
-            });
+                configuration_value_vec.retain(|cfs_configuration| {
+                    cfs_configuration_name_from_cfs_session_and_bos_settiontemplate
+                        .contains(&cfs_configuration["name"].as_str().unwrap().to_string())
+                });
 
-            /* println!(
+                /* println!(
                 "DEBUG - cfs confguration:\n{:#?}",
                 cfs_configuration_value_vec
             ); */
+            }
         }
         // END FILTER BY HSM GROUP NAME
-
         if let Some(configuration_name) = configuration_name_opt {
             configuration_value_vec.retain(|cfs_configuration| {
                 cfs_configuration["name"]
