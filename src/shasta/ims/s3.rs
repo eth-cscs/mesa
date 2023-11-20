@@ -18,9 +18,12 @@ pub mod s3 {
     pub async fn s3_auth(
         shasta_token: &str,
         shasta_base_url: &str,
+        shasta_root_cert: &[u8],
     ) -> Result<Value, Box<dyn Error>> {
         // STS
-        let client_builder = reqwest::Client::builder().danger_accept_invalid_certs(true);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
 
         // Build client
         let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {

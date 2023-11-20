@@ -3,6 +3,9 @@ use std::env::temp_dir;
 use std::io::{Read, Write};
 use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object, s3_remove_object, s3_upload_object};
 use std::error::Error;
+use std::fs::File;
+use std::path::PathBuf;
+use directories::ProjectDirs;
 use serde_json::Value;
 
 pub const TOKEN_VAR_NAME:&str = "MANTA_CSM_TOKEN";
@@ -10,6 +13,7 @@ pub const API_URL_VAR_NAME:&str = "MANTA_TEST_API_URL";
 
 pub const BUCKET_NAME:&str = "boot-images";
 pub const OBJECT_PATH:&str = "manta-test-2-delete/dummy.txt";
+pub const SITE:&str = "alps";
 
 /// # DOCS
 ///
@@ -33,7 +37,31 @@ pub const OBJECT_PATH:&str = "manta-test-2-delete/dummy.txt";
 async fn authenticate_with_s3() -> anyhow::Result<Value, Box<dyn Error>> {
     let shasta_token = std::env::var(TOKEN_VAR_NAME).unwrap();
     let shasta_base_url = std::env::var(API_URL_VAR_NAME).unwrap();
-    s3_auth(&shasta_token, &shasta_base_url).await
+
+    // In a normal function this should come from manta::config_opts, but since we just want
+    // to make sure the test works without any additional dependencies, I'm hardcoding it here.
+    // XDG Base Directory Specification
+    let project_dirs = ProjectDirs::from(
+        "local", /*qualifier*/
+        "cscs",  /*organization*/
+        "manta", /*application*/
+    );
+
+    let mut config_path = PathBuf::from(project_dirs.unwrap().config_dir());
+    config_path.push(SITE.to_string() + "_root_cert.pem");
+
+    let mut shasta_root_cert = Vec::new();
+    let root_cert_file_rslt = File::open(config_path);
+
+    let _ = match root_cert_file_rslt {
+        Ok(mut file) => file.read_to_end(&mut shasta_root_cert),
+        Err(_) => {
+            eprintln!("Root cert file for CSM not found. Exit");
+            std::process::exit(1);
+        }
+    };
+
+    s3_auth(&shasta_token, &shasta_base_url, &shasta_root_cert).await
 }
 
 #[tokio::test]
