@@ -6,3 +6,4 @@ pub mod cfs;
 pub mod hsm;
 pub mod ims;
 pub mod kubernetes;
+mod hsm_test;

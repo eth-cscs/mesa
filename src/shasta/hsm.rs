@@ -1,5 +1,6 @@
 /// Refs:
 /// Member/node state --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/overview/#section/Valid-State-Transistions
+/// https://github.com/Cray-HPE/docs-csm/blob/release/1.3/api/smd.md
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -46,8 +47,75 @@ pub mod http_client {
     use std::error::Error;
 
     use reqwest::Url;
+    use serde::{Deserialize, Serialize};
     use serde_json::Value;
+    /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
+    pub async fn create_new_hsm_group(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_opt: &String, // label in HSM
+        xnames: &Vec<String>,
+        exclusive: &bool,
+        description: &str,
+        tags: &Vec<String>
+    ) -> Result<Vec<Value>, Box<dyn Error>> {
+        let client;
 
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let json_response: Value;
+        #[derive(Serialize, Deserialize)]
+        struct Address {
+            street: String,
+            city: String,
+        }
+
+        // Some data structure.
+        let address = Address {
+            street: "10 Downing Street".to_owned(),
+            city: "London".to_owned(),
+        };
+
+        // Serialize it to a JSON string.
+        let j = serde_json::to_string(&address)?;
+
+        // Print, write to a file, or send to an HTTP server.
+        println!("{}", j);
+
+        // Ok(())
+        // Some JSON input data as a &str. Maybe this comes from the user.
+
+        let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
+
+        let resp = client
+            .get(url_api)
+            .header("Authorization", format!("Bearer {}", shasta_token))
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            json_response = serde_json::from_str(&resp.text().await?)?;
+        } else {
+            return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+        };
+
+        Ok(json_response.as_array().unwrap().to_owned())
+
+    }
     pub async fn get_all_hsm_groups(
         shasta_token: &str,
         shasta_base_url: &str,
