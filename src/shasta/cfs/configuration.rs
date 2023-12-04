@@ -263,11 +263,15 @@ pub mod http_client {
 
         if resp.status().is_success() {
             let response = &resp.text().await?;
+            log::debug!(
+                "CFS configuration creation response:\n{:#?}",
+                response
+            );
             Ok(serde_json::from_str(response)?)
         } else {
             eprintln!("FAIL request: {:#?}", resp);
             let response: String = resp.text().await?;
-            eprintln!("FAIL response: {:#?}", response);
+            log::error!("FAIL response: {:#?}", response);
             Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }

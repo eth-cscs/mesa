@@ -35,7 +35,6 @@ pub mod http_client {
 
         let resp = client
             .get(api_url)
-            // .get(format!("{}{}", shasta_base_url, "/cfs/v2/configurations"))
             .bearer_auth(shasta_token)
             .send()
             .await?;
@@ -110,6 +109,57 @@ pub mod http_client {
 
         if let Some(image_name) = image_name_opt {
             image_value_vec.retain(|image_value| image_value["name"].eq(image_name));
+        }
+
+        Ok(image_value_vec.to_vec())
+    }
+
+    // Get Image using fuzzy finder, meaning returns any image which name contains a specific
+    // string.
+    // Used to find an image created through a CFS session and has not been renamed because manta
+    // does not rename the images as SAT tool does for the sake of keeping the original image ID in
+    // the CFS session which created the image.
+    pub async fn get_fuzzy(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_vec: &Vec<String>,
+        image_name_opt: Option<&str>,
+        limit_number_opt: Option<&u8>,
+    ) -> Result<Vec<Value>, Box<dyn Error>> {
+        let mut image_value_vec: Vec<Value> =
+            get_all(shasta_token, shasta_base_url, shasta_root_cert, None)
+                .await
+                .unwrap();
+
+        image_value_vec.retain(|image_value| {
+            hsm_group_name_vec.iter().any(|hsm_group_name| {
+                image_value["name"]
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+                    .contains(hsm_group_name)
+            })
+        });
+
+        // Sort images by creation time order ASC
+        image_value_vec.sort_by(|a, b| {
+            a["created"]
+                .as_str()
+                .unwrap()
+                .cmp(b["created"].as_str().unwrap())
+        });
+
+        // Limiting the number of results to return to client
+        if let Some(limit_number) = limit_number_opt {
+            image_value_vec = image_value_vec
+                [image_value_vec.len().saturating_sub(*limit_number as usize)..]
+                .to_vec();
+        }
+
+        if let Some(image_name) = image_name_opt {
+            image_value_vec
+                .retain(|image_value| image_value["name"].as_str().unwrap().contains(image_name));
         }
 
         Ok(image_value_vec.to_vec())

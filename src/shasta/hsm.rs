@@ -281,7 +281,9 @@ pub mod http_client {
             .await?;
 
         if resp.status().is_success() {
-            Ok(serde_json::from_str(&resp.text().await?)?)
+            let response = serde_json::from_str(&resp.text().await?);
+            // println!("DEBUG - response: {:?}", response);
+            Ok(response?)
         } else {
             Err(resp.json::<Value>().await?["detail"]
                 .as_str()

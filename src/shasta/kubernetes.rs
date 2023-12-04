@@ -473,7 +473,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
     log::debug!("Container status:\n{:#?}", init_container_status);
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
 
     /* // Check init container is terminated
     if init_container_status
@@ -496,9 +496,21 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             .state
             .unwrap()
             .waiting
-            .is_some())
+            .is_some()
+        /* || !init_container_status
+            .clone()
+            .unwrap()
+            .state
+            .unwrap()
+            .terminated
+            .is_some() */)
         && i <= max
     {
+        log::info!(
+            "Container {} state {:?}",
+            git_clone_container.name,
+            init_container_status.clone().unwrap().state.unwrap()
+        );
         println!(
             "Waiting for container '{}' to be ready. Checking again in 2 secs. Attempt {} of {}",
             git_clone_container.name,

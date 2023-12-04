@@ -181,12 +181,12 @@ pub mod http_client {
             .await?;
 
         if resp.status().is_success() {
-            Ok(serde_json::from_str(&resp.text().await?)?)
+            let response = resp.json().await?;
+            log::debug!("Response:\n{:#?}", response);
+            Ok(response)
         } else {
-            Err(resp.json::<Value>().await?["detail"]
-                .as_str()
-                .unwrap()
-                .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            let error = &resp.json::<Value>().await?["detail"];
+            Err(error.as_str().unwrap().into())
         }
     }
 
@@ -231,7 +231,9 @@ pub mod http_client {
         let json_response: Value = if resp.status().is_success() {
             serde_json::from_str(&resp.text().await?)?
         } else {
-            return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+            let response = resp.text().await;
+            log::error!("{:#?}", response);
+            return Err(response?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
         };
 
         Ok(json_response.as_array().unwrap().clone())
@@ -248,14 +250,18 @@ pub mod http_client {
         limit_number_opt: Option<&u8>,
         is_succeded: Option<bool>,
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-        let mut cluster_cfs_sessions = get_all(shasta_token, shasta_base_url, shasta_root_cert, is_succeded).await.unwrap();
+        let mut cluster_cfs_sessions =
+            get_all(shasta_token, shasta_base_url, shasta_root_cert, is_succeded)
+                .await
+                .unwrap();
 
         let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
             hsm_group_name_vec,
-        ).await;
+        )
+        .await;
 
         // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
         // hsm_group.members.ids

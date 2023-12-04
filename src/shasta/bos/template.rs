@@ -288,21 +288,23 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
+        let api_url = shasta_base_url.to_string() + "/bos/v1/sessiontemplate";
+
         let resp = client
-            .post(format!("{}{}", shasta_base_url, "/bos/v1/sessiontemplate"))
+            .post(api_url)
             .bearer_auth(shasta_token)
             .json(&bos_template)
             .send()
             .await?;
 
         if resp.status().is_success() {
-            let response = &resp.text().await?;
-            Ok(serde_json::from_str(response)?)
+            let response = resp.json().await?;
+            log::debug!("Response:\n{:#?}", response);
+            Ok(response)
         } else {
-            eprintln!("FAIL request: {:#?}", resp);
             let response: String = resp.text().await?;
-            eprintln!("FAIL response: {:#?}", response);
-            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            log::error!("FAIL response: {:#?}", response);
+            Err(response.into())
         }
     }
 
