@@ -4,18 +4,20 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-struct HsmGroup {
+pub struct HsmGroup {
     label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    members: Option<Vec<Member>>,
+    members: Option<Member>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exclusiveGroup: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-struct Member {
+pub struct Member {
     #[serde(skip_serializing_if = "Option::is_none")]
     ids: Option<Vec<String>>,
 }
@@ -49,20 +51,7 @@ pub mod http_client {
     use reqwest::Url;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct xname_array {
-        pub ids: Vec<String>,
-    }
-
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct hsm_group_json_body {
-        pub label: String,
-        pub description: String,
-        pub tags: Vec<String>,
-        pub exclusiveGroup: String,
-        pub members: xname_array,
-    }
+    use crate::shasta::hsm::{HsmGroup, Member};
 
     /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
     pub async fn create_new_hsm_group(
@@ -71,7 +60,7 @@ pub mod http_client {
         shasta_root_cert: &[u8],
         hsm_group_name_opt: &String, // label in HSM
         xnames: &Vec<String>,
-        exclusive: &bool,
+        exclusive: &str,
         description: &str,
         tags: &Vec<String>
     ) -> Result<Vec<Value>, Box<dyn Error>> {
@@ -112,16 +101,16 @@ pub mod http_client {
         // Describe the JSON object
 
         // Create the variables that represent our JSON object
-        let myxnames = xname_array {
-            ids: xnames.clone(),
+        let myxnames = Member {
+            ids: Option::from(xnames.clone()),
         };
 
-        let hsm_group_json = hsm_group_json_body {
+        let hsm_group_json = HsmGroup {
             label: hsm_group_name_opt.clone(),
-            description: description.to_string().clone(),
-            tags: tags.clone(),
-            exclusiveGroup: exclusive.to_string().clone(),
-            members: myxnames,
+            description: Option::from(description.to_string().clone()),
+            tags: Option::from(tags.clone()),
+            exclusiveGroup: Option::from(exclusive.to_string().clone()),
+            members: Option::from(myxnames),
         };
         let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
             Ok(m) => m,

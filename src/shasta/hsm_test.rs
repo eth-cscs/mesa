@@ -17,7 +17,7 @@ pub async fn test_1_hsm_create_new_hsm_group() {
     let shasta_base_url = std::env::var(crate::shasta::ims::s3_test::API_URL_VAR_NAME).unwrap();
 
     // TODO Fix the xnames for Alps, this can cause trouble as it is
-    let exclusive:bool = false; // Make sure this is false, so we can test this without impacting other HSM groups
+    let exclusive:String = false.to_string(); // Make sure this is false, so we can test this without impacting other HSM groups
     // the following xnames are part of HSM group "gele"
     let xnames:Vec<String> = vec!["x1001c7s1b0n0".to_string(),
                                   "x1001c7s1b0n1".to_string(),
