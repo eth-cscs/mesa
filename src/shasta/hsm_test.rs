@@ -25,6 +25,7 @@ pub async fn test_1_hsm_create_new_hsm_group() {
                                   "x1001c7s1b1n1".to_string()];
     let description = "Test group created by function mesa test_1_hsm";
     let tags:Vec<String> = vec!["dummyTag1".to_string(), "dummyTag2".to_string()];
+    // let tags= vec![]; // sending an empty vector works
     let hsm_group_name_opt = "manta_created_hsm".to_string();
 
     // In a normal function this should come from manta::config_opts, but since we just want

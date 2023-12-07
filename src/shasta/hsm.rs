@@ -103,8 +103,8 @@ pub mod http_client {
         struct hsm_group_json_body {
             label: String,
             description: String,
-            // tags: Vec<String>,
-            // exclusiveGroup: bool,
+            tags: Vec<String>,
+            exclusiveGroup: String,
             members: xname_array,
         }
         // Create the variables that represent our JSON object
@@ -115,8 +115,8 @@ pub mod http_client {
         let hsm_group_json = hsm_group_json_body {
             label: hsm_group_name_opt.clone(),
             description: description.to_string().clone(),
-            // tags: tags.clone(),
-            // exclusiveGroup: exclusive.clone(),
+            tags: tags.clone(),
+            exclusiveGroup: exclusive.to_string().clone(),
             members: myxnames,
         };
         let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
