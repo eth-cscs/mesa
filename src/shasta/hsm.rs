@@ -5,21 +5,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct HsmGroup {
-    label: String,
+    pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    tags: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    members: Option<Member>,
+    pub members: Option<Member>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    exclusiveGroup: Option<String>,
+    pub exclusiveGroup: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Member {
     #[serde(skip_serializing_if = "Option::is_none")]
-    ids: Option<Vec<String>>,
+    pub ids: Option<Vec<String>>,
 }
 
 /* impl HsmGroup {
