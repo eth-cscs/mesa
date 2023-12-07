@@ -251,6 +251,7 @@ pub mod http_client {
 
 pub mod utils {
     use comfy_table::Table;
+    use serde_json::Value;
 
     use crate::common::node_ops;
 
@@ -309,6 +310,70 @@ pub mod utils {
         }
 
         bos_sessiontemplate_vec.to_vec()
+    }
+
+    pub fn get_image_id_cfs_configuration_target_tuple_vec(
+        bos_sessiontemplate_value_vec: Vec<Value>,
+    ) -> Vec<(String, String, Vec<String>)> {
+        let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
+            String,
+            String,
+            Vec<String>,
+        )> = Vec::new();
+
+        bos_sessiontemplate_value_vec
+            .iter()
+            .for_each(|bos_sessiontemplate| {
+                let cfs_configuration = bos_sessiontemplate
+                    .pointer("/cfs/configuration")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string();
+
+                for (_, boot_set) in bos_sessiontemplate
+                    .pointer("/boot_sets")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                {
+                    let path = boot_set["path"]
+                        .as_str()
+                        .unwrap()
+                        .strip_prefix("s3://boot-images/")
+                        .unwrap()
+                        .strip_suffix("/manifest.json")
+                        .unwrap()
+                        .to_string();
+
+                    let target: Vec<String> = if let Some(node_groups) = boot_set.get("node_groups")
+                    {
+                        node_groups
+                            .as_array()
+                            .unwrap()
+                            .into_iter()
+                            .map(|node_group| node_group.as_str().unwrap().to_string())
+                            .collect()
+                    } else if let Some(node_list) = boot_set.get("node_list") {
+                        node_list
+                            .as_array()
+                            .unwrap()
+                            .into_iter()
+                            .map(|target_group| target_group.as_str().unwrap().to_string())
+                            .collect()
+                    } else {
+                        vec![]
+                    };
+
+                    image_id_cfs_configuration_from_bos_sessiontemplate.push((
+                        path.to_string(),
+                        cfs_configuration.to_string(),
+                        target,
+                    ));
+                }
+            });
+
+        image_id_cfs_configuration_from_bos_sessiontemplate
     }
 
     pub fn print_table_struct(bos_sessiontemplate_vec: Vec<SessionTemplate>) {

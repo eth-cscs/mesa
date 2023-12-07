@@ -74,7 +74,6 @@ pub async fn get_configuration(
     most_recent_opt: Option<bool>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<Value> {
-
     let cfs_configuration_value_vec = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,

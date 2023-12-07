@@ -87,20 +87,58 @@ pub mod http_client {
 }
 
 pub mod utils {
-    use crate::mesa::cfs::configuration::get_put_payload::CfsConfigurationResponse;
+    use crate::{mesa::cfs::configuration::get_put_payload::CfsConfigurationResponse, shasta};
 
-    pub fn filter(
+    pub async fn filter(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
         cfs_configuration_vec: &mut Vec<CfsConfigurationResponse>,
         cfs_configuration_name_opt: Option<&String>,
+        hsm_group_name_vec: &Vec<String>,
         limit_number_opt: Option<&u8>,
     ) -> Vec<CfsConfigurationResponse> {
+        // We need BOS session templates to find an image created by SAT
+        let bos_sessiontemplates_value_vec = shasta::bos::template::http_client::filter(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        /* println!(
+            "DEBUG - BOS sessiontemplate:\n{:#?}",
+            bos_sessiontemplates_value_vec
+        ); */
+
+        // We need CFS sessions to find images without a BOS session template
+        let cfs_session_value_vec = shasta::cfs::session::http_client::filter(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+            None,
+            None,
+            Some(true),
+        )
+        .await
+        .unwrap();
+
+        // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
+
         if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
             cfs_configuration_vec
                 .retain(|cfs_configuration| cfs_configuration.name.eq(cfs_configuration_name));
         }
 
-        cfs_configuration_vec.sort_by(|cfs_session_1, cfs_session_2| {
-            cfs_session_1.last_updated.cmp(&cfs_session_2.last_updated)
+        cfs_configuration_vec.sort_by(|cfs_configuration_1, cfs_configuration_2| {
+            cfs_configuration_1
+                .last_updated
+                .cmp(&cfs_configuration_2.last_updated)
         });
 
         if let Some(limit_number) = limit_number_opt {
