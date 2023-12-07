@@ -49,6 +49,21 @@ pub mod http_client {
     use reqwest::Url;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct xname_array {
+        pub ids: Vec<String>,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct hsm_group_json_body {
+        pub label: String,
+        pub description: String,
+        pub tags: Vec<String>,
+        pub exclusiveGroup: String,
+        pub members: xname_array,
+    }
+
     /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
     pub async fn create_new_hsm_group(
         shasta_token: &str,
@@ -95,18 +110,7 @@ pub mod http_client {
         //   }
         // }
         // Describe the JSON object
-        #[derive(Serialize, Deserialize, Debug)]
-        struct xname_array {
-            ids: Vec<String>,
-        }
-        #[derive(Serialize, Deserialize, Debug)]
-        struct hsm_group_json_body {
-            label: String,
-            description: String,
-            tags: Vec<String>,
-            exclusiveGroup: String,
-            members: xname_array,
-        }
+
         // Create the variables that represent our JSON object
         let myxnames = xname_array {
             ids: xnames.clone(),
@@ -126,9 +130,6 @@ pub mod http_client {
 
         println!("{:#?}", &hsm_group_json_body);
 
-        // Ok(())
-        // Some JSON input data as a &str. Maybe this comes from the user.
-
         let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
         let resp = client
@@ -147,8 +148,8 @@ pub mod http_client {
         };
 
         Ok(json_response.as_array().unwrap().to_owned())
-
     }
+
     pub async fn get_all_hsm_groups(
         shasta_token: &str,
         shasta_base_url: &str,
