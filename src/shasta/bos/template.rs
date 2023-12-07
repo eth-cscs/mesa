@@ -359,18 +359,21 @@ pub mod http_client {
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
         let mut cluster_bos_template = Vec::new();
 
-        let bos_template: Vec<Value> = get_all(shasta_token, shasta_base_url, shasta_root_cert)
+        let bos_template_vec: Vec<Value> = get_all(shasta_token, shasta_base_url, shasta_root_cert)
             .await
             .unwrap();
-        if ! hsm_group_name_vec.is_empty() {
-            for bos_template in bos_template.clone() {
+
+        if !hsm_group_name_vec.is_empty() {
+            for bos_template in bos_template_vec.clone() {
                 for (_, value) in bos_template["boot_sets"].as_object().unwrap() {
                     if value["node_groups"]
                         .as_array()
-                        .unwrap_or(&Vec::new())
-                        .iter()
-                        .all(|node_group| {
-                            hsm_group_name_vec.contains(&node_group.as_str().unwrap().to_string())
+                        .is_some_and(|node_group_vec| {
+                            !node_group_vec.is_empty()
+                                && node_group_vec.iter().all(|node_group| {
+                                    hsm_group_name_vec
+                                        .contains(&node_group.as_str().unwrap().to_string())
+                                })
                         })
                     {
                         cluster_bos_template.push(bos_template.clone());
@@ -379,7 +382,7 @@ pub mod http_client {
             }
         }
         if let Some(bos_template_name) = bos_template_name_opt {
-            for bos_template in bos_template {
+            for bos_template in bos_template_vec {
                 if bos_template["name"].as_str().unwrap().eq(bos_template_name) {
                     cluster_bos_template.push(bos_template.clone());
                 }
