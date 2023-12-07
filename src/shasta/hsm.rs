@@ -76,25 +76,55 @@ pub mod http_client {
         } else {
             client = client_builder.build()?;
         }
-
-        let json_response: Value;
-        #[derive(Serialize, Deserialize)]
-        struct Address {
-            street: String,
-            city: String,
+        // Example body to create a new group:
+        // {
+        //   "label": "blue",
+        //   "description": "This is the blue group",
+        //   "tags": [
+        //     "optional_tag1",
+        //     "optional_tag2"
+        //   ],
+        //   "exclusiveGroup": "optional_excl_group",
+        //   "members": {
+        //     "ids": [
+        //       "x1c0s1b0n0",
+        //       "x1c0s1b0n1",
+        //       "x1c0s2b0n0",
+        //       "x1c0s2b0n1"
+        //     ]
+        //   }
+        // }
+        // Describe the JSON object
+        #[derive(Serialize, Deserialize, Debug)]
+        struct xname_array {
+            ids: Vec<String>,
         }
-
-        // Some data structure.
-        let address = Address {
-            street: "10 Downing Street".to_owned(),
-            city: "London".to_owned(),
+        #[derive(Serialize, Deserialize, Debug)]
+        struct hsm_group_json_body {
+            label: String,
+            description: String,
+            // tags: Vec<String>,
+            // exclusiveGroup: bool,
+            members: xname_array,
+        }
+        // Create the variables that represent our JSON object
+        let myxnames = xname_array {
+            ids: xnames.clone(),
         };
 
-        // Serialize it to a JSON string.
-        let j = serde_json::to_string(&address)?;
+        let hsm_group_json = hsm_group_json_body {
+            label: hsm_group_name_opt.clone(),
+            description: description.to_string().clone(),
+            // tags: tags.clone(),
+            // exclusiveGroup: exclusive.clone(),
+            members: myxnames,
+        };
+        let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
+            Ok(m) => m,
+            Err(e) => panic!("crap"),
+        };
 
-        // Print, write to a file, or send to an HTTP server.
-        println!("{}", j);
+        println!("{:#?}", &hsm_group_json_body);
 
         // Ok(())
         // Some JSON input data as a &str. Maybe this comes from the user.
@@ -102,10 +132,13 @@ pub mod http_client {
         let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
         let resp = client
-            .get(url_api)
+            .post(url_api)
             .header("Authorization", format!("Bearer {}", shasta_token))
+            .json(&hsm_group_json) // make sure this is not a string!
             .send()
             .await?;
+
+        let json_response:Value;
 
         if resp.status().is_success() {
             json_response = serde_json::from_str(&resp.text().await?)?;
