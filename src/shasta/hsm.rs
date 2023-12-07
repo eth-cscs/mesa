@@ -49,7 +49,6 @@ pub mod http_client {
     use std::error::Error;
 
     use reqwest::Url;
-    use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use crate::shasta::hsm::{HsmGroup, Member};
 
@@ -114,7 +113,7 @@ pub mod http_client {
         };
         let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
             Ok(m) => m,
-            Err(e) => panic!("crap"),
+            Err(e) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
         };
 
         println!("{:#?}", &hsm_group_json_body);

@@ -1,9 +1,7 @@
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use directories::ProjectDirs;
-use serde_json::{to_string, Value};
 use crate::shasta::hsm::http_client::create_new_hsm_group;
 
 pub const TOKEN_VAR_NAME:&str = "MANTA_CSM_TOKEN";
