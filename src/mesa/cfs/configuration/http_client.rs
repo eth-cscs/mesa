@@ -87,7 +87,15 @@ pub mod http_client {
 }
 
 pub mod utils {
-    use crate::{mesa::cfs::configuration::get_put_payload::CfsConfigurationResponse, shasta};
+    use std::ops::Deref;
+
+    use crate::{
+        mesa::{
+            bos::sessiontemplate::utils::get_image_id_cfs_configuration_target_tuple_vec,
+            cfs::configuration::get_put_payload::CfsConfigurationResponse,
+        },
+        shasta,
+    };
 
     pub async fn filter(
         shasta_token: &str,
@@ -98,56 +106,79 @@ pub mod utils {
         hsm_group_name_vec: &Vec<String>,
         limit_number_opt: Option<&u8>,
     ) -> Vec<CfsConfigurationResponse> {
-        // We need BOS session templates to find an image created by SAT
-        let bos_sessiontemplates_value_vec = shasta::bos::template::http_client::filter(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            hsm_group_name_vec,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        /* println!(
-            "DEBUG - BOS sessiontemplate:\n{:#?}",
-            bos_sessiontemplates_value_vec
-        ); */
-
-        // We need CFS sessions to find images without a BOS session template
-        let cfs_session_value_vec = shasta::cfs::session::http_client::filter(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            hsm_group_name_vec,
-            None,
-            None,
-            Some(true),
-        )
-        .await
-        .unwrap();
-
-        // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
-
         if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
             cfs_configuration_vec
                 .retain(|cfs_configuration| cfs_configuration.name.eq(cfs_configuration_name));
-        }
+        } else {
+            // We need BOS session templates to find an image created by SAT
+            let bos_sessiontemplate_value_vec = shasta::bos::template::http_client::filter(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                hsm_group_name_vec,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
 
-        cfs_configuration_vec.sort_by(|cfs_configuration_1, cfs_configuration_2| {
-            cfs_configuration_1
-                .last_updated
-                .cmp(&cfs_configuration_2.last_updated)
-        });
+            /* println!(
+                "DEBUG - BOS sessiontemplate:\n{:#?}",
+                bos_sessiontemplates_value_vec
+            ); */
 
-        if let Some(limit_number) = limit_number_opt {
-            // Limiting the number of results to return to client
+            // We need CFS sessions to find images without a BOS session template
+            let cfs_session_value_vec = shasta::cfs::session::http_client::filter(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                hsm_group_name_vec,
+                None,
+                None,
+                Some(true),
+            )
+            .await
+            .unwrap();
 
-            *cfs_configuration_vec = cfs_configuration_vec[cfs_configuration_vec
-                .len()
-                .saturating_sub(*limit_number as usize)..]
-                .to_vec();
+            let image_id_cfs_configuration_target_from_bos_sessiontemplate =
+                get_image_id_cfs_configuration_target_tuple_vec(bos_sessiontemplate_value_vec);
+
+            let image_id_cfs_configuration_target_from_cfs_session =
+                get_image_id_cfs_configuration_target_tuple_vec(cfs_session_value_vec);
+
+            let image_id_cfs_configuration_target = [
+                image_id_cfs_configuration_target_from_bos_sessiontemplate,
+                image_id_cfs_configuration_target_from_cfs_session,
+            ]
+            .concat();
+
+            cfs_configuration_vec.retain(|cfs_configuration| {
+                hsm_group_name_vec.iter().any(|hsm_group| {
+                    cfs_configuration.name.contains(hsm_group)
+                        || image_id_cfs_configuration_target
+                            .iter()
+                            .map(|(_, cfs_configuration, _)| cfs_configuration.clone())
+                            .collect::<Vec<String>>()
+                            .contains(&cfs_configuration.name)
+                })
+            });
+
+            // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
+
+            cfs_configuration_vec.sort_by(|cfs_configuration_1, cfs_configuration_2| {
+                cfs_configuration_1
+                    .last_updated
+                    .cmp(&cfs_configuration_2.last_updated)
+            });
+
+            if let Some(limit_number) = limit_number_opt {
+                // Limiting the number of results to return to client
+
+                *cfs_configuration_vec = cfs_configuration_vec[cfs_configuration_vec
+                    .len()
+                    .saturating_sub(*limit_number as usize)..]
+                    .to_vec();
+            }
         }
 
         cfs_configuration_vec.to_vec()
