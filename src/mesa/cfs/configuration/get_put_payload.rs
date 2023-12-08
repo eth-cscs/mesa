@@ -8,24 +8,24 @@ use crate::common::{gitea, local_git_repo};
 #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
 pub struct Layer {
     #[serde(rename = "cloneUrl")]
-    clone_url: String,
+    pub clone_url: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
-    commit: Option<String>,
-    name: String,
-    playbook: String,
+    pub commit: Option<String>,
+    pub name: String,
+    pub playbook: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
-    branch: Option<String>,
+    pub branch: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
 pub struct AdditionalInventory {
     #[serde(rename = "cloneUrl")]
-    clone_url: String,
+    pub clone_url: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
-    commit: Option<String>,
-    name: String,
+    pub commit: Option<String>,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
-    branch: Option<String>,
+    pub branch: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`

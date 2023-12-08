@@ -22,12 +22,10 @@ pub mod http_client {
         .await
         .unwrap();
 
-        let mut cfs_configuration_vec: Vec<get_put_payload::CfsConfigurationResponse> = Vec::new();
+        let mut cfs_configuration_vec: Vec<get_put_payload::CfsConfigurationResponse>;
 
         if cfs_configuration_response.status().is_success() {
-            let cfs_configuration: get_put_payload::CfsConfigurationResponse =
-                cfs_configuration_response.json().await.unwrap();
-            cfs_configuration_vec.push(cfs_configuration);
+            cfs_configuration_vec = cfs_configuration_response.json().await.unwrap();
         } else {
             return Err(cfs_configuration_response.json().await.unwrap());
         }

@@ -2,7 +2,7 @@ use comfy_table::Table;
 use serde_json::Value;
 use std::fmt;
 
-use crate::shasta;
+use crate::{mesa::{self, cfs::configuration::get_put_payload::CfsConfigurationResponse}, shasta};
 
 pub struct Configuration {
     pub name: String,
@@ -71,18 +71,37 @@ pub async fn get_configuration(
     shasta_root_cert: &[u8],
     configuration_name: Option<&String>,
     hsm_group_name_vec: &Vec<String>,
-    most_recent_opt: Option<bool>,
     limit_number_opt: Option<&u8>,
-) -> Vec<Value> {
-    let cfs_configuration_value_vec = shasta::cfs::configuration::http_client::get_all(
+) -> Vec<CfsConfigurationResponse> {
+    /* let cfs_configuration_value_vec = shasta::cfs::configuration::http_client::get_all(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
     )
     .await
+    .unwrap_or_default(); */
+
+    let mut cfs_configuration_value_vec = mesa::cfs::configuration::http_client::http_client::get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        None,
+        None,
+    )
+    .await
     .unwrap_or_default();
 
-    shasta::cfs::configuration::http_client::filter(
+    mesa::cfs::configuration::http_client::utils::filter(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &mut cfs_configuration_value_vec,
+        configuration_name,
+        hsm_group_name_vec,
+        limit_number_opt,
+    ).await
+
+    /* shasta::cfs::configuration::http_client::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -93,7 +112,7 @@ pub async fn get_configuration(
         limit_number_opt,
     )
     .await
-    .unwrap()
+    .unwrap() */
 }
 
 impl fmt::Display for Layer {
