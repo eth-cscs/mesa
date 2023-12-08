@@ -321,57 +321,58 @@ pub mod utils {
             Vec<String>,
         )> = Vec::new();
 
-        bos_sessiontemplate_value_vec
-            .iter()
-            .for_each(|bos_sessiontemplate| {
-                let cfs_configuration = bos_sessiontemplate
-                    .pointer("/cfs/configuration")
-                    .unwrap()
+        for bos_sessiontemplate in bos_sessiontemplate_value_vec {
+            if None == bos_sessiontemplate.get("cfs") {
+                continue;
+            }
+
+            let cfs_configuration = bos_sessiontemplate
+                .pointer("/cfs/configuration")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string();
+
+            for (_, boot_set) in bos_sessiontemplate
+                .pointer("/boot_sets")
+                .unwrap()
+                .as_object()
+                .unwrap()
+            {
+                let path = boot_set["path"]
                     .as_str()
+                    .unwrap()
+                    .strip_prefix("s3://boot-images/")
+                    .unwrap()
+                    .strip_suffix("/manifest.json")
                     .unwrap()
                     .to_string();
 
-                for (_, boot_set) in bos_sessiontemplate
-                    .pointer("/boot_sets")
-                    .unwrap()
-                    .as_object()
-                    .unwrap()
-                {
-                    let path = boot_set["path"]
-                        .as_str()
+                let target: Vec<String> = if let Some(node_groups) = boot_set.get("node_groups") {
+                    node_groups
+                        .as_array()
                         .unwrap()
-                        .strip_prefix("s3://boot-images/")
+                        .into_iter()
+                        .map(|node_group| node_group.as_str().unwrap().to_string())
+                        .collect()
+                } else if let Some(node_list) = boot_set.get("node_list") {
+                    node_list
+                        .as_array()
                         .unwrap()
-                        .strip_suffix("/manifest.json")
-                        .unwrap()
-                        .to_string();
+                        .into_iter()
+                        .map(|target_group| target_group.as_str().unwrap().to_string())
+                        .collect()
+                } else {
+                    vec![]
+                };
 
-                    let target: Vec<String> = if let Some(node_groups) = boot_set.get("node_groups")
-                    {
-                        node_groups
-                            .as_array()
-                            .unwrap()
-                            .into_iter()
-                            .map(|node_group| node_group.as_str().unwrap().to_string())
-                            .collect()
-                    } else if let Some(node_list) = boot_set.get("node_list") {
-                        node_list
-                            .as_array()
-                            .unwrap()
-                            .into_iter()
-                            .map(|target_group| target_group.as_str().unwrap().to_string())
-                            .collect()
-                    } else {
-                        vec![]
-                    };
-
-                    image_id_cfs_configuration_from_bos_sessiontemplate.push((
-                        path.to_string(),
-                        cfs_configuration.to_string(),
-                        target,
-                    ));
-                }
-            });
+                image_id_cfs_configuration_from_bos_sessiontemplate.push((
+                    path.to_string(),
+                    cfs_configuration.to_string(),
+                    target,
+                ));
+            }
+        }
 
         image_id_cfs_configuration_from_bos_sessiontemplate
     }

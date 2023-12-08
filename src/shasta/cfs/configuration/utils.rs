@@ -1,7 +1,7 @@
 use comfy_table::Table;
 use serde_json::Value;
 
-use crate::shasta::cfs::configuration::get_put_payload::CfsConfigurationResponse;
+use crate::shasta::cfs::configuration::r#struct::get_put_payload::CfsConfigurationResponse;
 
 pub fn print_table(cfs_configurations: Vec<Value>) {
     let mut table = Table::new();

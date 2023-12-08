@@ -4,7 +4,7 @@ use crate::{mesa, shasta::hsm};
 
 use serde_json::Value;
 
-use super::configuration::CfsConfigurationRequest;
+use super::r#struct::configuration::CfsConfigurationRequest;
 
 pub async fn put(
     shasta_token: &str,

@@ -203,12 +203,3 @@ impl CfsConfigurationRequest {
         cfs_configuration
     }
 }
-
-/* pub fn add_layer(layer: Layer, mut configuration: CfsConfiguration) -> CfsConfiguration {
-    configuration.layers.push(layer);
-    configuration
-} */
-
-pub mod http_client {
-
-}

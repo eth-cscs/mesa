@@ -3,9 +3,7 @@ pub mod http_client {
     use serde_json::Value;
 
     use crate::shasta::cfs::configuration::{
-        configuration::CfsConfigurationRequest,
-        get_put_payload::CfsConfigurationResponse,
-        http_client::{get_raw, put_raw},
+        http_client::{get_raw, put_raw}, r#struct::{get_put_payload::CfsConfigurationResponse, configuration::CfsConfigurationRequest},
     };
 
     pub async fn get(
@@ -85,7 +83,7 @@ pub mod utils {
 
     use crate::{
         mesa::bos::sessiontemplate::utils::get_image_id_cfs_configuration_target_tuple_vec,
-        shasta::{self, cfs::configuration::get_put_payload::CfsConfigurationResponse},
+        shasta::{self, cfs::configuration::r#struct::get_put_payload::CfsConfigurationResponse},
     };
 
     pub async fn filter(

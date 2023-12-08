@@ -1,7 +1,9 @@
 use comfy_table::Table;
 use std::fmt;
 
-use crate::{shasta::cfs::configuration::get_put_payload::CfsConfigurationResponse, mesa};
+use crate::{
+    mesa, shasta::cfs::configuration::r#struct::get_put_payload::CfsConfigurationResponse,
+};
 
 pub struct Configuration {
     pub name: String,
