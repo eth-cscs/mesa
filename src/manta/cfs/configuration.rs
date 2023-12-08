@@ -1,8 +1,7 @@
 use comfy_table::Table;
-use serde_json::Value;
 use std::fmt;
 
-use crate::{mesa::{self, cfs::configuration::get_put_payload::CfsConfigurationResponse}, shasta};
+use crate::{shasta::cfs::configuration::get_put_payload::CfsConfigurationResponse, mesa};
 
 pub struct Configuration {
     pub name: String,
@@ -99,7 +98,8 @@ pub async fn get_configuration(
         configuration_name,
         hsm_group_name_vec,
         limit_number_opt,
-    ).await
+    )
+    .await
 
     /* shasta::cfs::configuration::http_client::filter(
         shasta_token,

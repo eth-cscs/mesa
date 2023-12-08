@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::shasta::{cfs::configuration, hsm::http_client::get_hsm_group_vec};
+use crate::shasta::{hsm::http_client::get_hsm_group_vec, cfs::configuration::http_client::get};
 
 #[derive(Debug)]
 pub struct ClusterDetails {
@@ -77,7 +77,7 @@ pub async fn get_details(
 
                 // Get CFS configuration linked to CFS session related to HSM GROUP or any of its
                 // members
-                let cfs_configuration_vec = configuration::http_client::get(
+                let cfs_configuration_value_vec = get(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
@@ -95,7 +95,7 @@ pub async fn get_details(
                 .await
                 .unwrap();
 
-                cfs_configuration = cfs_configuration_vec.first().unwrap();
+                cfs_configuration = cfs_configuration_value_vec.first().unwrap();
 
                 let cluster_details = ClusterDetails {
                     hsm_group_label: hsm_group_name.to_string(),

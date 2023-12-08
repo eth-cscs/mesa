@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::shasta::{self, hsm};
+use crate::shasta::{self, hsm, cfs::configuration::http_client::get_all};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDetails {
@@ -78,16 +78,12 @@ pub async fn exec(
     // creation/update time hence i can't sort by date to loop and find out most recent bos
     // sessiontemplate per node. joining cfs configuration and bos sessiontemplate will help to
     // this
-    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get_all(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-    )
-    .await
-    .unwrap();
+    let mut cfs_configuration_value_vec = get_all(shasta_token, shasta_base_url, shasta_root_cert)
+        .await
+        .unwrap();
 
     // reverse list in order to have most recent cfs configuration lastupdate values at front
-    cfs_configuration_list.reverse();
+    cfs_configuration_value_vec.reverse();
 
     // println!("bos_sessiontemplate_list:\n{:#?}", bos_sessiontemplate_list);
 
@@ -214,16 +210,12 @@ pub async fn exec(
     // creation/update time hence i can't sort by date to loop and find out most recent bos
     // sessiontemplate per node. joining cfs configuration and bos sessiontemplate will help to
     // this
-    let mut cfs_configuration_list = shasta::cfs::configuration::http_client::get_all(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-    )
-    .await
-    .unwrap();
+    let mut cfs_configuration_value_list = get_all(shasta_token, shasta_base_url, shasta_root_cert)
+        .await
+        .unwrap();
 
     // reverse list in order to have most recent cfs configuration lastupdate values at front
-    cfs_configuration_list.reverse();
+    cfs_configuration_value_list.reverse();
 
     // println!("bos_sessiontemplate_list:\n{:#?}", bos_sessiontemplate_list);
 

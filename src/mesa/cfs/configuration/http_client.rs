@@ -2,9 +2,10 @@ pub mod http_client {
 
     use serde_json::Value;
 
-    use crate::{
-        mesa::cfs::configuration::get_put_payload::{self, CfsConfigurationResponse},
-        shasta::{self, cfs::configuration::CfsConfigurationRequest},
+    use crate::shasta::cfs::configuration::{
+        configuration::CfsConfigurationRequest,
+        get_put_payload::CfsConfigurationResponse,
+        http_client::{get_raw, put_raw},
     };
 
     pub async fn get(
@@ -13,16 +14,12 @@ pub mod http_client {
         shasta_root_cert: &[u8],
         configuration_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
-    ) -> Result<Vec<get_put_payload::CfsConfigurationResponse>, Value> {
-        let cfs_configuration_response = shasta::cfs::configuration::http_client::get_raw(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-        )
-        .await
-        .unwrap();
+    ) -> Result<Vec<CfsConfigurationResponse>, Value> {
+        let cfs_configuration_response = get_raw(shasta_token, shasta_base_url, shasta_root_cert)
+            .await
+            .unwrap();
 
-        let mut cfs_configuration_vec: Vec<get_put_payload::CfsConfigurationResponse>;
+        let mut cfs_configuration_vec: Vec<CfsConfigurationResponse>;
 
         if cfs_configuration_response.status().is_success() {
             cfs_configuration_vec = cfs_configuration_response.json().await.unwrap();
@@ -56,7 +53,7 @@ pub mod http_client {
         configuration: &CfsConfigurationRequest,
         configuration_name: &str,
     ) -> Result<CfsConfigurationResponse, Value> {
-        let cfs_configuration_response = shasta::cfs::configuration::http_client::put_raw(
+        let cfs_configuration_response = put_raw(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -85,14 +82,10 @@ pub mod http_client {
 }
 
 pub mod utils {
-    use std::ops::Deref;
 
     use crate::{
-        mesa::{
-            bos::sessiontemplate::utils::get_image_id_cfs_configuration_target_tuple_vec,
-            cfs::configuration::get_put_payload::CfsConfigurationResponse,
-        },
-        shasta,
+        mesa::bos::sessiontemplate::utils::get_image_id_cfs_configuration_target_tuple_vec,
+        shasta::{self, cfs::configuration::get_put_payload::CfsConfigurationResponse},
     };
 
     pub async fn filter(
