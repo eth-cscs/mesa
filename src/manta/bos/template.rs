@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-/* pub fn get_image_id_from_bos_sessiontemplate_related_to_cfs_configuration(
+/* pub fn get_image_id_from_bos_sessiontemplate_vec(
     bos_sessiontemplate_value_vec: &[Value],
     // cfs_configuration: &str,
 ) -> Vec<String> {
@@ -57,7 +57,7 @@ use serde_json::Value;
         .collect::<Vec<String>>()
 } */
 
-pub fn get_image_id_from_bos_sessiontemplate_related_to_cfs_configuration(
+pub fn get_image_id_from_bos_sessiontemplate_vec(
     bos_sessiontemplate_value_vec: &[Value],
 ) -> Vec<String> {
     bos_sessiontemplate_value_vec
