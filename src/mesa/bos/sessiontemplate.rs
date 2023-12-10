@@ -263,7 +263,9 @@ pub mod utils {
         hsm_member_vec: &Vec<String>,
         bos_sessiontemplate_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
+        cfs_configuration_name_opt: Option<&str>,
     ) -> Vec<SessionTemplate> {
+        // Filter by target (hsm group name or xnames)
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
             bos_sessiontemplate
                 .boot_sets
@@ -289,6 +291,16 @@ pub mod utils {
                                 .all(|node| hsm_member_vec.contains(node)))
                 })
         });
+
+        if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
+            bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
+                bos_sessiontemplate.cfs.as_ref().is_some_and(|cfs| {
+                    cfs.configuration
+                        .as_ref()
+                        .is_some_and(|configuration| configuration.eq(cfs_configuration_name))
+                })
+            })
+        }
 
         if let Some(bos_sessiontemplate_name) = bos_sessiontemplate_name_opt {
             bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {

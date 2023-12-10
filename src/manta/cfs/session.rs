@@ -31,6 +31,7 @@ pub async fn get_sessions(
         hsm_group_name_vec,
         None,
         None,
+        None,
     )
     .await
     .unwrap();

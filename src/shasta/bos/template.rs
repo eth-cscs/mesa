@@ -354,17 +354,38 @@ pub mod http_client {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         hsm_group_name_vec: &Vec<String>,
-        bos_template_name_opt: Option<&String>,
+        bos_sessiontemplate_name_opt: Option<&String>,
+        cfs_configuration_name_vec_opt: Option<Vec<&str>>,
         limit_number_opt: Option<&u8>,
     ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-        let mut cluster_bos_template = Vec::new();
+        // let mut cluster_bos_template = Vec::new();
 
-        let bos_template_vec: Vec<Value> = get_all(shasta_token, shasta_base_url, shasta_root_cert)
-            .await
-            .unwrap();
+        let mut bos_sessiontemplate_value_vec: Vec<Value> =
+            get_all(shasta_token, shasta_base_url, shasta_root_cert)
+                .await
+                .unwrap();
 
         if !hsm_group_name_vec.is_empty() {
-            for bos_template in bos_template_vec.clone() {
+            bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate_value| {
+                bos_sessiontemplate_value["boot_sets"]
+                    .as_object()
+                    .is_some_and(|boot_set_obj| {
+                        boot_set_obj.iter().any(|(_property, boot_set_param)| {
+                            boot_set_param["node_groups"]
+                                .as_array()
+                                .is_some_and(|node_group_vec| {
+                                    node_group_vec.iter().any(|node_group| {
+                                        hsm_group_name_vec
+                                            .contains(&node_group.as_str().unwrap().to_string())
+                                    })
+                                })
+                        })
+                    })
+            });
+        }
+
+        /* if !hsm_group_name_vec.is_empty() {
+            for bos_template in bos_template_value_vec.clone() {
                 for (_, value) in bos_template["boot_sets"].as_object().unwrap() {
                     if value["node_groups"]
                         .as_array()
@@ -380,25 +401,48 @@ pub mod http_client {
                     }
                 }
             }
+        } */
+
+        if let Some(cfs_configuration_name_vec) = cfs_configuration_name_vec_opt {
+            bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate_value| {
+                cfs_configuration_name_vec.contains(
+                    &bos_sessiontemplate_value
+                        .pointer("/cfs/configuration")
+                        .unwrap()
+                        .as_str()
+                        .unwrap(),
+                )
+            });
         }
-        if let Some(bos_template_name) = bos_template_name_opt {
-            for bos_template in bos_template_vec {
+
+        if let Some(bos_sessiontemplate_name) = bos_sessiontemplate_name_opt {
+            bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate| {
+                bos_sessiontemplate["name"]
+                    .as_str()
+                    .unwrap()
+                    .eq(bos_sessiontemplate_name)
+            });
+        }
+
+        /* if let Some(bos_template_name) = bos_template_name_opt {
+            for bos_template in bos_template_value_vec {
                 if bos_template["name"].as_str().unwrap().eq(bos_template_name) {
                     cluster_bos_template.push(bos_template.clone());
                 }
             }
-        }
+        } */
 
         if let Some(limit_number) = limit_number_opt {
             // Limiting the number of results to return to client
 
-            cluster_bos_template = cluster_bos_template[cluster_bos_template
-                .len()
-                .saturating_sub(*limit_number as usize)..]
+            bos_sessiontemplate_value_vec = bos_sessiontemplate_value_vec
+                [bos_sessiontemplate_value_vec
+                    .len()
+                    .saturating_sub(*limit_number as usize)..]
                 .to_vec();
         }
 
-        Ok(cluster_bos_template)
+        Ok(bos_sessiontemplate_value_vec)
     }
 
     /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/

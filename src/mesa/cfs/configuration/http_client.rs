@@ -3,7 +3,10 @@ pub mod http_client {
     use serde_json::Value;
 
     use crate::shasta::cfs::configuration::{
-        http_client::{get_raw, put_raw}, r#struct::{get_put_payload::CfsConfigurationResponse, configuration::CfsConfigurationRequest},
+        http_client::{get_raw, put_raw},
+        r#struct::{
+            configuration::CfsConfigurationRequest, get_put_payload::CfsConfigurationResponse,
+        },
     };
 
     pub async fn get(
@@ -81,9 +84,18 @@ pub mod http_client {
 
 pub mod utils {
 
+    use serde_json::Value;
+
     use crate::{
+        common,
         mesa::bos::sessiontemplate::utils::get_image_id_cfs_configuration_target_tuple_vec,
-        shasta::{self, cfs::configuration::r#struct::get_put_payload::CfsConfigurationResponse},
+        shasta::{
+            self,
+            cfs::{
+                component::http_client,
+                configuration::r#struct::get_put_payload::CfsConfigurationResponse,
+            },
+        },
     };
 
     pub async fn filter(
@@ -99,12 +111,43 @@ pub mod utils {
             cfs_configuration_vec
                 .retain(|cfs_configuration| cfs_configuration.name.eq(cfs_configuration_name));
         } else {
+            let cfs_components: Vec<Value> = if !hsm_group_name_vec.is_empty() {
+                let hsm_group_members = shasta::hsm::utils::get_member_vec_from_hsm_name_vec(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    hsm_group_name_vec,
+                )
+                .await
+                .join(",");
+
+                // Note: nodes can be configured calling the component APi directly (bypassing BOS
+                // session API)
+                http_client::get_multiple_components(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    Some(&hsm_group_members),
+                    None,
+                )
+                .await
+                .unwrap()
+            } else {
+                Vec::new()
+            };
+
+            let desired_config: Vec<&str> = cfs_components
+                .iter()
+                .map(|cfs_component| cfs_component["desiredConfig"].as_str().unwrap())
+                .collect();
+
             // We need BOS session templates to find an image created by SAT
             let bos_sessiontemplate_value_vec = shasta::bos::template::http_client::filter(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 hsm_group_name_vec,
+                None,
                 None,
                 None,
             )
@@ -129,27 +172,36 @@ pub mod utils {
             .await
             .unwrap();
 
-            let image_id_cfs_configuration_target_from_bos_sessiontemplate =
-                get_image_id_cfs_configuration_target_tuple_vec(bos_sessiontemplate_value_vec);
+            let image_id_cfs_configuration_target_from_bos_sessiontemplate: Vec<(
+                String,
+                String,
+                Vec<String>,
+            )> = get_image_id_cfs_configuration_target_tuple_vec(bos_sessiontemplate_value_vec);
 
-            let image_id_cfs_configuration_target_from_cfs_session =
-                get_image_id_cfs_configuration_target_tuple_vec(cfs_session_value_vec);
+            let image_id_cfs_configuration_target_from_cfs_session: Vec<(
+                String,
+                String,
+                Vec<String>,
+            )> = get_image_id_cfs_configuration_target_tuple_vec(cfs_session_value_vec);
 
-            let image_id_cfs_configuration_target = [
-                image_id_cfs_configuration_target_from_bos_sessiontemplate,
-                image_id_cfs_configuration_target_from_cfs_session,
+            let image_id_cfs_configuration_target: Vec<&str> = [
+                image_id_cfs_configuration_target_from_bos_sessiontemplate
+                    .iter()
+                    .map(|(_, config, _)| config.as_str())
+                    .collect(),
+                image_id_cfs_configuration_target_from_cfs_session
+                    .iter()
+                    .map(|(_, config, _)| config.as_str())
+                    .collect(),
+                desired_config,
             ]
             .concat();
 
             cfs_configuration_vec.retain(|cfs_configuration| {
-                hsm_group_name_vec.iter().any(|hsm_group| {
-                    cfs_configuration.name.contains(hsm_group)
-                        || image_id_cfs_configuration_target
-                            .iter()
-                            .map(|(_, cfs_configuration, _)| cfs_configuration.clone())
-                            .collect::<Vec<String>>()
-                            .contains(&cfs_configuration.name)
-                })
+                hsm_group_name_vec
+                    .iter()
+                    .any(|hsm_group| cfs_configuration.name.contains(hsm_group))
+                    || image_id_cfs_configuration_target.contains(&cfs_configuration.name.as_str())
             });
 
             // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
