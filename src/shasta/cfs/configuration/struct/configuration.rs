@@ -1,3 +1,6 @@
+/// Structs related to CFS confguration with data related to most recent commit id like, author
+/// name, commit date, etc
+///
 use std::path::PathBuf;
 
 use k8s_openapi::chrono;

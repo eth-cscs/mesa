@@ -1,3 +1,5 @@
+/// struct representing CSM API payload related to CFS configuration
+///
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
