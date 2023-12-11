@@ -496,14 +496,13 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             .state
             .unwrap()
             .waiting
-            .is_some()
-        /* || !init_container_status
-            .clone()
-            .unwrap()
-            .state
-            .unwrap()
-            .terminated
-            .is_some() */)
+            .is_some()/* || !init_container_status
+    .clone()
+    .unwrap()
+    .state
+    .unwrap()
+    .terminated
+    .is_some() */)
         && i <= max
     {
         log::info!(

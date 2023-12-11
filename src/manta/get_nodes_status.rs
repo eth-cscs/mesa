@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::shasta::{self, hsm, cfs::configuration::http_client::get_all};
+use crate::shasta::{self, cfs::configuration::http_client::get_all, hsm};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDetails {

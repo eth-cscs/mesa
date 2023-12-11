@@ -1,19 +1,19 @@
-use tempfile::{NamedTempFile};
-use std::env::temp_dir;
-use std::io::{Read, Write};
 use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object, s3_remove_object, s3_upload_object};
-use std::error::Error;
-use std::fs::File;
-use std::path::PathBuf;
 use directories::ProjectDirs;
 use serde_json::Value;
+use std::env::temp_dir;
+use std::error::Error;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use tempfile::NamedTempFile;
 
-pub const TOKEN_VAR_NAME:&str = "MANTA_CSM_TOKEN";
-pub const API_URL_VAR_NAME:&str = "MANTA_TEST_API_URL";
+pub const TOKEN_VAR_NAME: &str = "MANTA_CSM_TOKEN";
+pub const API_URL_VAR_NAME: &str = "MANTA_TEST_API_URL";
 
-pub const BUCKET_NAME:&str = "boot-images";
-pub const OBJECT_PATH:&str = "manta-test-2-delete/dummy.txt";
-pub const SITE:&str = "alps";
+pub const BUCKET_NAME: &str = "boot-images";
+pub const OBJECT_PATH: &str = "manta-test-2-delete/dummy.txt";
+pub const SITE: &str = "alps";
 
 /// # DOCS
 ///
@@ -69,10 +69,13 @@ pub async fn test_1_s3_auth() {
     println!("----- TEST S3 AUTH -----");
     let _result = match authenticate_with_s3().await {
         Ok(_result) => assert!(true),
-        Err(error) => assert!(false,"Error getting temporary s3 token from STS. Error returned: '{}'", error),
+        Err(error) => assert!(
+            false,
+            "Error getting temporary s3 token from STS. Error returned: '{}'",
+            error
+        ),
     };
 }
-
 
 #[tokio::test]
 pub async fn test_2_s3_put_object() {
@@ -85,25 +88,28 @@ pub async fn test_2_s3_put_object() {
     // create dummy file on the local filesystem
     let mut file1 = match NamedTempFile::new() {
         Ok(file1) => file1,
-        Err(error) => panic!("{}", error.to_string())
+        Err(error) => panic!("{}", error.to_string()),
     };
-    println!("Temporary file created as {}",file1.path().display().to_string());
+    println!(
+        "Temporary file created as {}",
+        file1.path().display().to_string()
+    );
 
     let mut file2 = match file1.reopen() {
         Ok(file2) => file2,
-        Err(error) => panic!("{}", error.to_string())
+        Err(error) => panic!("{}", error.to_string()),
     };
 
     let text = "This is a temporary object used by Manta tests that can be deleted.";
     let _result = match file1.write_all(text.as_bytes()) {
-        Ok(r) =>  r,
-        Err(error) => panic!("{}", error.to_string())
+        Ok(r) => r,
+        Err(error) => panic!("{}", error.to_string()),
     };
 
     let mut buf = String::new();
-    match file2.read_to_string(&mut buf){
+    match file2.read_to_string(&mut buf) {
         Ok(_p) => println!("Contents of the file that will be uploaded: {}", buf),
-        Err(error) => panic!("{}", error.to_string())
+        Err(error) => panic!("{}", error.to_string()),
     };
 
     // Connect and auth to S3
@@ -112,18 +118,22 @@ pub async fn test_2_s3_put_object() {
             println!("Debug - STS token:\n{:#?}", sts_value);
             sts_value
         }
-        Err(error) => panic!("{}", error.to_string())
+        Err(error) => panic!("{}", error.to_string()),
     };
 
     // Upload dummy file
-    let _result = match s3_upload_object(&sts_value,
-                                           &object_path,
-                                           &bucket_name,
-                                           &file1.path().display().to_string()).await {
+    let _result = match s3_upload_object(
+        &sts_value,
+        &object_path,
+        &bucket_name,
+        &file1.path().display().to_string(),
+    )
+    .await
+    {
         Ok(_result) => {
             println!("Upload completed.");
-        },
-        Err(error) => assert!(false, "Error {}", error.to_string())
+        }
+        Err(error) => assert!(false, "Error {}", error.to_string()),
     };
 }
 
@@ -139,23 +149,20 @@ pub async fn test_3_s3_get_object() {
             println!("Debug - STS token:\n{:#?}", sts_value);
             sts_value
         }
-        Err(error) => panic!("{}", error.to_string())
+        Err(error) => panic!("{}", error.to_string()),
     };
 
-    let destination_path:String = temp_dir().join(object_path).display().to_string();
+    let destination_path: String = temp_dir().join(object_path).display().to_string();
     println!("Downloading file {} to {}", &object_path, &destination_path);
-    let _result = match s3_download_object(&sts_value,
-                                           &object_path,
-                                           &bucket_name,
-                                           &destination_path).await {
-        Ok(_result) => {
-            println!("Download completed.");
-        },
-        Err(error) => assert!(false, "Error {}", error.to_string())
-    };
+    let _result =
+        match s3_download_object(&sts_value, &object_path, &bucket_name, &destination_path).await {
+            Ok(_result) => {
+                println!("Download completed.");
+            }
+            Err(error) => assert!(false, "Error {}", error.to_string()),
+        };
     assert!(true, "OK all files completed downloading.")
 }
-
 
 #[tokio::test]
 pub async fn test_4_s3_remove_object() {
@@ -169,18 +176,16 @@ pub async fn test_4_s3_remove_object() {
             println!("Debug - STS token:\n{:#?}", sts_value);
             sts_value
         }
-        Err(error) => panic!("{}", error.to_string())
+        Err(error) => panic!("{}", error.to_string()),
     };
 
     println!("Removing file {}/ {}", &bucket_name, &object_path);
 
-    let _result = match s3_remove_object(&sts_value,
-                                           &object_path,
-                                           &bucket_name).await {
+    let _result = match s3_remove_object(&sts_value, &object_path, &bucket_name).await {
         Ok(_result) => {
             println!("Object deletion completed.");
-        },
-        Err(error) => assert!(false, "Error {}", error.to_string())
+        }
+        Err(error) => assert!(false, "Error {}", error.to_string()),
     };
     assert!(true, "OK, the file was removed successfully.")
 }

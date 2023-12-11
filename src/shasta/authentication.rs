@@ -73,7 +73,14 @@ pub async fn get_api_token(
         let username: String = Input::new().with_prompt("username").interact_text()?;
         let password = Password::new().with_prompt("password").interact()?;
 
-        match get_token_from_shasta_endpoint(keycloak_base_url, shasta_root_cert, &username, &password).await {
+        match get_token_from_shasta_endpoint(
+            keycloak_base_url,
+            shasta_root_cert,
+            &username,
+            &password,
+        )
+        .await
+        {
             Ok(shasta_token_aux) => {
                 log::debug!("Shasta token received");
                 file = File::create(&path).expect("Error encountered while creating file!");
@@ -170,7 +177,8 @@ pub async fn get_token_from_shasta_endpoint(
 
     let client;
 
-    let client_builder = reqwest::Client::builder().add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+    let client_builder = reqwest::Client::builder()
+        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
     if std::env::var("SOCKS5").is_ok() {

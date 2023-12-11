@@ -24,7 +24,6 @@ pub mod s3 {
         let client_builder = reqwest::Client::builder()
             .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
-
         // Build client
         let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
             // socks5 proxy
@@ -263,7 +262,6 @@ pub mod s3 {
         bucket: &str,
     ) -> Result<String, Box<dyn Error>> {
         let client = setup_client(&sts_value).await;
-
 
         match client
             .delete_object()

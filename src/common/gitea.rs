@@ -126,12 +126,7 @@ pub mod http_client {
             .trim_start_matches("https://api-gw-service-nmn.local/vcs/")
             .trim_end_matches(".git");
 
-        get_last_commit_from_repo_name(
-            gitea_api_base_url,
-            repo_name,
-            gitea_token,
-            shasta_root_cert,
-        )
-        .await
+        get_last_commit_from_repo_name(gitea_api_base_url, repo_name, gitea_token, shasta_root_cert)
+            .await
     }
 }

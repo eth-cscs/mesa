@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::shasta::{hsm::http_client::get_hsm_group_vec, cfs::configuration::http_client::get};
+use crate::shasta::{cfs::configuration::http_client::get, hsm::http_client::get_hsm_group_vec};
 
 #[derive(Debug)]
 pub struct ClusterDetails {
