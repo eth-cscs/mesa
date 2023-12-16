@@ -4,7 +4,7 @@ use comfy_table::{Cell, Table};
 use regex::Regex;
 use serde_json::Value;
 
-use crate::manta::get_nodes_status::NodeDetails;
+use crate::node::get_nodes_status::NodeDetails;
 
 /// Checks nodes in ansible-limit belongs to list of nodes from multiple hsm groups
 /// Returns (Vec<String>, vec<String>) being left value the list of nodes from ansible limit nodes in hsm groups and right value list of nodes from ansible limit not in hsm groups

@@ -439,6 +439,7 @@ pub mod http_client {
 pub mod utils {
 
     use comfy_table::Table;
+    use serde_json::Value;
 
     pub fn print_table(cfs_sessions: Vec<Vec<String>>) {
         let mut table = Table::new();
@@ -459,5 +460,44 @@ pub mod utils {
         }
 
         println!("{table}");
+    }
+
+    pub fn get_image_id_from_cfs_session_vec(
+        cfs_session_value_vec: &[Value],
+        // cfs_configuration: &str,
+    ) -> Vec<String> {
+        cfs_session_value_vec
+            .iter()
+            .filter(|cfs_session| {
+                /* cfs_session
+                .pointer("/configuration/name")
+                .unwrap()
+                .eq(cfs_configuration)
+                && */
+                cfs_session
+                    .pointer("/target/definition")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .eq("image")
+                    && cfs_session
+                        .pointer("/status/session/succeeded")
+                        .unwrap_or(&serde_json::json!("false"))
+                        .as_str()
+                        .unwrap()
+                        .eq("true")
+                    && cfs_session
+                        .pointer("/status/artifacts/0/result_id")
+                        .is_some()
+            })
+            .map(|cfs_session| {
+                cfs_session
+                    .pointer("/status/artifacts/0/result_id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect::<Vec<String>>()
     }
 }

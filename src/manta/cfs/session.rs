@@ -1,8 +1,8 @@
-use serde_json::Value;
+// use serde_json::Value;
 
-use crate::shasta;
+// use crate::shasta;
 
-pub async fn get_sessions(
+/* pub async fn get_sessions(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -184,9 +184,9 @@ pub async fn get_sessions(
     }
 
     cfs_session_table_data_list
-}
+} */
 
-pub fn get_image_id_from_cfs_session_vec(
+/* pub fn get_image_id_from_cfs_session_vec(
     cfs_session_value_vec: &[Value],
     // cfs_configuration: &str,
 ) -> Vec<String> {
@@ -223,4 +223,4 @@ pub fn get_image_id_from_cfs_session_vec(
                 .to_string()
         })
         .collect::<Vec<String>>()
-}
+} */

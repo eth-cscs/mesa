@@ -1,4 +1,4 @@
-use comfy_table::Table;
+// use comfy_table::Table;
 use std::fmt;
 
 use crate::{
@@ -63,6 +63,16 @@ impl Layer {
     }
 }
 
+impl fmt::Display for Layer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\n - name: {}\n - repo name: {}\n - commit id: {}\n - commit date: {}\n - author: {}",
+            self.name, self.repo_name, self.commit_id, self.commit_date, self.author
+        )
+    }
+}
+
 /// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
 /// is built for a specific cluster based on ansible vars used by the CFS session). The reason
 /// for this is because CSCS staff deletes all CFS sessions every now and then...
@@ -117,17 +127,7 @@ pub async fn get_configuration(
     .unwrap() */
 }
 
-impl fmt::Display for Layer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "\n - name: {}\n - repo name: {}\n - commit id: {}\n - commit date: {}\n - author: {}",
-            self.name, self.repo_name, self.commit_id, self.commit_date, self.author
-        )
-    }
-}
-
-pub fn print_table(cfs_configuration: Configuration) {
+/* pub fn print_table(cfs_configuration: Configuration) {
     let mut table = Table::new();
 
     table.set_header(vec!["Name", "Last updated", "Layers"]);
@@ -159,4 +159,4 @@ pub fn print_table(cfs_configuration: Configuration) {
     ]);
 
     println!("{table}");
-}
+} */
