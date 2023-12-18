@@ -1,6 +1,9 @@
 use serde_json::Value;
 
-use crate::cfs::configuration::shasta::r#struct::{get_put_payload::CfsConfigurationResponse, configuration::CfsConfigurationRequest};
+use crate::cfs::configuration::shasta::r#struct::{
+    cfs_configuration_request::CfsConfigurationRequest,
+    cfs_configuration_response::CfsConfigurationResponse,
+};
 
 pub async fn get(
     shasta_token: &str,

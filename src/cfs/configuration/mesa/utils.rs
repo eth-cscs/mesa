@@ -1,7 +1,9 @@
 use comfy_table::Table;
 use serde_json::Value;
 
-use crate::{cfs::configuration::shasta::r#struct::get_put_payload::CfsConfigurationResponse, hsm};
+use crate::{
+    cfs::configuration::shasta::r#struct::cfs_configuration_response::CfsConfigurationResponse, hsm,
+};
 
 use super::r#struct::Configuration;
 
@@ -49,18 +51,17 @@ pub async fn filter(
             .collect();
 
         // We need BOS session templates to find an image created by SAT
-        let bos_sessiontemplate_value_vec =
-            crate::bos::template::shasta::http_client::get(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name_vec,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
+        let bos_sessiontemplate_value_vec = crate::bos::template::shasta::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
         /* println!(
             "DEBUG - BOS sessiontemplate:\n{:#?}",

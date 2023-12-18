@@ -4,7 +4,7 @@ use crate::hsm;
 
 use serde_json::Value;
 
-use super::r#struct::configuration::CfsConfigurationRequest;
+use super::r#struct::cfs_configuration_request::CfsConfigurationRequest;
 
 pub async fn get_raw(
     shasta_token: &str,
