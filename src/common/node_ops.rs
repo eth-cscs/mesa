@@ -4,7 +4,7 @@ use comfy_table::{Cell, Table};
 use regex::Regex;
 use serde_json::Value;
 
-use crate::manta::get_nodes_status::NodeDetails;
+use crate::cfs::component::mesa::http_client::NodeDetails;
 
 /// Checks nodes in ansible-limit belongs to list of nodes from multiple hsm groups
 /// Returns (Vec<String>, vec<String>) being left value the list of nodes from ansible limit nodes in hsm groups and right value list of nodes from ansible limit not in hsm groups
@@ -137,7 +137,7 @@ pub async fn validate_xnames(
     hsm_group_name_opt: Option<&String>,
 ) -> bool {
     let hsm_group_members: Vec<_> = if let Some(hsm_group_name) = hsm_group_name_opt {
-        crate::shasta::hsm::http_client::get_hsm_group(
+        crate::hsm::http_client::get_hsm_group(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

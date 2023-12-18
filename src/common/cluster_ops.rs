@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::shasta::{cfs::configuration::http_client::get, hsm::http_client::get_hsm_group_vec};
+use crate::hsm::http_client::get_hsm_group_vec;
 
 #[derive(Debug)]
 pub struct ClusterDetails {
@@ -32,14 +32,14 @@ pub async fn get_details(
         let hsm_group_name = hsm_group["label"].as_str().unwrap();
 
         let hsm_group_members: String =
-            crate::shasta::hsm::utils::get_member_vec_from_hsm_group_value(&hsm_group).join(",");
+            crate::hsm::utils::get_member_vec_from_hsm_group_value(&hsm_group).join(",");
 
         // Get all CFS sessions
-        let cfs_sessions_value_vec = crate::shasta::cfs::session::http_client::filter(
+        let cfs_sessions_value_vec = crate::cfs::session::shasta::http_client::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &vec![hsm_group_name.to_string()],
+            &[hsm_group_name.to_string()],
             None,
             None,
             None,
@@ -77,23 +77,24 @@ pub async fn get_details(
 
                 // Get CFS configuration linked to CFS session related to HSM GROUP or any of its
                 // members
-                let cfs_configuration_value_vec = get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    None,
-                    Some(
-                        &most_recent_cfs_session
-                            .pointer("/configuration/name")
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string(),
-                    ),
-                    None,
-                )
-                .await
-                .unwrap();
+                let cfs_configuration_value_vec =
+                    crate::cfs::configuration::shasta::http_client::get(
+                        shasta_token,
+                        shasta_base_url,
+                        shasta_root_cert,
+                        None,
+                        Some(
+                            &most_recent_cfs_session
+                                .pointer("/configuration/name")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string(),
+                        ),
+                        None,
+                    )
+                    .await
+                    .unwrap();
 
                 cfs_configuration = cfs_configuration_value_vec.first().unwrap();
 
