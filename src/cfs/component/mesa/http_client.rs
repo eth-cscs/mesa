@@ -14,7 +14,10 @@ pub struct NodeDetails {
     pub boot_image_id: String,
 }
 
-pub async fn exec(
+/// Get members data.
+/// Currently, CSM will throw an error if many xnames are sent in the request, therefore, this
+/// method will paralelize multiple calls, each with a batch of xnames
+pub async fn get_members(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
