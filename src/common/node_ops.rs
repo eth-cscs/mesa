@@ -4,7 +4,7 @@ use comfy_table::{Cell, Table};
 use regex::Regex;
 use serde_json::Value;
 
-use crate::cfs::component::mesa::http_client::NodeDetails;
+use crate::node::utils::NodeDetails;
 
 /// Checks nodes in ansible-limit belongs to list of nodes from multiple hsm groups
 /// Returns (Vec<String>, vec<String>) being left value the list of nodes from ansible limit nodes in hsm groups and right value list of nodes from ansible limit not in hsm groups

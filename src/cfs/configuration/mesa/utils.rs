@@ -27,17 +27,15 @@ pub async fn filter(
                 shasta_root_cert,
                 hsm_group_name_vec,
             )
-            .await
-            .join(",");
+            .await;
 
             // Note: nodes can be configured calling the component APi directly (bypassing BOS
             // session API)
-            crate::cfs::component::shasta::http_client::get_multiple_components(
+            crate::cfs::component::mesa::http_client::get(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                Some(&hsm_group_members),
-                None,
+                &hsm_group_members,
             )
             .await
             .unwrap()
