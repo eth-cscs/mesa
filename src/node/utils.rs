@@ -1,17 +1,63 @@
-use serde::{Deserialize, Serialize};
+use comfy_table::{Cell, Table};
+use regex::Regex;
 
 use crate::{bss, cfs, hsm};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NodeDetails {
-    pub xname: String,
-    pub nid: String,
-    pub power_status: String,
-    pub desired_configuration: String,
-    pub configuration_status: String,
-    pub enabled: String,
-    pub error_count: String,
-    pub boot_image_id: String,
+use super::r#struct::NodeDetails;
+
+pub fn validate_xname_format(xname: &str) -> bool {
+    let xname_re = Regex::new(r"^x\d{4}c[0-7]s([0-9]|[1-5][0-9]|6[0-4])b[0-1]n[0-7]$").unwrap();
+
+    xname_re.is_match(xname)
+}
+
+/// Validates a list of xnames.
+/// Checks xnames strings are valid
+/// If hsm_group_name if provided, then checks all xnames belongs to that hsm_group
+pub async fn validate_xnames(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    xnames: &[&str],
+    hsm_group_name_opt: Option<&String>,
+) -> bool {
+    let hsm_group_members: Vec<_> = if let Some(hsm_group_name) = hsm_group_name_opt {
+        crate::hsm::http_client::get_hsm_group(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name,
+        )
+        .await
+        .unwrap()["members"]["ids"]
+            .as_array()
+            .unwrap()
+            .to_vec()
+            .iter()
+            .map(|xname| xname.as_str().unwrap().to_string())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    if xnames.iter().any(|&xname| {
+        !validate_xname_format(xname)
+            || (!hsm_group_members.is_empty() && !hsm_group_members.contains(&xname.to_string()))
+    }) {
+        return false;
+    }
+
+    /* for xname in xnames {
+        if !xname_re.is_match(xname) {
+            println!("xname {} not a valid format", xname);
+        }
+
+        if !hsm_group_members.contains(&xname.to_string()) {
+            println!("xname {} not a member of {:?}", xname, hsm_group_members)
+        }
+    } */
+
+    true
 }
 
 /// Get components data.
@@ -298,4 +344,35 @@ pub async fn get_node_details(
     }
 
     node_details_list
+}
+
+pub fn print_table(nodes_status: Vec<NodeDetails>) {
+    let mut table = Table::new();
+
+    table.set_header(vec![
+        "XNAME",
+        "NID",
+        "Power Status",
+        "Desired Configuration",
+        "Configuration Status",
+        "Enabled",
+        "Error Count",
+        // "Tags",
+        "Image ID (Boot param)",
+    ]);
+
+    for node_status in nodes_status {
+        table.add_row(vec![
+            Cell::new(node_status.xname),
+            Cell::new(node_status.nid),
+            Cell::new(node_status.power_status),
+            Cell::new(node_status.desired_configuration),
+            Cell::new(node_status.configuration_status),
+            Cell::new(node_status.enabled),
+            Cell::new(node_status.error_count),
+            Cell::new(node_status.boot_image_id),
+        ]);
+    }
+
+    println!("{table}");
 }
