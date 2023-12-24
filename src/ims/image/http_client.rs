@@ -217,7 +217,25 @@ pub async fn filter(
     ); */
 
     // We need CFS sessions to find images without a BOS session template
-    let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
+    let mut cfs_session_value_vec = crate::cfs::session::shasta::http_client::get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        None,
+        Some(true),
+    )
+    .await
+    .unwrap();
+
+    crate::cfs::session::shasta::http_client::filter(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &mut cfs_session_value_vec,
+        hsm_group_name_vec,
+        None,
+    ).await;
+    /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -227,7 +245,7 @@ pub async fn filter(
         Some(true),
     )
     .await
-    .unwrap();
+    .unwrap(); */
 
     // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
     let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(

@@ -108,6 +108,7 @@ pub mod http_client {
                     .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
             }
         }
+
         /// Shut down a node
         /// This is  sync call meaning it won't return untill the target is down
         pub async fn post_sync(
@@ -120,7 +121,7 @@ pub mod http_client {
         ) -> Result<Value, Box<dyn Error>> {
             let xname_list: Vec<String> = xnames.into_iter().collect();
             // Create CAPMC operation shutdown
-            let capmc_shutdown_nodes_resp = post(
+            let capmc_power_off_nodes_resp = post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -130,7 +131,7 @@ pub mod http_client {
             )
             .await;
 
-            log::debug!("Shutdown nodes resp:\n{:#?}", capmc_shutdown_nodes_resp);
+            log::debug!("Shutdown nodes resp:\n{:#?}", capmc_power_off_nodes_resp);
 
             // Check Nodes are shutdown
             let mut nodes_status_resp = hsm::http_client::get_components_status(
@@ -160,9 +161,13 @@ pub mod http_client {
                     i + 1,
                     max
                 );
+
                 thread::sleep(time::Duration::from_secs(delay_secs));
+                
                 i += 1;
+                
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+                
                 nodes_status_resp = hsm::http_client::get_components_status(
                     shasta_token,
                     shasta_base_url,
@@ -176,16 +181,17 @@ pub mod http_client {
 
             log::debug!("node status resp:\n{:#?}", nodes_status_resp);
 
-            capmc_shutdown_nodes_resp
+            capmc_power_off_nodes_resp
         }
     }
 
     pub mod node_power_on {
-        use std::error::Error;
+        use core::time;
+        use std::{error::Error, thread};
 
         use serde_json::Value;
 
-        use crate::capmc::PowerStatus;
+        use crate::{capmc::PowerStatus, hsm};
 
         pub async fn post(
             shasta_token: &str,
@@ -234,15 +240,91 @@ pub mod http_client {
                     .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
             }
         }
+
+        /// Power ON a group of nodes
+        /// This is  sync call meaning it won't return untill all nodes are ON
+        pub async fn post_sync(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            xnames: Vec<String>,
+            reason: Option<String>,
+            force: bool,
+        ) -> Result<Value, Box<dyn Error>> {
+            let xname_list: Vec<String> = xnames.into_iter().collect();
+            // Create CAPMC operation shutdown
+            let capmc_power_on_nodes_resp = post(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                xname_list.clone(),
+                reason,
+                force,
+            )
+            .await;
+
+            log::debug!("Power ON nodes resp:\n{:#?}", capmc_power_on_nodes_resp);
+
+            // Check Nodes are ON
+            let mut nodes_status_resp = hsm::http_client::get_components_status(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                xname_list.clone(),
+            )
+            .await;
+
+            log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+
+            // Check all nodes are ON
+            let mut i = 0;
+            let max = 60;
+            let delay_secs = 3;
+            while i <= max
+                && !nodes_status_resp.as_ref().unwrap()["Components"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|node| node["State"].as_str().unwrap().to_string().eq("On"))
+            {
+                print!(
+                    "\rWaiting nodes to power on. Trying again in {} seconds. Attempt {} of {}",
+                    delay_secs,
+                    i + 1,
+                    max
+                );
+
+                thread::sleep(time::Duration::from_secs(delay_secs));
+
+                i += 1;
+                
+                log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+                
+                nodes_status_resp = hsm::http_client::get_components_status(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    xname_list.clone(),
+                )
+                .await;
+            }
+
+            println!();
+
+            log::debug!("node status resp:\n{:#?}", nodes_status_resp);
+
+            capmc_power_on_nodes_resp
+        }
     }
 
     pub mod node_power_restart {
 
-        use std::error::Error;
+        use core::time;
+        use std::{error::Error, thread};
 
         use serde_json::Value;
 
-        use crate::capmc::PowerStatus;
+        use crate::{capmc::PowerStatus, hsm};
 
         pub async fn post(
             shasta_token: &str,
@@ -290,6 +372,81 @@ pub mod http_client {
                     .unwrap()
                     .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
             }
+        }
+
+        /// Power RESET a group of nodes
+        /// This is  sync call meaning it won't return untill all nodes are ON
+        pub async fn post_sync(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            xnames: Vec<String>,
+            reason: Option<&String>,
+            force: bool,
+        ) -> Result<Value, Box<dyn Error>> {
+            let xname_list: Vec<String> = xnames.into_iter().collect();
+            // Create CAPMC operation shutdown
+            let capmc_power_reset_nodes_resp = post(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                reason,
+                xname_list.clone(),
+                force,
+            )
+            .await;
+
+            log::debug!("Power RESET nodes resp:\n{:#?}", capmc_power_reset_nodes_resp);
+
+            // Check Nodes are ON
+            let mut nodes_status_resp = hsm::http_client::get_components_status(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                xname_list.clone(),
+            )
+            .await;
+
+            log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+
+            // Check all nodes are ON
+            let mut i = 0;
+            let max = 60;
+            let delay_secs = 3;
+            while i <= max
+                && !nodes_status_resp.as_ref().unwrap()["Components"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|node| node["State"].as_str().unwrap().to_string().eq("On"))
+            {
+                print!(
+                    "\rWaiting nodes to power on. Trying again in {} seconds. Attempt {} of {}",
+                    delay_secs,
+                    i + 1,
+                    max
+                );
+
+                thread::sleep(time::Duration::from_secs(delay_secs));
+
+                i += 1;
+                
+                log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+                
+                nodes_status_resp = hsm::http_client::get_components_status(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    xname_list.clone(),
+                )
+                .await;
+            }
+
+            println!();
+
+            log::debug!("node status resp:\n{:#?}", nodes_status_resp);
+
+            capmc_power_reset_nodes_resp
         }
     }
 

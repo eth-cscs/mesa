@@ -36,6 +36,50 @@ pub async fn get_raw(
     }
 }
 
+pub async fn get(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    configuration_name_opt: Option<&str>,
+) -> Result<Vec<Value>, Box<dyn Error>> {
+    let client;
+
+    let client_builder = reqwest::Client::builder()
+        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+    // Build client
+    if std::env::var("SOCKS5").is_ok() {
+        // socks5 proxy
+        log::debug!("SOCKS5 enabled");
+        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+        // rest client to authenticate
+        client = client_builder.proxy(socks5proxy).build()?;
+    } else {
+        client = client_builder.build()?;
+    }
+
+    let api_url: String = if let Some(configuration_name) = configuration_name_opt {
+        shasta_base_url.to_owned() + "/cfs/v2/configurations/" + configuration_name
+    } else {
+        shasta_base_url.to_owned() + "/cfs/v2/configurations"
+    };
+
+    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
+
+    let json_response: Value = if resp.status().is_success() {
+        serde_json::from_str(&resp.text().await?)?
+    } else {
+        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+    };
+
+    let configuration_value_vec = json_response.as_array().unwrap().clone();
+
+    log::debug!("CFS configurations:\n{:#?}", configuration_value_vec);
+
+    Ok(configuration_value_vec)
+}
+
 pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -75,52 +119,16 @@ pub async fn get_all(
     Ok(configuration_value_vec)
 }
 
-/// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
-/// is built for a specific cluster based on ansible vars used by the CFS session). The reason
-/// for this is because CSCS staff deletes all CFS sessions every now and then...
-pub async fn get(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    hsm_group_name_vec_opt: Option<&Vec<String>>,
-    configuration_name_opt: Option<&String>,
-    limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn Error>> {
-    let configuration_value_vec: Vec<Value> =
-        get_all(shasta_token, shasta_base_url, shasta_root_cert)
-            .await
-            .unwrap();
-
-    log::debug!("CFS configurations:\n{:#?}", configuration_value_vec);
-
-    filter(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        configuration_value_vec.clone(),
-        hsm_group_name_vec_opt,
-        configuration_name_opt,
-        None,
-        limit_number_opt,
-    )
-    .await
-    .unwrap();
-
-    log::debug!("CFS configurations:\n{:#?}", configuration_value_vec);
-
-    Ok(configuration_value_vec)
-}
-
 pub async fn filter(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    mut configuration_value_vec: Vec<Value>,
+    configuration_value_vec: &mut Vec<Value>,
     hsm_group_name_vec_opt: Option<&Vec<String>>,
     configuration_name_opt: Option<&String>,
     most_recent_opt: Option<bool>,
     limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn Error>> {
+) {
     // FILTER BY HSM GROUP NAMES
     if !hsm_group_name_vec_opt.unwrap().is_empty() {
         if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
@@ -132,17 +140,26 @@ pub async fn filter(
             )
             .await;
 
-            let cfs_session_vec = crate::cfs::session::mesa::http_client::get(
+            let mut cfs_session_vec = crate::cfs::session::mesa::http_client::get(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                hsm_group_name_vec,
                 None,
                 None,
                 None,
             )
             .await
             .unwrap();
+
+            crate::cfs::session::mesa::utils::filter_by_hsm(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &mut cfs_session_vec,
+                hsm_group_name_vec_opt.unwrap(),
+                limit_number_opt,
+            )
+            .await;
 
             /* println!("DEBUG - CFS SESSION");
             for cfs_session in &cfs_session_vec {
@@ -239,6 +256,7 @@ pub async fn filter(
             ); */
         }
     }
+
     // END FILTER BY HSM GROUP NAME
     if let Some(configuration_name) = configuration_name_opt {
         configuration_value_vec.retain(|cfs_configuration| {
@@ -259,7 +277,7 @@ pub async fn filter(
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
 
-        configuration_value_vec = configuration_value_vec[configuration_value_vec
+        *configuration_value_vec = configuration_value_vec[configuration_value_vec
             .len()
             .saturating_sub(*limit_number as usize)..]
             .to_vec();
@@ -268,10 +286,8 @@ pub async fn filter(
     // println!("DEBUG - cfs configuration:\n{:#?}", configuration_value_vec.iter().map(|conf| conf["name"].clone()).collect::<Vec<_>>());
 
     if most_recent_opt.is_some() && most_recent_opt.unwrap() {
-        configuration_value_vec = [configuration_value_vec.first().unwrap().clone()].to_vec();
+        *configuration_value_vec = [configuration_value_vec.first().unwrap().clone()].to_vec();
     }
-
-    Ok(configuration_value_vec)
 }
 
 pub async fn put_raw(

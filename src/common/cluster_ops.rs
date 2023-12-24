@@ -35,7 +35,25 @@ pub async fn get_details(
             crate::hsm::utils::get_member_vec_from_hsm_group_value(&hsm_group).join(",");
 
         // Get all CFS sessions
-        let cfs_sessions_value_vec = crate::cfs::session::shasta::http_client::filter(
+        let mut cfs_session_value_vec = crate::cfs::session::shasta::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            None,
+            Some(true),
+        )
+        .await
+        .unwrap();
+
+        crate::cfs::session::shasta::http_client::filter(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &mut cfs_session_value_vec,
+            &[hsm_group_name.to_string()],
+            None,
+        ).await;
+        /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -45,12 +63,12 @@ pub async fn get_details(
             None,
         )
         .await
-        .unwrap();
+        .unwrap(); */
 
         let most_recent_cfs_session;
         let cfs_configuration;
 
-        for cfs_session_value in cfs_sessions_value_vec {
+        for cfs_session_value in cfs_session_value_vec {
             // println!("cfs_session_value:\n{:#?}", cfs_session_value);
             let target_groups_option = cfs_session_value.pointer("/target/groups");
             let target_groups = if let Some(Value::Array(target_group_vec)) = target_groups_option {
@@ -82,7 +100,6 @@ pub async fn get_details(
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
-                        None,
                         Some(
                             &most_recent_cfs_session
                                 .pointer("/configuration/name")
@@ -91,7 +108,6 @@ pub async fn get_details(
                                 .unwrap()
                                 .to_string(),
                         ),
-                        None,
                     )
                     .await
                     .unwrap();

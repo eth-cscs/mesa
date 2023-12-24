@@ -14,6 +14,7 @@ pub mod shasta {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
+            session_name_opt: Option<&String>,
             is_succeded: Option<bool>,
         ) -> Result<reqwest::Response, reqwest::Error> {
             let client_builder = reqwest::Client::builder()
@@ -31,7 +32,11 @@ pub mod shasta {
                 client_builder.build()?
             };
 
-            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+            let api_url: String = if let Some(session_name) = session_name_opt {
+                shasta_base_url.to_owned() + "/cfs/v2/sessions/" + session_name
+            } else {
+                shasta_base_url.to_owned() + "/cfs/v2/sessions"
+            };
 
             // Add params to request
             let mut request_payload = Vec::new();
@@ -53,10 +58,11 @@ pub mod shasta {
             }
         }
 
-        pub async fn get_all(
+        pub async fn get(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
+            cfs_session_name_opt: Option<&String>,
             is_succeded: Option<bool>,
         ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
             let client;
@@ -76,7 +82,11 @@ pub mod shasta {
                 client = client_builder.build()?;
             }
 
-            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+            let api_url: String = if let Some(cfs_session_name) = cfs_session_name_opt {
+                shasta_base_url.to_owned() + "/cfs/v2/sessions/" + cfs_session_name
+            } else {
+                shasta_base_url.to_owned() + "/cfs/v2/sessions"
+            };
 
             let mut request_payload = Vec::new();
 
@@ -102,22 +112,53 @@ pub mod shasta {
             Ok(json_response.as_array().unwrap().clone())
         }
 
-        /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
-        /// Returns list of CFS sessions ordered by start time
-        pub async fn filter(
+        pub async fn get_all(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            hsm_group_name_vec: &[String],
-            session_name_opt: Option<&String>,
-            limit_number_opt: Option<&u8>,
-            is_succeded: Option<bool>,
         ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-            let mut cluster_cfs_sessions =
-                get_all(shasta_token, shasta_base_url, shasta_root_cert, is_succeded)
-                    .await
-                    .unwrap();
+            let client;
 
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            if std::env::var("SOCKS5").is_ok() {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                // rest client to authenticate
+                client = client_builder.proxy(socks5proxy).build()?;
+            } else {
+                client = client_builder.build()?;
+            }
+
+            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+
+            let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
+
+            let json_response: Value = if resp.status().is_success() {
+                serde_json::from_str(&resp.text().await?)?
+            } else {
+                let response = resp.text().await;
+                log::error!("{:#?}", response);
+                return Err(response?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+            };
+
+            Ok(json_response.as_array().unwrap().clone())
+        }
+
+        /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
+        /// Returns list of CFS sessions filtered by HSM group ordered by start time
+        pub async fn filter_by_hsm(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            cluster_cfs_sessions: &mut Vec<Value>,
+            hsm_group_name_vec: &[String],
+            limit_number_opt: Option<&u8>,
+        ) {
             let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
@@ -145,10 +186,60 @@ pub mod shasta {
                         .is_subset(&HashSet::from_iter(hsm_group_member_vec.clone()))
             });
 
-            if let Some(session_name) = session_name_opt {
-                cluster_cfs_sessions
-                    .retain(|cfs_session| cfs_session["name"].as_str().unwrap().eq(session_name));
+            // Sort CFS sessions by start time order ASC
+            cluster_cfs_sessions.sort_by(|a, b| {
+                a["status"]["session"]["startTime"]
+                    .as_str()
+                    .unwrap()
+                    .cmp(b["status"]["session"]["startTime"].as_str().unwrap())
+            });
+
+            if let Some(limit_number) = limit_number_opt {
+                // Limiting the number of results to return to client
+
+                *cluster_cfs_sessions = cluster_cfs_sessions[cluster_cfs_sessions
+                    .len()
+                    .saturating_sub(*limit_number as usize)..]
+                    .to_vec();
             }
+        }
+
+        /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
+        /// Returns list of CFS sessions ordered by start time
+        pub async fn filter(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            cluster_cfs_sessions: &mut Vec<Value>,
+            hsm_group_name_vec: &[String],
+            limit_number_opt: Option<&u8>,
+        ) {
+            let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                hsm_group_name_vec,
+            )
+            .await;
+
+            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
+            // hsm_group.members.ids
+            cluster_cfs_sessions.retain(|cfs_session| {
+                cfs_session["target"]["groups"]
+                    .as_array()
+                    .unwrap_or(&Vec::new())
+                    .iter()
+                    .any(|group| {
+                        hsm_group_name_vec.contains(&group["name"].as_str().unwrap().to_string())
+                    })
+                    || cfs_session["ansible"]["limit"]
+                        .as_str()
+                        .unwrap_or("")
+                        .split(',')
+                        .map(|node| node.trim().to_string())
+                        .collect::<HashSet<_>>()
+                        .is_subset(&HashSet::from_iter(hsm_group_member_vec.clone()))
+            });
 
             // Sort CFS sessions by start time order ASC
             cluster_cfs_sessions.sort_by(|a, b| {
@@ -161,13 +252,11 @@ pub mod shasta {
             if let Some(limit_number) = limit_number_opt {
                 // Limiting the number of results to return to client
 
-                cluster_cfs_sessions = cluster_cfs_sessions[cluster_cfs_sessions
+                *cluster_cfs_sessions = cluster_cfs_sessions[cluster_cfs_sessions
                     .len()
                     .saturating_sub(*limit_number as usize)..]
                     .to_vec();
             }
-
-            Ok(cluster_cfs_sessions)
         }
 
         pub async fn delete(
@@ -879,11 +968,7 @@ pub mod mesa {
 
     pub mod http_client {
 
-        use std::collections::HashSet;
-
         use serde_json::Value;
-
-        use crate::hsm::utils::get_member_vec_from_hsm_name_vec;
 
         use super::r#struct::{CfsSessionGetResponse, CfsSessionRequest};
 
@@ -894,7 +979,6 @@ pub mod mesa {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            hsm_group_name_vec: &[String],
             session_name_opt: Option<&String>,
             limit_number_opt: Option<&u8>,
             is_succeded_opt: Option<bool>,
@@ -903,6 +987,7 @@ pub mod mesa {
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
+                session_name_opt,
                 is_succeded_opt,
             )
             .await;
@@ -924,40 +1009,6 @@ pub mod mesa {
                 cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
                     cfs_session_response_value,
                 ));
-            }
-
-            let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name_vec,
-            )
-            .await;
-
-            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
-            // hsm_group.members.ids
-            cfs_session_vec.retain(|cfs_session| {
-                cfs_session.target.clone().is_some_and(|target| {
-                    target.groups.is_some_and(|groups| {
-                        !groups.is_empty()
-                            && groups
-                                .iter()
-                                .any(|group| hsm_group_name_vec.contains(&group.name))
-                    })
-                }) || cfs_session.ansible.clone().is_some_and(|ansible| {
-                    ansible.limit.is_some_and(|limit| {
-                        limit
-                            .split(',')
-                            .map(|node| node.trim().to_string())
-                            .collect::<HashSet<_>>()
-                            .is_subset(&HashSet::from_iter(hsm_group_member_vec.clone()))
-                    })
-                })
-            });
-
-            if let Some(session_name) = session_name_opt {
-                cfs_session_vec
-                    .retain(|cfs_session| cfs_session.name.as_ref().unwrap().eq(session_name));
             }
 
             // Sort CFS sessions by start time order ASC
@@ -1023,20 +1074,17 @@ pub mod mesa {
     pub mod utils {
         use std::collections::HashSet;
 
-        use crate::hsm::utils::get_member_vec_from_hsm_name_vec;
-
         use super::r#struct::CfsSessionGetResponse;
 
-        pub async fn filter(
+        pub async fn filter_by_hsm(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
-            hsm_group_name_vec: &[String],
-            cfs_session_name_opt: Option<&String>,
+            hsm_group_name_vec: &Vec<String>,
             limit_number_opt: Option<&u8>,
-        ) -> Vec<CfsSessionGetResponse> {
-            let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
+        ) {
+            let node_vec = crate::hsm::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1046,33 +1094,65 @@ pub mod mesa {
 
             // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
             // hsm_group.members.ids
-            cfs_session_vec.retain(|cfs_session| {
-                cfs_session
-                    .target
-                    .clone()
-                    .unwrap()
-                    .groups
-                    .unwrap_or_default()
-                    .iter()
-                    .any(|group| hsm_group_member_vec.contains(&group.name.clone().to_string()))
-                    || cfs_session
-                        .ansible
-                        .clone()
-                        .unwrap()
-                        .limit
-                        .unwrap_or("".to_string())
-                        .split(',')
-                        .map(|node| node.trim().to_string())
-                        .collect::<HashSet<_>>()
-                        .is_subset(&HashSet::from_iter(hsm_group_member_vec.clone()))
-            });
+            if !hsm_group_name_vec.is_empty() {
+                cfs_session_vec.retain(|cfs_session| {
+                    cfs_session.target.clone().is_some_and(|target| {
+                        target.groups.is_some_and(|groups| {
+                            !groups.is_empty()
+                                && groups
+                                    .iter()
+                                    .any(|group| hsm_group_name_vec.contains(&group.name))
+                        })
+                    }) || cfs_session.ansible.clone().is_some_and(|ansible| {
+                        ansible.limit.is_some_and(|limit| {
+                            limit
+                                .split(',')
+                                .map(|node| node.trim().to_string())
+                                .collect::<HashSet<_>>()
+                                .is_subset(&HashSet::from_iter(node_vec.clone()))
+                        })
+                    })
+                });
 
-            if let Some(session_name) = cfs_session_name_opt {
-                cfs_session_vec
-                    .retain(|cfs_session| cfs_session.name.clone().unwrap().eq(session_name));
+                if let Some(limit_number) = limit_number_opt {
+                    // Limiting the number of results to return to client
+                    *cfs_session_vec = cfs_session_vec
+                        [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
+                        .to_vec();
+                }
+            }
+        }
+
+        /* pub async fn filter(
+            cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
+            hsm_group_name_vec_opt: Option<&Vec<String>>,
+            node_vec_opt: Option<&Vec<String>>,
+            limit_number_opt: Option<&u8>,
+        ) {
+            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
+            // hsm_group.members.ids
+            if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
+                cfs_session_vec.retain(|cfs_session| {
+                    cfs_session.target.clone().is_some_and(|target| {
+                        target.groups.is_some_and(|groups| {
+                            !groups.is_empty()
+                                && groups
+                                    .iter()
+                                    .any(|group| hsm_group_name_vec.contains(&group.name))
+                        })
+                    }) || cfs_session.ansible.clone().is_some_and(|ansible| {
+                        ansible.limit.is_some_and(|limit| {
+                            limit
+                                .split(',')
+                                .map(|node| node.trim().to_string())
+                                .collect::<HashSet<_>>()
+                                .is_subset(&HashSet::from_iter(node_vec.clone()))
+                        })
+                    })
+                });
             }
 
-            // Sort CFS sessions by start time order ASC
+            /* // Sort CFS sessions by start time order ASC
             cfs_session_vec.sort_by(|cfs_session_1, cfs_session_2| {
                 cfs_session_1
                     .status
@@ -1092,18 +1172,15 @@ pub mod mesa {
                             .start_time
                             .unwrap(),
                     )
-            });
+            }); */
 
             if let Some(limit_number) = limit_number_opt {
                 // Limiting the number of results to return to client
-
                 *cfs_session_vec = cfs_session_vec
                     [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
                     .to_vec();
             }
-
-            cfs_session_vec.to_vec()
-        }
+        } */
     }
 }
 
