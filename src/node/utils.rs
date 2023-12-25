@@ -182,6 +182,75 @@ pub async fn get_node_details(
             .to_string()
             .to_owned();
 
+        // Get CFS configuration related to image id
+        // 1) Find BOS sessiontemplate related to image id in place and extract its CFS configuration
+        // 2) Find CFS session related to image id in place and extract its CFS configuration
+        let bos_sessiontemplate_related_to_image_id_opt =
+            bos_sessiontemplate_vec.iter().find(|bos_sessiontemplate| {
+                bos_sessiontemplate
+                    .boot_sets
+                    .as_ref()
+                    .unwrap()
+                    .first()
+                    .as_ref()
+                    .unwrap()
+                    .path
+                    .as_ref()
+                    .unwrap()
+                    .contains(&kernel_image_path_in_boot_params)
+            });
+
+        let cfs_configuration_boot = if let Some(bos_sessiontemplate_related_to_image_id) =
+            bos_sessiontemplate_related_to_image_id_opt
+        {
+            bos_sessiontemplate_related_to_image_id
+                .cfs
+                .as_ref()
+                .unwrap()
+                .configuration
+                .as_ref()
+                .unwrap()
+                .to_string()
+        } else {
+            log::warn!(
+                "No CFS configuration found for node {} and image id {}",
+                node,
+                kernel_image_path_in_boot_params
+            );
+
+            let cfs_session_related_to_image_id_opt =
+                cfs_session_value_vec.iter().find(|cfs_session_value| {
+                    cfs_session_value.status.as_ref().is_some_and(|status| {
+                        status.artifacts.as_ref().is_some_and(|artifact| {
+                            artifact.first().as_ref().is_some_and(|first_artifact| {
+                                first_artifact
+                                    .result_id
+                                    .as_ref()
+                                    .unwrap()
+                                    .eq(&kernel_image_path_in_boot_params)
+                            })
+                        })
+                    })
+                });
+
+            if let Some(cfs_session_related_to_image_id) = cfs_session_related_to_image_id_opt {
+                cfs_session_related_to_image_id
+                    .configuration
+                    .as_ref()
+                    .unwrap()
+                    .name
+                    .as_ref()
+                    .unwrap()
+                    .to_string()
+            } else {
+                eprintln!(
+                    "No configuration found for node {} related to image id {}",
+                    node, kernel_image_path_in_boot_params,
+                );
+                std::process::exit(1);
+            }
+        };
+
         let node_details = NodeDetails {
             xname: node.to_string(),
             nid: node_nid,
@@ -191,6 +260,7 @@ pub async fn get_node_details(
             enabled: enabled.to_string(),
             error_count: error_count.to_string(),
             boot_image_id: kernel_image_path_in_boot_params,
+            boot_configuration: cfs_configuration_boot,
         };
 
         node_details_list.push(node_details);
@@ -211,6 +281,7 @@ pub fn print_table(nodes_status: Vec<NodeDetails>) {
         "Enabled",
         "Error Count",
         // "Tags",
+        "Boot configuration",
         "Image ID (Boot param)",
     ]);
 
@@ -223,6 +294,7 @@ pub fn print_table(nodes_status: Vec<NodeDetails>) {
             Cell::new(node_status.configuration_status),
             Cell::new(node_status.enabled),
             Cell::new(node_status.error_count),
+            Cell::new(node_status.boot_configuration),
             Cell::new(node_status.boot_image_id),
         ]);
     }

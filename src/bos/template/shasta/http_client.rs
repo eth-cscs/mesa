@@ -75,12 +75,12 @@ pub async fn get_all(
 
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
 pub async fn filter(
-    mut bos_sessiontemplate_value_vec: Vec<Value>,
+    bos_sessiontemplate_value_vec: &mut Vec<Value>,
     hsm_group_name_vec: &Vec<String>,
     bos_sessiontemplate_name_opt: Option<&String>,
     cfs_configuration_name_vec_opt: Option<Vec<&str>>,
     limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+) {
     if !hsm_group_name_vec.is_empty() {
         bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate_value| {
             bos_sessiontemplate_value["boot_sets"]
@@ -124,14 +124,12 @@ pub async fn filter(
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
 
-        bos_sessiontemplate_value_vec = bos_sessiontemplate_value_vec
+        *bos_sessiontemplate_value_vec = bos_sessiontemplate_value_vec
             [bos_sessiontemplate_value_vec
                 .len()
                 .saturating_sub(*limit_number as usize)..]
             .to_vec();
     }
-
-    Ok(bos_sessiontemplate_value_vec)
 }
 
 pub async fn get(
@@ -143,18 +141,21 @@ pub async fn get(
     cfs_configuration_name_vec_opt: Option<Vec<&str>>,
     limit_number_opt: Option<&u8>,
 ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    let bos_sessiontemplate_value_vec: Vec<Value> =
+    let mut bos_sessiontemplate_value_vec: Vec<Value> =
         get_all(shasta_token, shasta_base_url, shasta_root_cert)
             .await
             .unwrap();
 
     filter(
-        bos_sessiontemplate_value_vec,
+        &mut bos_sessiontemplate_value_vec,
         hsm_group_name_vec,
         bos_sessiontemplate_name_opt,
         cfs_configuration_name_vec_opt,
         limit_number_opt,
-    ).await
+    )
+    .await;
+
+    Ok(bos_sessiontemplate_value_vec)
 }
 
 pub async fn post(

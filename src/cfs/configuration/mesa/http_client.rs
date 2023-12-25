@@ -16,6 +16,7 @@ pub async fn get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
+        configuration_name_opt.map(|config| config.as_str()),
     )
     .await
     .unwrap();
@@ -26,11 +27,6 @@ pub async fn get(
         cfs_configuration_vec = cfs_configuration_response.json().await.unwrap();
     } else {
         return Err(cfs_configuration_response.json().await.unwrap());
-    }
-
-    if let Some(configuration_name) = configuration_name_opt {
-        cfs_configuration_vec
-            .retain(|cfs_configuration| cfs_configuration.name.eq(configuration_name));
     }
 
     cfs_configuration_vec.sort_by(|a, b| a.last_updated.cmp(&b.last_updated));
@@ -50,7 +46,7 @@ pub async fn get(
 /// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
 /// is built for a specific cluster based on ansible vars used by the CFS session). The reason
 /// for this is because CSCS staff deletes all CFS sessions every now and then...
-pub async fn get_configuration(
+pub async fn get_and_filter(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],

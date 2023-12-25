@@ -10,6 +10,7 @@ pub async fn get_raw(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
+    configuration_name_opt: Option<&str>,
 ) -> Result<reqwest::Response, reqwest::Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -26,7 +27,11 @@ pub async fn get_raw(
         client_builder.build()?
     };
 
-    let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations";
+    let api_url: String = if let Some(configuration_name) = configuration_name_opt {
+        shasta_base_url.to_owned() + "/cfs/v2/configurations/" + configuration_name
+    } else {
+        shasta_base_url.to_owned() + "/cfs/v2/configurations"
+    };
 
     let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
@@ -119,13 +124,44 @@ pub async fn get_all(
     Ok(configuration_value_vec)
 }
 
+pub async fn get_and_filter(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    configuration_name_opt: Option<&str>,
+    hsm_group_name_vec_opt: Option<&Vec<String>>,
+    most_recent_opt: Option<bool>,
+    limit_number_opt: Option<&u8>,
+) -> Result<Vec<Value>, Box<dyn Error>> {
+    let mut configuration_value_vec = get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        configuration_name_opt,
+    )
+    .await
+    .unwrap();
+
+    filter(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &mut configuration_value_vec,
+        hsm_group_name_vec_opt,
+        most_recent_opt,
+        limit_number_opt,
+    )
+    .await;
+
+    Ok(configuration_value_vec)
+}
+
 pub async fn filter(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_value_vec: &mut Vec<Value>,
     hsm_group_name_vec_opt: Option<&Vec<String>>,
-    configuration_name_opt: Option<&String>,
     most_recent_opt: Option<bool>,
     limit_number_opt: Option<&u8>,
 ) {
@@ -255,16 +291,6 @@ pub async fn filter(
                 cfs_configuration_value_vec
             ); */
         }
-    }
-
-    // END FILTER BY HSM GROUP NAME
-    if let Some(configuration_name) = configuration_name_opt {
-        configuration_value_vec.retain(|cfs_configuration| {
-            cfs_configuration["name"]
-                .as_str()
-                .unwrap()
-                .eq(configuration_name)
-        });
     }
 
     configuration_value_vec.sort_by(|a, b| {
