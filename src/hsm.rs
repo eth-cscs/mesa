@@ -445,9 +445,7 @@ pub mod utils {
             .await
             .unwrap();
             let hsm_group_members =
-                crate::hsm::utils::get_member_vec_from_hsm_group_value_vec(
-                    &hsm_group_details,
-                );
+                crate::hsm::utils::get_member_vec_from_hsm_group_value_vec(&hsm_group_details);
             let cfs_session_hsm_groups: Vec<String> = cfs_sessions.last().unwrap()["target"]
                 ["groups"]
                 .as_array()

@@ -59,4 +59,3 @@ pub async fn update_component_list_desired_configuration(
     )
     .await;
 }
-

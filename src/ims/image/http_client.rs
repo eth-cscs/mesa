@@ -163,14 +163,15 @@ pub async fn get_fuzzy(
     image_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
 ) -> Result<Vec<(Image, String, String)>, Box<dyn Error>> {
-    let mut image_configuration_hsm_group_tuple_vec: Vec<(Image, String, String)> = get_image_cfsconfiguration_targetgroups_tuple(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        hsm_group_name_vec,
-        limit_number_opt,
-    )
-    .await;
+    let mut image_configuration_hsm_group_tuple_vec: Vec<(Image, String, String)> =
+        get_image_cfsconfiguration_targetgroups_tuple(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+            limit_number_opt,
+        )
+        .await;
 
     if let Some(image_name) = image_name_opt {
         image_configuration_hsm_group_tuple_vec
@@ -239,7 +240,8 @@ pub async fn filter(
         &mut cfs_session_value_vec,
         hsm_group_name_vec,
         None,
-    ).await;
+    )
+    .await;
     /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
         shasta_token,
         shasta_base_url,
@@ -382,7 +384,8 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
         &mut cfs_session_value_vec,
         hsm_group_name_vec,
         None,
-    ).await;
+    )
+    .await;
     /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
         shasta_token,
         shasta_base_url,

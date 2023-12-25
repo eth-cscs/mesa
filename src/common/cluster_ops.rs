@@ -52,7 +52,8 @@ pub async fn get_details(
             &mut cfs_session_value_vec,
             &[hsm_group_name.to_string()],
             None,
-        ).await;
+        )
+        .await;
         /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
             shasta_token,
             shasta_base_url,

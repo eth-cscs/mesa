@@ -163,11 +163,11 @@ pub mod http_client {
                 );
 
                 thread::sleep(time::Duration::from_secs(delay_secs));
-                
+
                 i += 1;
-                
+
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-                
+
                 nodes_status_resp = hsm::http_client::get_components_status(
                     shasta_token,
                     shasta_base_url,
@@ -297,9 +297,9 @@ pub mod http_client {
                 thread::sleep(time::Duration::from_secs(delay_secs));
 
                 i += 1;
-                
+
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-                
+
                 nodes_status_resp = hsm::http_client::get_components_status(
                     shasta_token,
                     shasta_base_url,
@@ -396,7 +396,10 @@ pub mod http_client {
             )
             .await;
 
-            log::debug!("Power RESET nodes resp:\n{:#?}", capmc_power_reset_nodes_resp);
+            log::debug!(
+                "Power RESET nodes resp:\n{:#?}",
+                capmc_power_reset_nodes_resp
+            );
 
             // Check Nodes are ON
             let mut nodes_status_resp = hsm::http_client::get_components_status(
@@ -430,9 +433,9 @@ pub mod http_client {
                 thread::sleep(time::Duration::from_secs(delay_secs));
 
                 i += 1;
-                
+
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-                
+
                 nodes_status_resp = hsm::http_client::get_components_status(
                     shasta_token,
                     shasta_base_url,

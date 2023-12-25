@@ -1,4 +1,4 @@
-use crate::ims::s3::{s3_auth, s3_upload_object, s3_download_object, s3_remove_object};
+use crate::ims::s3::{s3_auth, s3_download_object, s3_remove_object, s3_upload_object};
 use directories::ProjectDirs;
 use serde_json::Value;
 use std::env::temp_dir;

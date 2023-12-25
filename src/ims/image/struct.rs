@@ -14,4 +14,3 @@ pub struct Image {
     pub name: String,
     pub link: Option<Link>,
 }
-

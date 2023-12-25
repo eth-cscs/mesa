@@ -2,7 +2,7 @@ use std::error::Error;
 
 use serde_json::Value;
 
-use super::r#struct::{SshContainer, Job};
+use super::r#struct::{Job, SshContainer};
 
 /// Get IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
 pub async fn post(
@@ -108,4 +108,3 @@ pub async fn get(
         Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
     }
 }
-
