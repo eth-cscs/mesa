@@ -139,6 +139,38 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
     image_id_cfs_configuration_from_bos_sessiontemplate
 }
 
+pub fn get_cfs_configuration_name(bos_sessiontemplate: &BosSessionTemplate) -> Option<String> {
+    bos_sessiontemplate
+        .cfs
+        .as_ref()
+        .unwrap()
+        .configuration
+        .as_ref()
+        .cloned()
+}
+
+pub fn find_bos_sessiontemplate_related_to_image_id(
+    bos_sessiontemplate_vec: &Vec<BosSessionTemplate>,
+    image_id: &str,
+) -> Option<BosSessionTemplate> {
+    bos_sessiontemplate_vec
+        .iter()
+        .find(|bos_sessiontemplate| {
+            bos_sessiontemplate
+                .boot_sets
+                .as_ref()
+                .unwrap()
+                .first()
+                .as_ref()
+                .unwrap()
+                .path
+                .as_ref()
+                .unwrap()
+                .contains(image_id)
+        })
+        .cloned()
+}
+
 pub fn print_table_struct(bos_sessiontemplate_vec: Vec<BosSessionTemplate>) {
     let mut table = Table::new();
 

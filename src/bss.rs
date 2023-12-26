@@ -153,3 +153,36 @@ pub mod http_client {
         }
     }
 }
+
+pub mod utils {
+    use serde_json::Value;
+
+    pub fn find_boot_params_related_to_node(
+        node_boot_params_list: &Vec<Value>,
+        node: &String,
+    ) -> Option<Value> {
+        node_boot_params_list
+            .into_iter()
+            .find(|node_boot_param| {
+                node_boot_param["hosts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|host_value| host_value.as_str().unwrap())
+                    .any(|host| host.eq(node))
+            })
+            .cloned()
+    }
+
+    /// Get Image ID from kernel field
+    pub fn get_image_id(node_boot_params: &Value) -> String {
+        node_boot_params["kernel"]
+            .as_str()
+            .unwrap()
+            .to_string()
+            .trim_start_matches("s3://boot-images/")
+            .trim_end_matches("/kernel")
+            .to_string()
+            .to_owned()
+    }
+}

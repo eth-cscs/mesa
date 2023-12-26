@@ -456,7 +456,6 @@ pub mod shasta {
 }
 
 pub mod mesa {
-
     pub mod r#struct {
 
         use serde::{Deserialize, Serialize};
@@ -1123,64 +1122,33 @@ pub mod mesa {
             }
         }
 
-        /* pub async fn filter(
-            cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
-            hsm_group_name_vec_opt: Option<&Vec<String>>,
-            node_vec_opt: Option<&Vec<String>>,
-            limit_number_opt: Option<&u8>,
-        ) {
-            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
-            // hsm_group.members.ids
-            if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
-                cfs_session_vec.retain(|cfs_session| {
-                    cfs_session.target.clone().is_some_and(|target| {
-                        target.groups.is_some_and(|groups| {
-                            !groups.is_empty()
-                                && groups
-                                    .iter()
-                                    .any(|group| hsm_group_name_vec.contains(&group.name))
-                        })
-                    }) || cfs_session.ansible.clone().is_some_and(|ansible| {
-                        ansible.limit.is_some_and(|limit| {
-                            limit
-                                .split(',')
-                                .map(|node| node.trim().to_string())
-                                .collect::<HashSet<_>>()
-                                .is_subset(&HashSet::from_iter(node_vec.clone()))
+        pub fn find_cfs_session_related_to_image_id(
+            cfs_session_value_vec: &Vec<CfsSessionGetResponse>,
+            image_id: &str,
+        ) -> Option<CfsSessionGetResponse> {
+            cfs_session_value_vec
+                .iter()
+                .find(|cfs_session_value| {
+                    cfs_session_value.status.as_ref().is_some_and(|status| {
+                        status.artifacts.as_ref().is_some_and(|artifact| {
+                            artifact.first().as_ref().is_some_and(|first_artifact| {
+                                first_artifact.result_id.as_ref().unwrap().eq(image_id)
+                            })
                         })
                     })
-                });
-            }
+                })
+                .cloned()
+        }
 
-            /* // Sort CFS sessions by start time order ASC
-            cfs_session_vec.sort_by(|cfs_session_1, cfs_session_2| {
-                cfs_session_1
-                    .status
-                    .clone()
-                    .unwrap()
-                    .session
-                    .unwrap()
-                    .start_time
-                    .unwrap()
-                    .cmp(
-                        &cfs_session_2
-                            .status
-                            .clone()
-                            .unwrap()
-                            .session
-                            .unwrap()
-                            .start_time
-                            .unwrap(),
-                    )
-            }); */
-
-            if let Some(limit_number) = limit_number_opt {
-                // Limiting the number of results to return to client
-                *cfs_session_vec = cfs_session_vec
-                    [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
-                    .to_vec();
-            }
-        } */
+        pub fn get_cfs_configuration_name(cfs_session: &CfsSessionGetResponse) -> Option<String> {
+            cfs_session
+                .configuration
+                .as_ref()
+                .unwrap()
+                .name
+                .as_ref()
+                .cloned()
+        }
     }
 }
 
