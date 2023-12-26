@@ -69,6 +69,7 @@ pub async fn get_node_details(
     shasta_root_cert: &[u8],
     hsm_groups_node_list: Vec<String>,
 ) -> Vec<NodeDetails> {
+    // Get CFS component status
     let components_status = cfs::component::mesa::http_client::get(
         shasta_token,
         shasta_base_url,
@@ -78,7 +79,7 @@ pub async fn get_node_details(
     .await
     .unwrap();
 
-    // get boot params
+    // get boot params to get the boot image id for each node
     let node_boot_params_vec = crate::bss::http_client::get_boot_params(
         shasta_token,
         shasta_base_url,
@@ -87,8 +88,6 @@ pub async fn get_node_details(
     )
     .await
     .unwrap();
-
-    // println!("bos_sessiontemplate_list:\n{:#?}", bos_sessiontemplate_list);
 
     // get nodes details (nids) from hsm
     let node_hsm_info_resp = hsm::http_client::get_components_status(

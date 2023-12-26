@@ -90,38 +90,7 @@ pub async fn get_all(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
 ) -> Result<Vec<Value>, Box<dyn Error>> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations";
-
-    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
-
-    let json_response: Value = if resp.status().is_success() {
-        serde_json::from_str(&resp.text().await?)?
-    } else {
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    };
-
-    let configuration_value_vec = json_response.as_array().unwrap().clone();
-
-    log::debug!("CFS configurations:\n{:#?}", configuration_value_vec);
-
-    Ok(configuration_value_vec)
+    get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }
 
 pub async fn get_and_filter(

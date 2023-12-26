@@ -7,6 +7,7 @@ pub async fn get_raw(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
+    bos_session_template_id_opt: Option<&String>,
 ) -> Result<reqwest::Response, reqwest::Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -23,7 +24,11 @@ pub async fn get_raw(
         client_builder.build()?
     };
 
-    let api_url = shasta_base_url.to_owned() + "/bos/v1/sessiontemplate";
+    let api_url = if let Some(bos_session_template_id) = bos_session_template_id_opt {
+        shasta_base_url.to_owned() + "/bos/v1/sessiontemplate/" + bos_session_template_id
+    } else {
+        shasta_base_url.to_owned() + "/bos/v1/sessiontemplate"
+    };
 
     let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
@@ -31,6 +36,46 @@ pub async fn get_raw(
         Ok(http_response) => http_response.error_for_status(),
         Err(network_err) => Err(network_err),
     }
+}
+
+pub async fn get(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    bos_session_template_id_opt: Option<&String>,
+) -> Result<Vec<Value>, reqwest::Error> {
+    let response = get_raw(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        bos_session_template_id_opt,
+    )
+    .await;
+
+    let bos_session_template_response_value: Value = match response {
+        Ok(cfs_session_template_value) => cfs_session_template_value.json().await.unwrap(),
+        Err(error) => return Err(error),
+    };
+
+    let mut bos_session_template_vec = Vec::new();
+
+    if bos_session_template_response_value.is_array() {
+        for bos_session_template_value in bos_session_template_response_value.as_array().unwrap() {
+            bos_session_template_vec.push(bos_session_template_value.clone());
+        }
+    } else {
+        bos_session_template_vec.push(bos_session_template_response_value);
+    }
+
+    Ok(bos_session_template_vec)
+
+    /* let json_response: Value = if resp.status().is_success() {
+        serde_json::from_str(&resp.text().await?)?
+    } else {
+        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+    };
+
+    Ok(json_response.as_array().unwrap_or(&Vec::new()).to_vec()) */
 }
 
 pub async fn get_all(
@@ -71,6 +116,32 @@ pub async fn get_all(
     };
 
     Ok(json_response.as_array().unwrap_or(&Vec::new()).to_vec())
+}
+
+pub async fn get_and_filter(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    hsm_group_name_vec: &Vec<String>,
+    bos_sessiontemplate_name_opt: Option<&String>,
+    cfs_configuration_name_vec_opt: Option<Vec<&str>>,
+    limit_number_opt: Option<&u8>,
+) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+    let mut bos_sessiontemplate_value_vec: Vec<Value> =
+        get_all(shasta_token, shasta_base_url, shasta_root_cert)
+            .await
+            .unwrap();
+
+    filter(
+        &mut bos_sessiontemplate_value_vec,
+        hsm_group_name_vec,
+        bos_sessiontemplate_name_opt,
+        cfs_configuration_name_vec_opt,
+        limit_number_opt,
+    )
+    .await;
+
+    Ok(bos_sessiontemplate_value_vec)
 }
 
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
@@ -130,32 +201,6 @@ pub async fn filter(
                 .saturating_sub(*limit_number as usize)..]
             .to_vec();
     }
-}
-
-pub async fn get(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    hsm_group_name_vec: &Vec<String>,
-    bos_sessiontemplate_name_opt: Option<&String>,
-    cfs_configuration_name_vec_opt: Option<Vec<&str>>,
-    limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    let mut bos_sessiontemplate_value_vec: Vec<Value> =
-        get_all(shasta_token, shasta_base_url, shasta_root_cert)
-            .await
-            .unwrap();
-
-    filter(
-        &mut bos_sessiontemplate_value_vec,
-        hsm_group_name_vec,
-        bos_sessiontemplate_name_opt,
-        cfs_configuration_name_vec_opt,
-        limit_number_opt,
-    )
-    .await;
-
-    Ok(bos_sessiontemplate_value_vec)
 }
 
 pub async fn post(

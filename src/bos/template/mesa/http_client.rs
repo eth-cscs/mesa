@@ -2,15 +2,17 @@ use serde_json::Value;
 
 use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
 
-pub async fn get_all(
+pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
+    bos_session_template_id: Option<&String>,
 ) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
     let bos_sessiontemplate_response_value = crate::bos::template::shasta::http_client::get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
+        bos_session_template_id,
     )
     .await;
 
@@ -34,4 +36,12 @@ pub async fn get_all(
     }
 
     Ok(bos_sessiontemplate_vec)
+}
+
+pub async fn get_all(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
+    get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }

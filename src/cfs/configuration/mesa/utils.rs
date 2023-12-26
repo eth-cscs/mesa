@@ -52,7 +52,7 @@ pub async fn filter(
             .collect();
 
         // We need BOS session templates to find an image created by SAT
-        let bos_sessiontemplate_value_vec = crate::bos::template::shasta::http_client::get(
+        let bos_sessiontemplate_value_vec = crate::bos::template::shasta::http_client::get_and_filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
