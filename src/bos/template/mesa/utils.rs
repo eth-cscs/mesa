@@ -11,7 +11,6 @@ pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
     hsm_group_name_vec: &[String],
     hsm_member_vec: &[String],
-    bos_sessiontemplate_name_opt: Option<&String>,
     limit_number_opt: Option<&u8>,
     cfs_configuration_name_opt: Option<&str>,
 ) -> Vec<BosSessionTemplate> {
@@ -50,16 +49,6 @@ pub async fn filter(
                     .is_some_and(|configuration| configuration.eq(cfs_configuration_name))
             })
         })
-    }
-
-    if let Some(bos_sessiontemplate_name) = bos_sessiontemplate_name_opt {
-        bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
-            bos_sessiontemplate
-                .name
-                .as_ref()
-                .unwrap()
-                .eq(bos_sessiontemplate_name)
-        });
     }
 
     if let Some(limit_number) = limit_number_opt {

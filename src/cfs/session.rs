@@ -64,59 +64,43 @@ pub mod shasta {
             shasta_root_cert: &[u8],
             cfs_session_name_opt: Option<&String>,
             is_succeded: Option<bool>,
-        ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-            let client;
+        ) -> Result<Vec<Value>, reqwest::Error> {
+            let response_rslt = get_raw(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                cfs_session_name_opt,
+                is_succeded,
+            )
+            .await;
 
-            let client_builder = reqwest::Client::builder()
-                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-            // Build client
-            if std::env::var("SOCKS5").is_ok() {
-                // socks5 proxy
-                log::debug!("SOCKS5 enabled");
-                let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-                // rest client to authenticate
-                client = client_builder.proxy(socks5proxy).build()?;
-            } else {
-                client = client_builder.build()?;
-            }
-
-            let api_url: String = if let Some(cfs_session_name) = cfs_session_name_opt {
-                shasta_base_url.to_owned() + "/cfs/v2/sessions/" + cfs_session_name
-            } else {
-                shasta_base_url.to_owned() + "/cfs/v2/sessions"
+            let mut cfs_session_value_vec: Vec<Value> = match response_rslt {
+                Ok(response) => {
+                    if cfs_session_name_opt.is_none() {
+                        response.json::<Vec<Value>>().await.unwrap()
+                    } else {
+                        vec![response.json::<Value>().await.unwrap()]
+                    }
+                }
+                Err(error) => return Err(error),
             };
 
-            let mut request_payload = Vec::new();
+            // Sort CFS sessions by start time order ASC
+            cfs_session_value_vec.sort_by(|a, b| {
+                a["status"]["session"]["startTime"]
+                    .as_str()
+                    .unwrap()
+                    .cmp(b["status"]["session"]["startTime"].as_str().unwrap())
+            });
 
-            if is_succeded.is_some() {
-                request_payload.push(("succeced", is_succeded));
-            }
-
-            let resp = client
-                .get(api_url)
-                .query(&request_payload)
-                .bearer_auth(shasta_token)
-                .send()
-                .await?;
-
-            let json_response: Value = if resp.status().is_success() {
-                serde_json::from_str(&resp.text().await?)?
-            } else {
-                let response = resp.text().await;
-                log::error!("{:#?}", response);
-                return Err(response?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-            };
-
-            Ok(json_response.as_array().unwrap().clone())
+            Ok(cfs_session_value_vec)
         }
 
         pub async fn get_all(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-        ) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+        ) -> Result<Vec<Value>, reqwest::Error> {
             get(shasta_token, shasta_base_url, shasta_root_cert, None, None).await
         }
 
@@ -953,7 +937,7 @@ pub mod mesa {
             limit_number_opt: Option<&u8>,
             is_succeded_opt: Option<bool>,
         ) -> Result<Vec<CfsSessionGetResponse>, reqwest::Error> {
-            let cfs_session_response = crate::cfs::session::shasta::http_client::get_raw(
+            let response_rslt = crate::cfs::session::shasta::http_client::get_raw(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -962,22 +946,36 @@ pub mod mesa {
             )
             .await;
 
-            let cfs_session_response_value: Value = match cfs_session_response {
+            /* let mut cfs_session_vec: Vec<CfsSessionGetResponse> = match response_rslt {
+                Ok(response) => {
+                    if session_name_opt.is_none() {
+                        let response_payload: Value = response.json::<Value>().await.unwrap();
+                        println!("DEBUG - {:#?}", response_payload);
+                        serde_json::from_value::<Vec<CfsSessionGetResponse>>(response_payload)
+                            .unwrap()
+                    } else {
+                        vec![response.json::<CfsSessionGetResponse>().await.unwrap()]
+                    }
+                }
+                Err(error) => return Err(error),
+            }; */
+
+            let response: Value = match response_rslt {
                 Ok(cfs_session_value) => cfs_session_value.json().await.unwrap(),
                 Err(error) => return Err(error),
             };
 
             let mut cfs_session_vec = Vec::new();
 
-            if cfs_session_response_value.is_array() {
-                for cfs_session_value in cfs_session_response_value.as_array().unwrap() {
+            if response.is_array() {
+                for cfs_session_value in response.as_array().unwrap() {
                     cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
                         cfs_session_value.clone(),
                     ));
                 }
             } else {
                 cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
-                    cfs_session_response_value,
+                    response,
                 ));
             }
 
@@ -1007,7 +1005,6 @@ pub mod mesa {
 
             if let Some(limit_number) = limit_number_opt {
                 // Limiting the number of results to return to client
-
                 cfs_session_vec = cfs_session_vec
                     [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
                     .to_vec();

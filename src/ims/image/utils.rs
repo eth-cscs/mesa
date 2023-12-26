@@ -1,154 +1,6 @@
 use std::error::Error;
 
-use serde_json::Value;
-
-use crate::cfs;
-
-use super::r#struct::Image;
-
-pub async fn get_all_struct(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-) -> Result<Vec<Image>, Box<dyn Error>> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    let api_url = shasta_base_url.to_owned() + "/ims/v3/images";
-
-    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
-
-    if resp.status().is_success() {
-        Ok(resp.json::<Vec<Image>>().await?)
-    } else {
-        Err(resp.text().await?.into())
-    }
-}
-
-pub async fn get_all_raw(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-) -> Result<Vec<Value>, Box<dyn Error>> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    let api_url = shasta_base_url.to_owned() + "/ims/v3/images";
-
-    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
-
-    let mut json_response: Value = if resp.status().is_success() {
-        serde_json::from_str(&resp.text().await?)?
-    } else {
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    };
-
-    let image_value_vec: Vec<Value> = json_response
-        .as_array_mut()
-        .unwrap_or(&mut Vec::new())
-        .to_vec();
-
-    Ok(image_value_vec.to_vec())
-}
-
-pub async fn get_raw(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    image_id_opt: Option<&str>,
-    image_name_opt: Option<&str>,
-    limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn Error>> {
-    let mut image_vec: Vec<Value> = get_all_raw(shasta_token, shasta_base_url, shasta_root_cert)
-        .await
-        .unwrap();
-
-    // Sort images by creation time order ASC
-    image_vec.sort_by(|a, b| {
-        a["created"]
-            .as_str()
-            .unwrap()
-            .cmp(b["created"].as_str().unwrap())
-    });
-
-    // Limiting the number of results to return to client
-    if let Some(limit_number) = limit_number_opt {
-        image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
-    }
-
-    if let Some(image_id) = image_id_opt {
-        image_vec.retain(|image_value| image_value["id"].as_str().unwrap().eq(image_id));
-    }
-
-    if let Some(image_name) = image_name_opt {
-        image_vec.retain(|image_value| image_value["name"].as_str().unwrap().eq(image_name));
-    }
-
-    Ok(image_vec.to_vec())
-}
-
-/// Fetch IMS image ref --> https://apidocs.svc.cscs.ch/paas/ims/operation/get_v3_image/
-/// If filtering by HSM group, then image name must include HSM group name (It assumms each image
-/// is built for a specific cluster based on ansible vars used by the CFS session). The reason
-/// for this is because CSCS staff deletes all CFS sessions every now and then...
-pub async fn get_struct(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    image_id_opt: Option<&str>,
-    image_name_opt: Option<&str>,
-    limit_number_opt: Option<&u8>,
-) -> Result<Vec<Image>, Box<dyn Error>> {
-    let mut image_vec: Vec<Image> = get_all_struct(shasta_token, shasta_base_url, shasta_root_cert)
-        .await
-        .unwrap();
-
-    // Sort images by creation time order ASC
-    image_vec.sort_by(|a, b| a.created.as_ref().unwrap().cmp(b.created.as_ref().unwrap()));
-
-    // Limiting the number of results to return to client
-    if let Some(limit_number) = limit_number_opt {
-        image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
-    }
-
-    if let Some(image_id) = image_id_opt {
-        image_vec.retain(|image_value| image_value.id.as_ref().unwrap().eq(image_id));
-    }
-
-    if let Some(image_name) = image_name_opt {
-        image_vec.retain(|image_value| image_value.name.eq(image_name));
-    }
-
-    Ok(image_vec)
-}
+use crate::ims::image::r#struct::Image;
 
 // Get Image using fuzzy finder, meaning returns any image which name contains a specific
 // string.
@@ -189,18 +41,12 @@ pub async fn filter(
     shasta_root_cert: &[u8],
     image_vec: &mut Vec<Image>,
     hsm_group_name_vec: &Vec<String>,
-    limit_number: Option<&u8>,
+    limit_number_opt: Option<&u8>,
 ) -> Vec<(Image, String, String)> {
-    let image_vec: Vec<Image> = crate::ims::image::http_client::get_struct(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        None,
-        None,
-        limit_number,
-    )
-    .await
-    .unwrap();
+    if let Some(limit_number) = limit_number_opt {
+        // Limiting the number of results to return to client
+        *image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
+    }
 
     // We need BOS session templates to find an image created by SAT
     let bos_sessiontemplate_value_vec = crate::bos::template::shasta::http_client::get_and_filter(
@@ -272,7 +118,7 @@ pub async fn filter(
     ); */
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
-        cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
+        crate::cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
             cfs_session_value_vec,
         );
 
@@ -288,7 +134,7 @@ pub async fn filter(
 
     let mut image_detail_vec: Vec<(Image, String, String)> = Vec::new();
 
-    for image in &image_vec {
+    for image in image_vec {
         let image_id = image.id.as_ref().unwrap();
 
         let target_group_name_vec: Vec<String>;
@@ -335,18 +181,21 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name_vec: &Vec<String>,
-    limit_number: Option<&u8>,
+    limit_number_opt: Option<&u8>,
 ) -> Vec<(Image, String, String)> {
-    let image_vec: Vec<Image> = crate::ims::image::http_client::get_struct(
+    let mut image_vec: Vec<Image> = super::mesa::http_client::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         None,
-        None,
-        limit_number,
     )
     .await
     .unwrap();
+
+    if let Some(limit_number) = limit_number_opt {
+        // Limiting the number of results to return to client
+        image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
+    }
 
     // We need BOS session templates to find an image created by SAT
     let bos_sessiontemplate_value_vec = crate::bos::template::shasta::http_client::get_and_filter(
@@ -416,7 +265,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     ); */
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
-        cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
+        crate::cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
             cfs_session_value_vec,
         );
 
@@ -470,66 +319,4 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     }
 
     image_detail_vec
-}
-
-// Delete IMS image using CSM API. First does a "soft delete", then a "permanent deletion"
-// soft delete --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/delete_v3_image/
-// permanent deletion --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/delete_v3_deleted_image/
-pub async fn delete(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    image_id: &str,
-) -> Result<(), Box<dyn Error>> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    // SOFT DELETION
-    let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + image_id;
-
-    let resp = client
-        .delete(api_url)
-        // .get(format!("{}{}", shasta_base_url, "/cfs/v2/configurations"))
-        .bearer_auth(shasta_token)
-        .send()
-        .await?;
-
-    if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-    } else {
-        log::debug!("{:#?}", resp);
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
-
-    // PERMANENT DELETION
-    let api_url = shasta_base_url.to_owned() + "/ims/v3/deleted/images/" + image_id;
-
-    let resp = client
-        .delete(api_url)
-        // .get(format!("{}{}", shasta_base_url, "/cfs/v2/configurations"))
-        .bearer_auth(shasta_token)
-        .send()
-        .await?;
-
-    if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-        Ok(())
-    } else {
-        log::debug!("{:#?}", resp);
-        Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
 }

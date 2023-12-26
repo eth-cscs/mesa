@@ -44,7 +44,7 @@ pub async fn get(
     shasta_root_cert: &[u8],
     bos_session_template_id_opt: Option<&String>,
 ) -> Result<Vec<Value>, reqwest::Error> {
-    let response = get_raw(
+    let response_rslt = get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -52,70 +52,26 @@ pub async fn get(
     )
     .await;
 
-    let bos_session_template_response_value: Value = match response {
-        Ok(cfs_session_template_value) => cfs_session_template_value.json().await.unwrap(),
+    let bos_session_template_vec: Vec<Value> = match response_rslt {
+        Ok(response) => {
+            if bos_session_template_id_opt.is_none() {
+                response.json::<Vec<Value>>().await.unwrap()
+            } else {
+                vec![response.json::<Value>().await.unwrap()]
+            }
+        }
         Err(error) => return Err(error),
     };
 
-    let mut bos_session_template_vec = Vec::new();
-
-    if bos_session_template_response_value.is_array() {
-        for bos_session_template_value in bos_session_template_response_value.as_array().unwrap() {
-            bos_session_template_vec.push(bos_session_template_value.clone());
-        }
-    } else {
-        bos_session_template_vec.push(bos_session_template_response_value);
-    }
-
     Ok(bos_session_template_vec)
-
-    /* let json_response: Value = if resp.status().is_success() {
-        serde_json::from_str(&resp.text().await?)?
-    } else {
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    };
-
-    Ok(json_response.as_array().unwrap_or(&Vec::new()).to_vec()) */
 }
 
 pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    let api_url = shasta_base_url.to_owned() + "/bos/v1/sessiontemplate";
-
-    let resp = client
-        .get(api_url)
-        // .get(format!("{}{}", shasta_base_url, "/bos/v1/sessiontemplate"))
-        .bearer_auth(shasta_token)
-        .send()
-        .await?;
-
-    let json_response: Value = if resp.status().is_success() {
-        serde_json::from_str(&resp.text().await?)?
-    } else {
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    };
-
-    Ok(json_response.as_array().unwrap_or(&Vec::new()).to_vec())
+) -> Result<Vec<Value>, reqwest::Error> {
+    get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }
 
 pub async fn get_and_filter(

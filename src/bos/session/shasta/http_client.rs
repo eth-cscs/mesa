@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use serde_json::{json, Value};
 pub async fn post(
     shasta_token: &str,
@@ -50,7 +52,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     id_opt: Option<&str>,
-) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Value>, Box<dyn Error>> {
     let client;
 
     let client_builder = reqwest::Client::builder()

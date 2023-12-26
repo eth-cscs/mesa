@@ -11,23 +11,36 @@ pub async fn get(
     shasta_root_cert: &[u8],
     configuration_name_opt: Option<&String>,
     limit_number_opt: Option<&u8>,
-) -> Result<Vec<CfsConfigurationResponse>, Value> {
-    let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::get_raw(
+) -> Result<Vec<CfsConfigurationResponse>, reqwest::Error> {
+    let response_rslt = crate::cfs::configuration::shasta::http_client::get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         configuration_name_opt.map(|config| config.as_str()),
     )
-    .await
-    .unwrap();
+    .await;
 
-    let mut cfs_configuration_vec: Vec<CfsConfigurationResponse>;
+    let mut cfs_configuration_vec: Vec<CfsConfigurationResponse> = match response_rslt {
+        Ok(response) => {
+            if configuration_name_opt.is_none() {
+                response
+                    .json::<Vec<CfsConfigurationResponse>>()
+                    .await
+                    .unwrap()
+            } else {
+                vec![response.json::<CfsConfigurationResponse>().await.unwrap()]
+            }
+        }
+        Err(error) => return Err(error),
+    };
+
+    /* let mut cfs_configuration_vec: Vec<CfsConfigurationResponse>;
 
     if cfs_configuration_response.status().is_success() {
         cfs_configuration_vec = cfs_configuration_response.json().await.unwrap();
     } else {
         return Err(cfs_configuration_response.json().await.unwrap());
-    }
+    } */
 
     cfs_configuration_vec.sort_by(|a, b| a.last_updated.cmp(&b.last_updated));
 
