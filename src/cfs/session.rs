@@ -2,11 +2,9 @@ pub mod shasta {
 
     pub mod http_client {
 
-        use crate::cfs::session::mesa::r#struct::CfsSessionRequest;
-        use crate::hsm::utils::get_member_vec_from_hsm_name_vec;
+        use crate::cfs::session::mesa::r#struct::CfsSessionPostRequest;
 
         use serde_json::Value;
-        use std::collections::HashSet;
         use std::error::Error;
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
@@ -104,6 +102,98 @@ pub mod shasta {
             get(shasta_token, shasta_base_url, shasta_root_cert, None, None).await
         }
 
+        pub async fn post_raw(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            session: &CfsSessionPostRequest,
+        ) -> Result<reqwest::Response, reqwest::Error> {
+            log::debug!("Session:\n{:#?}", session);
+
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                // rest client to authenticate
+                client_builder.proxy(socks5proxy).build()?
+            } else {
+                client_builder.build()?
+            };
+
+            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+
+            let network_response_rslt = client
+                .post(api_url)
+                // .post(format!("{}{}", shasta_base_url, "/cfs/v2/sessions"))
+                .bearer_auth(shasta_token)
+                .json(&session)
+                .send()
+                .await;
+
+            match network_response_rslt {
+                Ok(http_response) => http_response.error_for_status(),
+                Err(network_error) => Err(network_error),
+            }
+        }
+
+        pub async fn delete(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            session_name: &str,
+        ) -> Result<(), Box<dyn Error>> {
+            log::info!("Deleting CFS session id: {}", session_name);
+
+            let client;
+
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            if std::env::var("SOCKS5").is_ok() {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                // rest client to authenticate
+                client = client_builder.proxy(socks5proxy).build()?;
+            } else {
+                client = client_builder.build()?;
+            }
+
+            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions/" + session_name;
+
+            let resp = client
+                .delete(api_url)
+                .bearer_auth(shasta_token)
+                .send()
+                .await?;
+
+            if resp.status().is_success() {
+                log::debug!("{:#?}", resp);
+                Ok(())
+            } else {
+                log::debug!("{:#?}", resp);
+                Err(resp.json::<Value>().await?["detail"]
+                    .as_str()
+                    .unwrap()
+                    .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+            }
+        }
+    }
+
+    pub mod utils {
+
+        use std::collections::HashSet;
+
+        // use comfy_table::Table;
+        use serde_json::Value;
+
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions filtered by HSM group ordered by start time
         pub async fn filter_by_hsm(
@@ -114,7 +204,7 @@ pub mod shasta {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
+            let hsm_group_member_vec = crate::hsm::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -169,7 +259,7 @@ pub mod shasta {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_member_vec = get_member_vec_from_hsm_name_vec(
+            let hsm_group_member_vec = crate::hsm::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -213,96 +303,6 @@ pub mod shasta {
                     .to_vec();
             }
         }
-
-        pub async fn delete(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-            session_name: &str,
-        ) -> Result<(), Box<dyn Error>> {
-            log::info!("Deleting CFS session id: {}", session_name);
-
-            let client;
-
-            let client_builder = reqwest::Client::builder()
-                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-            // Build client
-            if std::env::var("SOCKS5").is_ok() {
-                // socks5 proxy
-                log::debug!("SOCKS5 enabled");
-                let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-                // rest client to authenticate
-                client = client_builder.proxy(socks5proxy).build()?;
-            } else {
-                client = client_builder.build()?;
-            }
-
-            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions/" + session_name;
-
-            let resp = client
-                .delete(api_url)
-                .bearer_auth(shasta_token)
-                .send()
-                .await?;
-
-            if resp.status().is_success() {
-                log::debug!("{:#?}", resp);
-                Ok(())
-            } else {
-                log::debug!("{:#?}", resp);
-                Err(resp.json::<Value>().await?["detail"]
-                    .as_str()
-                    .unwrap()
-                    .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
-        }
-
-        pub async fn post_raw(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-            session: &CfsSessionRequest,
-        ) -> Result<reqwest::Response, reqwest::Error> {
-            log::debug!("Session:\n{:#?}", session);
-
-            let client_builder = reqwest::Client::builder()
-                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-            // Build client
-            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-                // socks5 proxy
-                log::debug!("SOCKS5 enabled");
-                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
-
-                // rest client to authenticate
-                client_builder.proxy(socks5proxy).build()?
-            } else {
-                client_builder.build()?
-            };
-
-            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
-
-            let network_response_rslt = client
-                .post(api_url)
-                // .post(format!("{}{}", shasta_base_url, "/cfs/v2/sessions"))
-                .bearer_auth(shasta_token)
-                .json(&session)
-                .send()
-                .await;
-
-            match network_response_rslt {
-                Ok(http_response) => http_response.error_for_status(),
-                Err(network_error) => Err(network_error),
-            }
-        }
-    }
-
-    pub mod utils {
-
-        use comfy_table::Table;
-        use serde_json::Value;
 
         pub fn get_image_id_cfs_configuration_target_tuple_vec(
             cfs_session_value_vec: Vec<Value>,
@@ -356,7 +356,7 @@ pub mod shasta {
             image_id_cfs_configuration_target_from_cfs_session
         }
 
-        pub fn print_table(cfs_sessions: Vec<Vec<String>>) {
+        /* pub fn print_table(cfs_sessions: Vec<Vec<String>>) {
             let mut table = Table::new();
 
             table.set_header(vec![
@@ -375,7 +375,7 @@ pub mod shasta {
             }
 
             println!("{table}");
-        }
+        } */
 
         pub fn get_image_id_from_cfs_session_vec(cfs_session_value_vec: &[Value]) -> Vec<String> {
             cfs_session_value_vec
@@ -413,9 +413,9 @@ pub mod shasta {
 pub mod mesa {
     pub mod r#struct {
 
-        use serde::{Deserialize, Serialize};
+        use std::collections::HashMap;
 
-        use serde_json::{json, Value};
+        use serde::{Deserialize, Serialize};
 
         #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct CfsSessionGetResponse {
@@ -430,7 +430,7 @@ pub mod mesa {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub status: Option<Status>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            pub tags: Option<Vec<Tag>>,
+            pub tags: Option<HashMap<String, String>>,
         }
 
         #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -487,131 +487,6 @@ pub mod mesa {
             pub succeeded: Option<String>,
         }
 
-        #[derive(Debug, Serialize, Deserialize, Clone)]
-        pub struct Tag {
-            pub key: String,
-            pub value: String,
-        }
-
-        impl CfsSessionGetResponse {
-            pub fn from_csm_api_json(session_value: Value) -> Self {
-                let configuration = Configuration {
-                    name: session_value
-                        .pointer("/configuration/name")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    limit: session_value
-                        .pointer("/configuration/limit")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                };
-
-                let ansible = Ansible {
-                    config: session_value
-                        .pointer("/ansible/config")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    limit: session_value
-                        .pointer("/ansible/limit")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    verbosity: session_value
-                        .pointer("/ansible/verbosity")
-                        .map(|str| str.as_u64().unwrap()),
-                    passthrough: session_value
-                        .pointer("/ansible/passthrough")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                };
-
-                let mut group_vec = Vec::new();
-
-                if let Some(group_vec_value) = session_value.pointer("/target/groups") {
-                    for group_value in group_vec_value.as_array().unwrap_or(&Vec::new()) {
-                        let group = Group {
-                            name: group_value["name"].as_str().unwrap().to_string(),
-                            members: group_value["members"]
-                                .as_array()
-                                .unwrap_or(&Vec::new())
-                                .iter()
-                                .map(|str| str.to_string())
-                                .collect::<Vec<String>>(),
-                        };
-
-                        group_vec.push(group);
-                    }
-                }
-
-                let target = Target {
-                    definition: session_value
-                        .pointer("/target/definition")
-                        .map(|value| value.as_str().unwrap().to_string()),
-                    groups: Some(group_vec),
-                };
-
-                let mut artifact_vec = Vec::new();
-
-                if let Some(artifact_value_vec) = session_value.pointer("/status/artifacts") {
-                    for artifact_value in artifact_value_vec.as_array().unwrap() {
-                        let artifact = Artifact {
-                            image_id: artifact_value
-                                .get("image_id")
-                                .map(|value| value.as_str().unwrap().to_string()),
-                            result_id: artifact_value
-                                .get("result_id")
-                                .map(|value| value.as_str().unwrap().to_string()),
-                            r#type: artifact_value
-                                .get("type")
-                                .map(|value| value.as_str().unwrap().to_string()),
-                        };
-                        artifact_vec.push(artifact);
-                    }
-                }
-
-                let session = Session {
-                    job: session_value
-                        .pointer("/status/session/job")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    completion_time: session_value
-                        .pointer("/status/session/completionTime")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    start_time: session_value
-                        .pointer("/status/session/startTime")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    status: session_value
-                        .pointer("/status/session/status")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                    succeeded: session_value
-                        .pointer("/status/session/succeeded")
-                        .map(|value| value.as_str().unwrap_or("").to_string()),
-                };
-
-                let status = Status {
-                    artifacts: Some(artifact_vec),
-                    session: Some(session),
-                };
-
-                let mut tag_vec = Vec::new();
-
-                if let Some(tag_value_vec) = session_value.get("tags") {
-                    for (tag_name, tag_value) in tag_value_vec.as_object().unwrap() {
-                        let tag = Tag {
-                            key: tag_name.to_string(),
-                            value: tag_value.as_str().unwrap().to_string(),
-                        };
-
-                        tag_vec.push(tag);
-                    }
-                }
-
-                let session = CfsSessionGetResponse {
-                    name: session_value["name"].as_str().map(|str| str.to_string()),
-                    configuration: Some(configuration),
-                    ansible: Some(ansible),
-                    target: Some(target),
-                    status: Some(status),
-                    tags: Some(tag_vec),
-                };
-
-                session
-            }
-        }
-
         #[derive(Debug, Serialize, Deserialize, Clone, Default)]
         pub struct CfsSessionPostRequest {
             pub name: String,
@@ -628,14 +503,14 @@ pub mod mesa {
             pub ansible_config: Option<String>,
             #[serde(rename = "ansibleVerbosity")]
             #[serde(skip_serializing_if = "Option::is_none")]
-            pub ansible_verbosity: Option<u64>,
+            pub ansible_verbosity: Option<u8>,
             #[serde(rename = "ansiblePassthrough")]
             #[serde(skip_serializing_if = "Option::is_none")]
             pub ansible_passthrough: Option<String>,
             #[serde(default)]
             pub target: Target,
             #[serde(skip_serializing_if = "Option::is_none")]
-            pub tags: Option<Vec<Tag>>,
+            pub tags: Option<HashMap<String, String>>,
         }
 
         #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -652,7 +527,7 @@ pub mod mesa {
             pub groups: Option<Vec<Group>>,
         }
 
-        impl CfsSessionPostRequest {
+        /* impl CfsSessionPostRequest {
             pub fn new(
                 name: String,
                 configuration_name: String,
@@ -729,87 +604,7 @@ pub mod mesa {
 
                 cfs_session
             }
-
-            pub fn from_csm_api_json(session_value: Value) -> Self {
-                let mut group_vec = Vec::new();
-
-                if let Some(group_value_vec) = session_value.pointer("/target/groups") {
-                    for group_value in group_value_vec.as_array().unwrap() {
-                        let group = Group {
-                            name: group_value["name"].as_str().unwrap().to_string(),
-                            members: group_value["members"]
-                                .as_array()
-                                .unwrap()
-                                .iter()
-                                .map(|member_value| member_value.as_str().unwrap().to_string())
-                                .collect(),
-                        };
-
-                        group_vec.push(group);
-                    }
-                }
-
-                let target = Target {
-                    definition: Some(
-                        session_value
-                            .pointer("/target/definition")
-                            .unwrap_or(&json!(""))
-                            .as_str()
-                            .unwrap()
-                            .to_string(),
-                    ),
-                    groups: Some(group_vec),
-                };
-
-                let mut tag_vec = Vec::new();
-
-                if let Some(tag_value_vec) = session_value.get("tags") {
-                    for (tag_name, tag_value) in tag_value_vec.as_object().unwrap() {
-                        let tag = Tag {
-                            key: tag_name.to_string(),
-                            value: tag_value.as_str().unwrap().to_string(),
-                        };
-
-                        tag_vec.push(tag);
-                    }
-                }
-
-                let session = CfsSessionPostRequest {
-                    name: session_value["name"].as_str().unwrap().to_string(),
-                    configuration_name: session_value
-                        .get("configurationName")
-                        .unwrap()
-                        .as_str()
-                        .unwrap()
-                        .to_string(),
-                    configuration_limit: session_value
-                        .get("configurationLimit")
-                        .unwrap()
-                        .as_str()
-                        .map(|str| str.to_string()),
-                    ansible_limit: session_value
-                        .get("ansibleLimit")
-                        .unwrap()
-                        .as_str()
-                        .map(|str| str.to_string()),
-                    ansible_config: session_value
-                        .get("ansibleConfig")
-                        .unwrap()
-                        .as_str()
-                        .map(|str| str.to_string()),
-                    ansible_verbosity: session_value.get("ansibleVerbosity").unwrap().as_u64(),
-                    ansible_passthrough: session_value
-                        .get("ansibleLimit")
-                        .unwrap()
-                        .as_str()
-                        .map(|str| str.to_string()),
-                    target,
-                    tags: Some(tag_vec),
-                };
-
-                session
-            }
-        }
+        } */
 
         #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct CfsSessionRequest {
@@ -834,7 +629,7 @@ pub mod mesa {
             #[serde(default)]
             pub target: Target,
             #[serde(skip_serializing_if = "Option::is_none")]
-            pub tags: Option<Tag>,
+            pub tags: Option<HashMap<String, String>>,
             #[serde(skip_serializing)]
             pub base_image_id: Option<String>,
         }
@@ -856,7 +651,7 @@ pub mod mesa {
             }
         }
 
-        impl CfsSessionRequest {
+        impl CfsSessionPostRequest {
             pub fn new(
                 name: String,
                 configuration_name: String,
@@ -904,7 +699,7 @@ pub mod mesa {
                     .map(|group_name| group_name.as_str().unwrap().to_string())
                     .collect();
 
-                let cfs_session = CfsSessionRequest::new(
+                let cfs_session = CfsSessionPostRequest::new(
                     session_yaml["name"].as_str().unwrap().to_string(),
                     session_yaml["configuration"].as_str().unwrap().to_string(),
                     None,
@@ -924,7 +719,7 @@ pub mod mesa {
 
         use serde_json::Value;
 
-        use super::r#struct::{CfsSessionGetResponse, CfsSessionRequest};
+        use super::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions ordered by start time.
@@ -934,7 +729,6 @@ pub mod mesa {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             session_name_opt: Option<&String>,
-            limit_number_opt: Option<&u8>,
             is_succeded_opt: Option<bool>,
         ) -> Result<Vec<CfsSessionGetResponse>, reqwest::Error> {
             let response_rslt = crate::cfs::session::shasta::http_client::get_raw(
@@ -946,21 +740,21 @@ pub mod mesa {
             )
             .await;
 
-            /* let mut cfs_session_vec: Vec<CfsSessionGetResponse> = match response_rslt {
+            let mut cfs_session_vec: Vec<CfsSessionGetResponse> = match response_rslt {
                 Ok(response) => {
                     if session_name_opt.is_none() {
-                        let response_payload: Value = response.json::<Value>().await.unwrap();
-                        println!("DEBUG - {:#?}", response_payload);
-                        serde_json::from_value::<Vec<CfsSessionGetResponse>>(response_payload)
-                            .unwrap()
+                        serde_json::from_value::<Vec<CfsSessionGetResponse>>(
+                            response.json::<Value>().await.unwrap(),
+                        )
+                        .unwrap()
                     } else {
                         vec![response.json::<CfsSessionGetResponse>().await.unwrap()]
                     }
                 }
                 Err(error) => return Err(error),
-            }; */
+            };
 
-            let response: Value = match response_rslt {
+            /* let response: Value = match response_rslt {
                 Ok(cfs_session_value) => cfs_session_value.json().await.unwrap(),
                 Err(error) => return Err(error),
             };
@@ -977,7 +771,7 @@ pub mod mesa {
                 cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
                     response,
                 ));
-            }
+            } */
 
             // Sort CFS sessions by start time order ASC
             cfs_session_vec.sort_by(|a, b| {
@@ -1003,13 +797,6 @@ pub mod mesa {
                     )
             });
 
-            if let Some(limit_number) = limit_number_opt {
-                // Limiting the number of results to return to client
-                cfs_session_vec = cfs_session_vec
-                    [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
-                    .to_vec();
-            }
-
             Ok(cfs_session_vec)
         }
 
@@ -1017,9 +804,9 @@ pub mod mesa {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            session: &CfsSessionRequest,
+            session: &CfsSessionPostRequest,
         ) -> Result<CfsSessionGetResponse, reqwest::Error> {
-            let cfs_session_response = crate::cfs::session::shasta::http_client::post_raw(
+            let response_rslt = crate::cfs::session::shasta::http_client::post_raw(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1027,14 +814,12 @@ pub mod mesa {
             )
             .await;
 
-            let cfs_session_response_value: Value = match cfs_session_response {
-                Ok(cfs_session_value) => cfs_session_value.json().await.unwrap(),
+            let cfs_session: CfsSessionGetResponse = match response_rslt {
+                Ok(response) => response.json::<CfsSessionGetResponse>().await.unwrap(),
                 Err(error) => return Err(error),
             };
 
-            Ok(CfsSessionGetResponse::from_csm_api_json(
-                cfs_session_response_value,
-            ))
+            Ok(cfs_session)
         }
     }
 
@@ -1157,7 +942,7 @@ pub mod test {
           }
         });
 
-        let cfs_session = CfsSessionGetResponse::from_csm_api_json(cfs_session_value);
+        let cfs_session = serde_json::from_value::<CfsSessionGetResponse>(cfs_session_value);
 
         println!("{:#?}", cfs_session);
     }

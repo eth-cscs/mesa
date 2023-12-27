@@ -45,7 +45,7 @@ pub async fn get_details(
         .await
         .unwrap();
 
-        crate::cfs::session::shasta::http_client::filter(
+        crate::cfs::session::shasta::utils::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

@@ -1,6 +1,65 @@
 use comfy_table::Table;
 use serde_json::Value;
 
+/// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
+pub async fn filter(
+    bos_sessiontemplate_value_vec: &mut Vec<Value>,
+    hsm_group_name_vec: &Vec<String>,
+    bos_sessiontemplate_name_opt: Option<&String>,
+    cfs_configuration_name_vec_opt: Option<Vec<&str>>,
+    limit_number_opt: Option<&u8>,
+) {
+    if !hsm_group_name_vec.is_empty() {
+        bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate_value| {
+            bos_sessiontemplate_value["boot_sets"]
+                .as_object()
+                .is_some_and(|boot_set_obj| {
+                    boot_set_obj.iter().any(|(_property, boot_set_param)| {
+                        boot_set_param["node_groups"]
+                            .as_array()
+                            .is_some_and(|node_group_vec| {
+                                node_group_vec.iter().any(|node_group| {
+                                    hsm_group_name_vec
+                                        .contains(&node_group.as_str().unwrap().to_string())
+                                })
+                            })
+                    })
+                })
+        });
+    }
+
+    if let Some(cfs_configuration_name_vec) = cfs_configuration_name_vec_opt {
+        bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate_value| {
+            cfs_configuration_name_vec.contains(
+                &bos_sessiontemplate_value
+                    .pointer("/cfs/configuration")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+            )
+        });
+    }
+
+    if let Some(bos_sessiontemplate_name) = bos_sessiontemplate_name_opt {
+        bos_sessiontemplate_value_vec.retain(|bos_sessiontemplate| {
+            bos_sessiontemplate["name"]
+                .as_str()
+                .unwrap()
+                .eq(bos_sessiontemplate_name)
+        });
+    }
+
+    if let Some(limit_number) = limit_number_opt {
+        // Limiting the number of results to return to client
+
+        *bos_sessiontemplate_value_vec = bos_sessiontemplate_value_vec
+            [bos_sessiontemplate_value_vec
+                .len()
+                .saturating_sub(*limit_number as usize)..]
+            .to_vec();
+    }
+}
+
 pub fn check_hsms_or_xnames_belongs_to_bos_sessiontemplate(
     bos_sessiontemplate: &Value,
     hsm_groups_names: Vec<String>,

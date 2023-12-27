@@ -10,7 +10,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_name_opt: Option<&String>,
-    limit_number_opt: Option<&u8>,
+    // limit_number_opt: Option<&u8>,
 ) -> Result<Vec<CfsConfigurationResponse>, reqwest::Error> {
     let response_rslt = crate::cfs::configuration::shasta::http_client::get_raw(
         shasta_token,
@@ -44,14 +44,13 @@ pub async fn get(
 
     cfs_configuration_vec.sort_by(|a, b| a.last_updated.cmp(&b.last_updated));
 
-    if let Some(limit_number) = limit_number_opt {
+    /* if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
-
         cfs_configuration_vec = cfs_configuration_vec[cfs_configuration_vec
             .len()
             .saturating_sub(*limit_number as usize)..]
             .to_vec();
-    }
+    } */
 
     Ok(cfs_configuration_vec)
 }
@@ -80,7 +79,6 @@ pub async fn get_and_filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            None,
             None,
         )
         .await

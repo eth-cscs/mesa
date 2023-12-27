@@ -231,8 +231,9 @@ pub mod request_payload {
 }
 
 pub mod response_payload {
+    use std::collections::HashMap;
+
     use serde::{Deserialize, Serialize};
-    use serde_json::Value;
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct Link {
@@ -258,8 +259,8 @@ pub mod response_payload {
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct BootSet {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub property: Option<String>,
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // pub property: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub name: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -308,135 +309,8 @@ pub mod response_payload {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub partition: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub boot_sets: Option<Vec<BootSet>>,
+        pub boot_sets: Option<HashMap<String, BootSet>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub link: Option<Vec<Link>>,
-    }
-
-    impl BosSessionTemplate {
-        pub fn from_csm_api_json(sessiontemplate_value: Value) -> Self {
-            let cfs = Cfs {
-                clone_url: sessiontemplate_value
-                    .pointer("/cfs/clone_url")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                branch: sessiontemplate_value
-                    .pointer("/cfs/branch")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                commit: sessiontemplate_value
-                    .pointer("/cfs/commit")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                playbook: sessiontemplate_value
-                    .pointer("/cfs/playbook")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                configuration: sessiontemplate_value
-                    .pointer("/cfs/configuration")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-            };
-
-            let mut boot_set_vec = Vec::new();
-            for (boot_set_index, boot_set_value) in
-                sessiontemplate_value["boot_sets"].as_object().unwrap()
-            {
-                let boot_set = BootSet {
-                    property: Some(boot_set_index.to_string()),
-                    name: boot_set_value
-                        .get("name")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    boot_ordinal: boot_set_value
-                        .get("boot_ordinal")
-                        .and_then(|value| value.as_u64()),
-                    shutdown_ordinal: boot_set_value
-                        .get("shutdown_ordinal")
-                        .and_then(|value| value.as_u64()),
-                    path: boot_set_value
-                        .get("path")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    r#type: boot_set_value
-                        .get("type")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    etag: boot_set_value
-                        .get("etag")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    kernel_parameters: boot_set_value
-                        .get("kernel_parameters")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    network: boot_set_value
-                        .get("property_name")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    node_list: boot_set_value.get("node_list").and_then(|value| {
-                        value.as_array().map(|array| {
-                            array
-                                .iter()
-                                .map(|value| value.as_str().unwrap().to_string())
-                                .collect::<Vec<String>>()
-                        })
-                    }),
-                    node_roles_groups: boot_set_value.get("node_roles_groups").and_then(|value| {
-                        value.as_array().map(|array| {
-                            array
-                                .iter()
-                                .map(|value| value.as_str().unwrap().to_string())
-                                .collect::<Vec<String>>()
-                        })
-                    }),
-                    node_groups: boot_set_value.get("node_groups").and_then(|value| {
-                        value.as_array().map(|array| {
-                            array
-                                .iter()
-                                .map(|value| value.as_str().unwrap().to_string())
-                                .collect::<Vec<String>>()
-                        })
-                    }),
-                    rootfs_provider: boot_set_value
-                        .get("property_name")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                    rootfs_provider_passthrough: boot_set_value
-                        .get("property_name")
-                        .and_then(|value| value.as_str().map(|str| str.to_string())),
-                };
-                boot_set_vec.push(boot_set)
-            }
-
-            let link_vec_opt = if let Some(link_value) = sessiontemplate_value.get("links") {
-                link_value.as_array().map(|link_value_vec| {
-                    link_value_vec
-                        .iter()
-                        .map(|link_value| Link {
-                            rel: Some(link_value["rel"].as_str().unwrap().to_string()),
-                            href: Some(link_value["href"].as_str().unwrap().to_string()),
-                        })
-                        .collect()
-                })
-            } else {
-                None
-            };
-
-            Self {
-                template_url: sessiontemplate_value
-                    .pointer("/templateUrl")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                name: sessiontemplate_value
-                    .pointer("/name")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                description: sessiontemplate_value
-                    .pointer("/description")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                cfs_url: sessiontemplate_value
-                    .pointer("/cfs_url")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                cfs_branch: sessiontemplate_value
-                    .pointer("/cfs_branch")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                enable_cfs: sessiontemplate_value
-                    .pointer("/enable_cfs")
-                    .and_then(|value| value.as_bool()),
-                cfs: Some(cfs),
-                partition: sessiontemplate_value
-                    .pointer("/partition")
-                    .and_then(|value| value.as_str().map(|str| str.to_string())),
-                boot_sets: Some(boot_set_vec),
-                link: link_vec_opt,
-            }
-        }
     }
 }

@@ -1,5 +1,4 @@
 use serde_json::Value;
-use std::error::Error;
 
 /// Get components data.
 /// Currently, CSM will throw an error if many xnames are sent in the request, therefore, this
@@ -9,7 +8,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_groups_node_list: &[String],
-) -> Result<Vec<Value>, Box<dyn Error>> {
+) -> Result<Vec<Value>, reqwest::Error> {
     let chunk_size = 30;
 
     let mut component_vec = Vec::new();

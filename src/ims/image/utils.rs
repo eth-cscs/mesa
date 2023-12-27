@@ -79,7 +79,7 @@ pub async fn filter(
     .await
     .unwrap();
 
-    crate::cfs::session::shasta::http_client::filter(
+    crate::cfs::session::shasta::utils::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -183,14 +183,10 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     hsm_group_name_vec: &Vec<String>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<(Image, String, String)> {
-    let mut image_vec: Vec<Image> = super::mesa::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        None,
-    )
-    .await
-    .unwrap();
+    let mut image_vec: Vec<Image> =
+        super::mesa::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None)
+            .await
+            .unwrap();
 
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
@@ -226,7 +222,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     .await
     .unwrap();
 
-    crate::cfs::session::shasta::http_client::filter(
+    crate::cfs::session::shasta::utils::filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,

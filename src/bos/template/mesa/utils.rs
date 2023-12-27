@@ -21,7 +21,7 @@ pub async fn filter(
             .as_ref()
             .unwrap()
             .iter()
-            .any(|boot_set| {
+            .any(|(_parameter, boot_set)| {
                 (boot_set.node_groups.is_some()
                     && !boot_set.node_groups.as_ref().unwrap().is_empty()
                     && boot_set
@@ -149,7 +149,8 @@ pub fn find_bos_sessiontemplate_related_to_image_id(
                 .boot_sets
                 .as_ref()
                 .unwrap()
-                .first()
+                .values()
+                .next()
                 .as_ref()
                 .unwrap()
                 .path
@@ -175,7 +176,7 @@ pub fn print_table_struct(bos_sessiontemplate_vec: Vec<BosSessionTemplate>) {
 
     for bos_template in bos_sessiontemplate_vec {
         for boot_set in bos_template.boot_sets.unwrap() {
-            let target: Vec<String> = if boot_set.node_groups.is_some() {
+            let target: Vec<String> = if boot_set.1.node_groups.is_some() {
                 // NOTE: very
                 // important to
                 // define target
@@ -183,9 +184,9 @@ pub fn print_table_struct(bos_sessiontemplate_vec: Vec<BosSessionTemplate>) {
                 // tell compiler we
                 // want a long live
                 // variable
-                boot_set.node_groups.unwrap()
-            } else if boot_set.node_list.is_some() {
-                boot_set.node_list.unwrap()
+                boot_set.1.node_groups.unwrap()
+            } else if boot_set.1.node_list.is_some() {
+                boot_set.1.node_list.unwrap()
             } else {
                 Vec::new()
             };
@@ -200,10 +201,10 @@ pub fn print_table_struct(bos_sessiontemplate_vec: Vec<BosSessionTemplate>) {
                     .as_ref()
                     .unwrap(),
                 &bos_template.enable_cfs.unwrap().to_string(),
-                &boot_set.property.unwrap(),
+                // &boot_set.property.unwrap(),
                 &node_ops::string_vec_to_multi_line_string(Some(&target), 2),
-                &boot_set.etag.unwrap_or("".to_string()),
-                &boot_set.path.unwrap(),
+                &boot_set.1.etag.unwrap_or("".to_string()),
+                &boot_set.1.path.unwrap(),
             ]);
         }
     }
