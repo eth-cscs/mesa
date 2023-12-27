@@ -1,7 +1,5 @@
 use serde_json::Value;
 
-use crate::hsm::http_client::get_hsm_group_vec;
-
 #[derive(Debug)]
 pub struct ClusterDetails {
     pub hsm_group_label: String,
@@ -19,7 +17,7 @@ pub async fn get_details(
     let mut clusters_details = vec![];
 
     // Get HSM groups matching cluster name
-    let hsm_group_value_vec = get_hsm_group_vec(
+    let hsm_group_value_vec = crate::hsm::group::shasta::http_client::get_hsm_group_vec(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -32,7 +30,8 @@ pub async fn get_details(
         let hsm_group_name = hsm_group["label"].as_str().unwrap();
 
         let hsm_group_members: String =
-            crate::hsm::utils::get_member_vec_from_hsm_group_value(&hsm_group).join(",");
+            crate::hsm::group::shasta::utils::get_member_vec_from_hsm_group_value(&hsm_group)
+                .join(",");
 
         // Get all CFS sessions
         let mut cfs_session_value_vec = crate::cfs::session::shasta::http_client::get(

@@ -1,5 +1,7 @@
 use std::{collections::HashMap, error::Error};
 
+use crate::hsm;
+
 pub struct VCluster {
     pub name: String,
     pub description: String,
@@ -14,7 +16,7 @@ impl VCluster {
         reason: Option<String>,
         force: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let hsm_group_node_list = crate::hsm::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -43,7 +45,7 @@ impl VCluster {
         reason: Option<String>,
         force: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let hsm_group_node_list = crate::hsm::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -72,7 +74,7 @@ impl VCluster {
         reason: Option<&String>,
         force: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let hsm_group_node_list = crate::hsm::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -100,7 +102,7 @@ impl VCluster {
         shasta_root_cert: &[u8],
         hsm_group_name: &str,
     ) -> Option<HashMap<String, String>> {
-        let hsm_group_node_list = crate::hsm::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

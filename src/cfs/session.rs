@@ -193,6 +193,8 @@ pub mod shasta {
 
         use serde_json::Value;
 
+        use crate::hsm;
+
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions filtered by HSM group ordered by start time
         pub async fn filter_by_hsm(
@@ -203,7 +205,7 @@ pub mod shasta {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_member_vec = crate::hsm::utils::get_member_vec_from_hsm_name_vec(
+            let hsm_group_member_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -258,7 +260,7 @@ pub mod shasta {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_member_vec = crate::hsm::utils::get_member_vec_from_hsm_name_vec(
+            let hsm_group_member_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -706,6 +708,8 @@ pub mod mesa {
     pub mod utils {
         use std::collections::HashSet;
 
+        use crate::hsm;
+
         use super::r#struct::CfsSessionGetResponse;
 
         pub async fn filter_by_hsm(
@@ -716,7 +720,7 @@ pub mod mesa {
             hsm_group_name_vec: &Vec<String>,
             limit_number_opt: Option<&u8>,
         ) {
-            let node_vec = crate::hsm::utils::get_member_vec_from_hsm_name_vec(
+            let node_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
