@@ -1,4 +1,3 @@
-use comfy_table::Table;
 use serde_json::Value;
 
 use crate::{
@@ -7,8 +6,6 @@ use crate::{
     },
     hsm,
 };
-
-use super::r#struct::Configuration;
 
 pub async fn filter(
     shasta_token: &str,
@@ -136,38 +133,4 @@ pub async fn filter(
     }
 
     cfs_configuration_vec.to_vec()
-}
-
-pub fn print_table(cfs_configuration: Configuration) {
-    let mut table = Table::new();
-
-    table.set_header(vec!["Name", "Last updated", "Layers"]);
-
-    let mut layers: String = String::new();
-
-    if !cfs_configuration.config_layers.is_empty() {
-        layers = format!(
-            "COMMIT ID: {} COMMIT DATE: {} NAME: {} AUTHOR: {}",
-            cfs_configuration.config_layers[0].commit_id,
-            cfs_configuration.config_layers[0].commit_date,
-            cfs_configuration.config_layers[0].name,
-            cfs_configuration.config_layers[0].author
-        );
-
-        for i in 1..cfs_configuration.config_layers.len() {
-            let layer = &cfs_configuration.config_layers[i];
-            layers = format!(
-                "{}\nCOMMIT ID: {} COMMIT DATE: {} NAME: {} AUTHOR: {}",
-                layers, layer.commit_id, layer.commit_date, layer.name, layer.author
-            );
-        }
-    }
-
-    table.add_row(vec![
-        cfs_configuration.name,
-        cfs_configuration.last_updated,
-        layers,
-    ]);
-
-    println!("{table}");
 }

@@ -1,4 +1,3 @@
-use comfy_table::{Cell, Table};
 use regex::Regex;
 
 use crate::{bos, bss, cfs, hsm};
@@ -46,16 +45,6 @@ pub async fn validate_xnames(
     }) {
         return false;
     }
-
-    /* for xname in xnames {
-        if !xname_re.is_match(xname) {
-            println!("xname {} not a valid format", xname);
-        }
-
-        if !hsm_group_members.contains(&xname.to_string()) {
-            println!("xname {} not a member of {:?}", xname, hsm_group_members)
-        }
-    } */
 
     true
 }
@@ -162,29 +151,8 @@ pub async fn get_node_details(
         // to investigate
         let node_boot_params =
             bss::utils::find_boot_params_related_to_node(&node_boot_params_vec, node);
-        /* nodes_boot_params_list
-        .iter()
-        .find(|&node_boot_param| {
-            node_boot_param["hosts"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|host_value| host_value.as_str().unwrap())
-                .any(|host| host.eq(node))
-        })
-        .unwrap(); */
-
-        // println!("node_boot_params:\n{:#?}", node_boot_params);
 
         let kernel_image_path_in_boot_params = bss::utils::get_image_id(&node_boot_params.unwrap());
-        /* node_boot_params.unwrap()["kernel"]
-        .as_str()
-        .unwrap()
-        .to_string()
-        .trim_start_matches("s3://boot-images/")
-        .trim_end_matches("/kernel")
-        .to_string()
-        .to_owned(); */
 
         // Get CFS configuration related to image id
         // 1) Find BOS sessiontemplate related to image id in place and extract its CFS configuration
@@ -194,19 +162,6 @@ pub async fn get_node_details(
                 &bos_sessiontemplate_vec,
                 &kernel_image_path_in_boot_params,
             );
-        /* bos_sessiontemplate_vec.iter().find(|bos_sessiontemplate| {
-            bos_sessiontemplate
-                .boot_sets
-                .as_ref()
-                .unwrap()
-                .first()
-                .as_ref()
-                .unwrap()
-                .path
-                .as_ref()
-                .unwrap()
-                .contains(&kernel_image_path_in_boot_params)
-        }); */
 
         let cfs_configuration_boot: String = if let Some(bos_sessiontemplate_related_to_image_id) =
             bos_sessiontemplate_related_to_image_id_opt
@@ -215,14 +170,6 @@ pub async fn get_node_details(
                 &bos_sessiontemplate_related_to_image_id,
             )
             .unwrap()
-            /* bos_sessiontemplate_related_to_image_id
-            .cfs
-            .as_ref()
-            .unwrap()
-            .configuration
-            .as_ref()
-            .unwrap()
-            .to_string() */
         } else {
             log::warn!(
                 "No CFS configuration found for node {} and image id {}",
@@ -235,33 +182,12 @@ pub async fn get_node_details(
                     &cfs_session_vec,
                     &kernel_image_path_in_boot_params,
                 );
-            /* cfs_session_value_vec.iter().find(|cfs_session_value| {
-                cfs_session_value.status.as_ref().is_some_and(|status| {
-                    status.artifacts.as_ref().is_some_and(|artifact| {
-                        artifact.first().as_ref().is_some_and(|first_artifact| {
-                            first_artifact
-                                .result_id
-                                .as_ref()
-                                .unwrap()
-                                .eq(&kernel_image_path_in_boot_params)
-                        })
-                    })
-                })
-            }); */
 
             if let Some(cfs_session_related_to_image_id) = cfs_session_related_to_image_id_opt {
                 cfs::session::mesa::utils::get_cfs_configuration_name(
                     &cfs_session_related_to_image_id,
                 )
                 .unwrap()
-                /* cfs_session_related_to_image_id
-                .configuration
-                .as_ref()
-                .unwrap()
-                .name
-                .as_ref()
-                .unwrap()
-                .to_string() */
             } else {
                 eprintln!(
                     "No configuration found for node {} related to image id {}",
@@ -287,37 +213,4 @@ pub async fn get_node_details(
     }
 
     node_details_vec
-}
-
-pub fn print_table(nodes_status: Vec<NodeDetails>) {
-    let mut table = Table::new();
-
-    table.set_header(vec![
-        "XNAME",
-        "NID",
-        "Power Status",
-        "Desired Configuration",
-        "Configuration Status",
-        "Enabled",
-        "Error Count",
-        // "Tags",
-        "Boot configuration",
-        "Image ID (Boot param)",
-    ]);
-
-    for node_status in nodes_status {
-        table.add_row(vec![
-            Cell::new(node_status.xname),
-            Cell::new(node_status.nid),
-            Cell::new(node_status.power_status),
-            Cell::new(node_status.desired_configuration),
-            Cell::new(node_status.configuration_status),
-            Cell::new(node_status.enabled),
-            Cell::new(node_status.error_count),
-            Cell::new(node_status.boot_configuration),
-            Cell::new(node_status.boot_image_id),
-        ]);
-    }
-
-    println!("{table}");
 }

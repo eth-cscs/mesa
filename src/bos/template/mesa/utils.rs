@@ -1,9 +1,6 @@
-use comfy_table::Table;
 use serde_json::Value;
 
-use crate::{
-    bos::template::mesa::r#struct::response_payload::BosSessionTemplate, common::node_ops,
-};
+use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
 
 pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
@@ -156,54 +153,4 @@ pub fn find_bos_sessiontemplate_related_to_image_id(
                 .contains(image_id)
         })
         .cloned()
-}
-
-pub fn print_table_struct(bos_sessiontemplate_vec: Vec<BosSessionTemplate>) {
-    let mut table = Table::new();
-
-    table.set_header(vec![
-        "Name",
-        "Cfs Configuration",
-        "Cfs Enabled",
-        "Type",
-        "Target",
-        "Compute Etag",
-        "Compute Path",
-    ]);
-
-    for bos_template in bos_sessiontemplate_vec {
-        for boot_set in bos_template.boot_sets.unwrap() {
-            let target: Vec<String> = if boot_set.1.node_groups.is_some() {
-                // NOTE: very
-                // important to
-                // define target
-                // variable type to
-                // tell compiler we
-                // want a long live
-                // variable
-                boot_set.1.node_groups.unwrap()
-            } else if boot_set.1.node_list.is_some() {
-                boot_set.1.node_list.unwrap()
-            } else {
-                Vec::new()
-            };
-
-            table.add_row(vec![
-                bos_template.name.as_ref().unwrap(),
-                bos_template
-                    .cfs
-                    .as_ref()
-                    .unwrap()
-                    .configuration
-                    .as_ref()
-                    .unwrap(),
-                &bos_template.enable_cfs.unwrap().to_string(),
-                &node_ops::string_vec_to_multi_line_string(Some(&target), 2),
-                &boot_set.1.etag.unwrap_or("".to_string()),
-                &boot_set.1.path.unwrap(),
-            ]);
-        }
-    }
-
-    println!("{table}");
 }

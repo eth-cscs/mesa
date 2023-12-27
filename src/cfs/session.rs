@@ -191,7 +191,6 @@ pub mod shasta {
 
         use std::collections::HashSet;
 
-        // use comfy_table::Table;
         use serde_json::Value;
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/

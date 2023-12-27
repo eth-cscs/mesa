@@ -50,7 +50,6 @@ pub async fn filter(
 
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
-
         *bos_sessiontemplate_value_vec = bos_sessiontemplate_value_vec
             [bos_sessiontemplate_value_vec
                 .len()
