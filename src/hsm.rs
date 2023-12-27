@@ -29,45 +29,85 @@ pub mod group {
 
             use serde_json::Value;
 
-            pub async fn get_all_hsm_groups(
+            /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
+            pub async fn get_raw(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-            ) -> Result<Vec<Value>, Box<dyn Error>> {
-                let client;
-
+                group_name_opt: Option<&String>,
+            ) -> Result<reqwest::Response, reqwest::Error> {
                 let client_builder = reqwest::Client::builder()
                     .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
                 // Build client
-                if std::env::var("SOCKS5").is_ok() {
+                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
                     // socks5 proxy
                     log::debug!("SOCKS5 enabled");
-                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
 
                     // rest client to authenticate
-                    client = client_builder.proxy(socks5proxy).build()?;
+                    client_builder.proxy(socks5proxy).build()?
                 } else {
-                    client = client_builder.build()?;
-                }
-
-                let json_response: Value;
-
-                let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
-
-                let resp = client
-                    .get(url_api)
-                    .header("Authorization", format!("Bearer {}", shasta_token))
-                    .send()
-                    .await?;
-
-                if resp.status().is_success() {
-                    json_response = serde_json::from_str(&resp.text().await?)?;
-                } else {
-                    return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+                    client_builder.build()?
                 };
 
-                Ok(json_response.as_array().unwrap().to_owned())
+                let api_url: String = if let Some(group_name) = group_name_opt {
+                    shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + group_name
+                } else {
+                    shasta_base_url.to_owned() + "/cfs/v2/sessions"
+                };
+
+                let network_response_rslt =
+                    client.get(api_url).bearer_auth(shasta_token).send().await;
+
+                match network_response_rslt {
+                    Ok(http_response) => http_response.error_for_status(),
+                    Err(network_error) => Err(network_error),
+                }
+            }
+
+            pub async fn get(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                group_name_opt: Option<&String>,
+            ) -> Result<Vec<Value>, reqwest::Error> {
+                let response_rslt = get_raw(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    group_name_opt,
+                )
+                .await;
+
+                let mut hsm_group_value_vec: Vec<Value> = match response_rslt {
+                    Ok(response) => {
+                        if group_name_opt.is_none() {
+                            response.json::<Vec<Value>>().await.unwrap()
+                        } else {
+                            vec![response.json::<Value>().await.unwrap()]
+                        }
+                    }
+                    Err(error) => return Err(error),
+                };
+
+                // Sort CFS sessions by start time order ASC
+                hsm_group_value_vec.sort_by(|a, b| {
+                    a["status"]["session"]["startTime"]
+                        .as_str()
+                        .unwrap()
+                        .cmp(b["status"]["session"]["startTime"].as_str().unwrap())
+                });
+
+                Ok(hsm_group_value_vec)
+            }
+
+            pub async fn get_all(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+            ) -> Result<Vec<Value>, reqwest::Error> {
+                get(shasta_token, shasta_base_url, shasta_root_cert, None).await
             }
 
             /// Get list of HSM groups using --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
@@ -79,7 +119,7 @@ pub mod group {
                 hsm_group_name_opt: Option<&String>,
             ) -> Result<Vec<Value>, Box<dyn Error>> {
                 let json_response =
-                    get_all_hsm_groups(shasta_token, shasta_base_url, shasta_root_cert).await?;
+                    get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
 
                 let mut hsm_groups: Vec<Value> = Vec::new();
 
@@ -96,46 +136,6 @@ pub mod group {
                 }
 
                 Ok(hsm_groups)
-            }
-
-            /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
-            pub async fn get_hsm_group(
-                shasta_token: &str,
-                shasta_base_url: &str,
-                shasta_root_cert: &[u8],
-                hsm_group_name: &str,
-            ) -> Result<Value, Box<dyn Error>> {
-                let client;
-
-                let client_builder = reqwest::Client::builder()
-                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-                // Build client
-                if std::env::var("SOCKS5").is_ok() {
-                    // socks5 proxy
-                    log::debug!("SOCKS5 enabled");
-                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-                    // rest client to authenticate
-                    client = client_builder.proxy(socks5proxy).build()?;
-                } else {
-                    client = client_builder.build()?;
-                }
-
-                let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name;
-
-                let resp = client
-                    .get(url_api)
-                    .header("Authorization", format!("Bearer {}", shasta_token))
-                    .send()
-                    .await?;
-
-                if resp.status().is_success() {
-                    Ok(resp.json().await?)
-                    //json_response = serde_json::from_str(&resp.text().await?)?;
-                } else {
-                    Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-                }
             }
         }
 
@@ -163,13 +163,10 @@ pub mod group {
                 shasta_root_cert: &[u8],
                 hsm_name_vec: &[String],
             ) -> Vec<String> {
-                let mut hsm_group_value_vec = http_client::get_all_hsm_groups(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                )
-                .await
-                .unwrap();
+                let mut hsm_group_value_vec =
+                    http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
+                        .await
+                        .unwrap();
 
                 hsm_group_value_vec.retain(|hsm_value| {
                     hsm_name_vec.contains(&hsm_value["label"].as_str().unwrap().to_string())
@@ -217,13 +214,15 @@ pub mod group {
                 hsm_group: &str,
             ) -> Vec<String> {
                 // Take all nodes for all hsm_groups found and put them in a Vec
-                http_client::get_hsm_group(
+                http_client::get(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
-                    hsm_group,
+                    Some(&hsm_group.to_string()),
                 )
                 .await
+                .unwrap()
+                .first()
                 .unwrap()["members"]["ids"]
                     .as_array()
                     .unwrap_or(&Vec::new())
@@ -238,13 +237,10 @@ pub mod group {
                 shasta_root_cert: &[u8],
                 xname: &String,
             ) -> Option<String> {
-                let hsm_groups_details = http_client::get_all_hsm_groups(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                )
-                .await
-                .unwrap();
+                let hsm_groups_details =
+                    http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
+                        .await
+                        .unwrap();
 
                 for hsm_group_details in hsm_groups_details.iter() {
                     if hsm_group_details["members"]["ids"]
