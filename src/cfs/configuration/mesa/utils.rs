@@ -65,11 +65,6 @@ pub async fn filter(
             .await
             .unwrap();
 
-        /* println!(
-            "DEBUG - BOS sessiontemplate:\n{:#?}",
-            bos_sessiontemplates_value_vec
-        ); */
-
         // We need CFS sessions to find images without a BOS session template
         let mut cfs_session_value_vec = cfs::session::shasta::http_client::get(
             shasta_token,
@@ -123,8 +118,6 @@ pub async fn filter(
                 .any(|hsm_group| cfs_configuration.name.contains(hsm_group))
                 || image_id_cfs_configuration_target.contains(&cfs_configuration.name.as_str())
         });
-
-        // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
 
         cfs_configuration_vec.sort_by(|cfs_configuration_1, cfs_configuration_2| {
             cfs_configuration_1

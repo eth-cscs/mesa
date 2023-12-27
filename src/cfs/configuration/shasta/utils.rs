@@ -45,15 +45,6 @@ pub async fn filter(
             )
             .await;
 
-            /* println!("DEBUG - CFS SESSION");
-            for cfs_session in &cfs_session_vec {
-                println!(
-                    "DEBUG - hsm_group {:?} cfs_configuration {:?}",
-                    cfs_session.target.clone().unwrap().groups.unwrap(),
-                    cfs_session.configuration
-                );
-            } */
-
             let cfs_configuration_name_vec_from_cfs_session = cfs_session_vec
                 .iter()
                 .map(|cfs_session| cfs_session.configuration.clone().unwrap().name.unwrap())
@@ -92,21 +83,6 @@ pub async fn filter(
             })
             .collect::<Vec<_>>();
 
-            /* println!("DEBUG - BOS SESSIONTEMPLATE");
-            for bos_sessiontemplate in &bos_sessiontemplate_vec {
-                println!(
-                    "DEBUG - hsm_group {:?} cfs_configuration {:?}",
-                    bos_sessiontemplate
-                        .clone()
-                        .boot_sets
-                        .unwrap()
-                        .iter()
-                        .flat_map(|boot_set| boot_set.node_groups.clone().unwrap_or_default())
-                        .collect::<Vec<_>>(),
-                    bos_sessiontemplate.cfs.clone().unwrap().configuration
-                );
-            } */
-
             let cfs_configuration_name_from_bos_sessiontemplate = bos_sessiontemplate_vec
                 .iter()
                 .map(|bos_sessiontemplate| {
@@ -126,20 +102,10 @@ pub async fn filter(
             ]
             .concat();
 
-            /* println!(
-                "DEBUG - cfs configuration names:\n{:#?}",
-                cfs_configuration_name_from_cfs_session_and_bos_settiontemplate
-            ); */
-
             configuration_value_vec.retain(|cfs_configuration| {
                 cfs_configuration_name_from_cfs_session_and_bos_settiontemplate
                     .contains(&cfs_configuration["name"].as_str().unwrap().to_string())
             });
-
-            /* println!(
-                "DEBUG - cfs confguration:\n{:#?}",
-                cfs_configuration_value_vec
-            ); */
         }
     }
 
@@ -152,14 +118,11 @@ pub async fn filter(
 
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
-
         *configuration_value_vec = configuration_value_vec[configuration_value_vec
             .len()
             .saturating_sub(*limit_number as usize)..]
             .to_vec();
     }
-
-    // println!("DEBUG - cfs configuration:\n{:#?}", configuration_value_vec.iter().map(|conf| conf["name"].clone()).collect::<Vec<_>>());
 
     if most_recent_opt.is_some() && most_recent_opt.unwrap() {
         *configuration_value_vec = [configuration_value_vec.first().unwrap().clone()].to_vec();

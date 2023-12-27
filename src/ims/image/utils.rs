@@ -61,11 +61,6 @@ pub async fn filter(
     .await
     .unwrap();
 
-    /* println!(
-        "DEBUG - BOS sessiontemplate:\n{:#?}",
-        bos_sessiontemplates_value_vec
-    ); */
-
     // We need CFS sessions to find images without a BOS session template (hopefully the CFS
     // session has not been deleted by CSCS staff, otherwise it will be technically impossible to
     // find unless we search images by HSM name and expect HSM name to be in image name...)
@@ -88,17 +83,6 @@ pub async fn filter(
         None,
     )
     .await;
-    /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        hsm_group_name_vec,
-        None,
-        None,
-        Some(true),
-    )
-    .await
-    .unwrap(); */
 
     // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
     let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
@@ -112,11 +96,6 @@ pub async fn filter(
     image_id_cfs_configuration_from_bos_sessiontemplate
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
-    /* println!(
-        "DEBUG - bos sessiontemplate paths: {:#?}",
-        image_id_cfs_configuration_from_bos_sessiontemplate
-    ); */
-
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
             cfs_session_value_vec,
@@ -124,13 +103,6 @@ pub async fn filter(
 
     image_id_cfs_configuration_from_cfs_session_vec
         .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty());
-
-    /* println!(
-        "DEBUG - cfs sessions: {:#?}",
-        image_id_cfs_configuration_from_bos_sessiontemplate
-    ); */
-
-    // let image_id_from_bos_sessiontemplate_vec = bos_sessiontemplates_value_vec
 
     let mut image_detail_vec: Vec<(Image, String, String)> = Vec::new();
 
@@ -206,11 +178,6 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     .await
     .unwrap();
 
-    /* println!(
-        "DEBUG - BOS sessiontemplate:\n{:#?}",
-        bos_sessiontemplates_value_vec
-    ); */
-
     // We need CFS sessions to find images without a BOS session template
     let mut cfs_session_value_vec = crate::cfs::session::shasta::http_client::get(
         shasta_token,
@@ -231,19 +198,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
         None,
     )
     .await;
-    /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        hsm_group_name_vec,
-        None,
-        None,
-        Some(true),
-    )
-    .await
-    .unwrap(); */
 
-    // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
     let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
         String,
         String,
@@ -255,11 +210,6 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     image_id_cfs_configuration_from_bos_sessiontemplate
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
-    /* println!(
-        "DEBUG - bos sessiontemplate paths: {:#?}",
-        image_id_cfs_configuration_from_bos_sessiontemplate
-    ); */
-
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
             cfs_session_value_vec,
@@ -267,13 +217,6 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
 
     image_id_cfs_configuration_from_cfs_session_vec
         .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty());
-
-    /* println!(
-        "DEBUG - cfs sessions: {:#?}",
-        image_id_cfs_configuration_from_bos_sessiontemplate
-    ); */
-
-    // let image_id_from_bos_sessiontemplate_vec = bos_sessiontemplates_value_vec
 
     let mut image_detail_vec: Vec<(Image, String, String)> = Vec::new();
 

@@ -115,11 +115,6 @@ pub mod request_payload {
     }
 
     impl BosSessionTemplate {
-        /* pub fn from_sat_file_serde_yaml(bos_template_yaml: &serde_yaml::Value) -> Self {
-
-            BosTemplate
-        } */
-
         pub fn new_for_node_list(
             bos_session_template_name: String,
             cfs_configuration_name: Option<String>,

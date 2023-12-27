@@ -5,8 +5,6 @@ use crate::{
     bos::template::mesa::r#struct::response_payload::BosSessionTemplate, common::node_ops,
 };
 
-// use super::response_payload::BosSessionTemplate;
-
 pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
     hsm_group_name_vec: &[String],
@@ -53,7 +51,6 @@ pub async fn filter(
 
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
-
         *bos_sessiontemplate_vec = bos_sessiontemplate_vec[bos_sessiontemplate_vec
             .len()
             .saturating_sub(*limit_number as usize)..]
@@ -201,7 +198,6 @@ pub fn print_table_struct(bos_sessiontemplate_vec: Vec<BosSessionTemplate>) {
                     .as_ref()
                     .unwrap(),
                 &bos_template.enable_cfs.unwrap().to_string(),
-                // &boot_set.property.unwrap(),
                 &node_ops::string_vec_to_multi_line_string(Some(&target), 2),
                 &boot_set.1.etag.unwrap_or("".to_string()),
                 &boot_set.1.path.unwrap(),

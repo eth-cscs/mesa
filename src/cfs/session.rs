@@ -356,27 +356,6 @@ pub mod shasta {
             image_id_cfs_configuration_target_from_cfs_session
         }
 
-        /* pub fn print_table(cfs_sessions: Vec<Vec<String>>) {
-            let mut table = Table::new();
-
-            table.set_header(vec![
-                "Name",
-                "Configuration",
-                "Target Def",
-                "Target",
-                "Start",
-                "Status",
-                "Succeeded",
-                "Image ID",
-            ]);
-
-            for cfs_session in cfs_sessions {
-                table.add_row(cfs_session);
-            }
-
-            println!("{table}");
-        } */
-
         pub fn get_image_id_from_cfs_session_vec(cfs_session_value_vec: &[Value]) -> Vec<String> {
             cfs_session_value_vec
                 .iter()
@@ -527,85 +506,6 @@ pub mod mesa {
             pub groups: Option<Vec<Group>>,
         }
 
-        /* impl CfsSessionPostRequest {
-            pub fn new(
-                name: String,
-                configuration_name: String,
-                ansible_limit: Option<String>,
-                ansible_verbosity: Option<u64>,
-                ansible_passthrough: Option<String>,
-                groups_name_opt: Option<Vec<String>>,
-                groups_members_opt: Option<Vec<Vec<String>>>, // This value is the base image id when building an image
-            ) -> Self {
-                // This code is fine... the fact that I put Self behind a variable is ok, since image param
-                // is not a default param, then doing things differently is not an issue. I checked with
-                // other Rust developers in their discord https://discord.com/channels/442252698964721669/448238009733742612/1081686300182188207
-                let mut cfs_session = Self {
-                    name,
-                    configuration_name,
-                    ansible_limit,
-                    ansible_verbosity,
-                    ansible_passthrough,
-                    ..Default::default()
-                };
-
-                let mut group_vec = Vec::new();
-
-                if let (Some(groups_name), Some(groups_members)) =
-                    (groups_name_opt, groups_members_opt)
-                {
-                    for (group_name, group_members) in groups_name.iter().zip(groups_members.iter())
-                    {
-                        let group = Group {
-                            name: group_name.to_string(),
-                            members: group_members.to_vec(),
-                        };
-
-                        group_vec.push(group);
-                    }
-                }
-
-                /* let target_groups: Vec<Group> = groups_name
-                .unwrap()
-                .into_iter()
-                .map(|group_name| Group {
-                    name: group_name,
-                    members: vec![base_image_id.as_ref().unwrap().to_string()],
-                })
-                .collect(); */
-
-                cfs_session.target.definition = Some("image".to_string());
-                cfs_session.target.groups = Some(group_vec);
-
-                cfs_session
-            }
-
-            pub fn from_sat_file_serde_yaml(session_yaml: &serde_yaml::Value) -> Self {
-                let groups_name = session_yaml["configuration_group_names"]
-                    .as_sequence()
-                    .unwrap()
-                    .iter()
-                    .map(|group_name| group_name.as_str().unwrap().to_string())
-                    .collect();
-
-                let cfs_session = CfsSessionPostRequest::new(
-                    session_yaml["name"].as_str().unwrap().to_string(),
-                    session_yaml["configuration"].as_str().unwrap().to_string(),
-                    None,
-                    None,
-                    None,
-                    Some(groups_name),
-                    // Some(base_image_id.to_string()),
-                    Some(vec![vec![session_yaml["ims"]["id"]
-                        .as_str()
-                        .unwrap()
-                        .to_string()]]),
-                );
-
-                cfs_session
-            }
-        } */
-
         #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct CfsSessionRequest {
             pub name: String,
@@ -753,25 +653,6 @@ pub mod mesa {
                 }
                 Err(error) => return Err(error),
             };
-
-            /* let response: Value = match response_rslt {
-                Ok(cfs_session_value) => cfs_session_value.json().await.unwrap(),
-                Err(error) => return Err(error),
-            };
-
-            let mut cfs_session_vec = Vec::new();
-
-            if response.is_array() {
-                for cfs_session_value in response.as_array().unwrap() {
-                    cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
-                        cfs_session_value.clone(),
-                    ));
-                }
-            } else {
-                cfs_session_vec.push(CfsSessionGetResponse::from_csm_api_json(
-                    response,
-                ));
-            } */
 
             // Sort CFS sessions by start time order ASC
             cfs_session_vec.sort_by(|a, b| {

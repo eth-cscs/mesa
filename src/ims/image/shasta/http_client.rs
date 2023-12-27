@@ -112,7 +112,6 @@ pub async fn delete(
 
     let resp = client
         .delete(api_url)
-        // .get(format!("{}{}", shasta_base_url, "/cfs/v2/configurations"))
         .bearer_auth(shasta_token)
         .send()
         .await?;

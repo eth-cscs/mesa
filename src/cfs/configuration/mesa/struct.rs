@@ -1,4 +1,3 @@
-// use comfy_table::Table;
 use std::fmt;
 
 pub struct Configuration {

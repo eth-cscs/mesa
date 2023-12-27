@@ -25,23 +25,6 @@ pub async fn get(
         Err(error) => return Err(error),
     };
 
-    /* let response: Value = match response_rslt {
-        Ok(bos_sessiontemplate_value) => bos_sessiontemplate_value.json().await.unwrap(),
-        Err(error) => return Err(error),
-    };
-
-    let mut bos_sessiontemplate_vec = Vec::new();
-
-    if let Some(bos_sessiontemplate_value_vec) = response.as_array() {
-        for bos_sessiontemplate_value in bos_sessiontemplate_value_vec {
-            bos_sessiontemplate_vec.push(BosSessionTemplate::from_csm_api_json(
-                bos_sessiontemplate_value.clone(),
-            ));
-        }
-    } else {
-        bos_sessiontemplate_vec.push(BosSessionTemplate::from_csm_api_json(response));
-    } */
-
     Ok(bos_sessiontemplate_vec)
 }
 
