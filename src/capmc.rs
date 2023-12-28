@@ -68,7 +68,7 @@ pub mod http_client {
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
-        ) -> Result<Value, Box<dyn Error>> {
+        ) -> Result<Value, reqwest::Error> {
             log::info!("Shutting down nodes: {:?}", xnames);
 
             let power_off = PowerStatus::new(reason, xnames, force, None);
@@ -99,14 +99,19 @@ pub mod http_client {
                 .send()
                 .await?;
 
-            if resp.status().is_success() {
+            match resp.error_for_status() {
+                Ok(response) => Ok(response.json::<Value>().await?),
+                Err(error) => Err(error),
+            }
+
+            /* if resp.status().is_success() {
                 Ok(resp.json::<Value>().await?)
             } else {
                 Err(resp.json::<Value>().await?["detail"]
                     .as_str()
                     .unwrap()
                     .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
+            } */
         }
 
         /// Shut down a node
@@ -118,7 +123,7 @@ pub mod http_client {
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
-        ) -> Result<Value, Box<dyn Error>> {
+        ) -> Result<Value, reqwest::Error> {
             let xname_list: Vec<String> = xnames.into_iter().collect();
             // Create CAPMC operation shutdown
             let capmc_power_off_nodes_resp = post(
@@ -163,7 +168,7 @@ pub mod http_client {
                     max
                 );
 
-                thread::sleep(time::Duration::from_secs(delay_secs));
+                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
 
                 i += 1;
 
@@ -189,7 +194,7 @@ pub mod http_client {
 
     pub mod node_power_on {
         use core::time;
-        use std::{error::Error, thread};
+        use std::thread;
 
         use serde_json::Value;
 
@@ -233,7 +238,7 @@ pub mod http_client {
 
             match resp.error_for_status() {
                 Ok(response) => Ok(response.json::<Value>().await?),
-                Err(error) => Err(error)
+                Err(error) => Err(error),
             }
             /* if resp.status().is_success() {
                 Ok(resp.json::<Value>().await?)
@@ -296,7 +301,7 @@ pub mod http_client {
                     max
                 );
 
-                thread::sleep(time::Duration::from_secs(delay_secs));
+                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
 
                 i += 1;
 
@@ -336,7 +341,7 @@ pub mod http_client {
             reason: Option<&String>,
             xnames: Vec<String>,
             force: bool,
-        ) -> Result<Value, Box<dyn Error>> {
+        ) -> Result<Value, reqwest::Error> {
             log::info!("Restarting nodes: {:?}", xnames);
 
             let node_restart = PowerStatus::new(reason.cloned(), xnames, force, None);
@@ -367,14 +372,19 @@ pub mod http_client {
                 .send()
                 .await?;
 
-            if resp.status().is_success() {
+            match resp.error_for_status() {
+                Ok(response) => Ok(response.json::<Value>().await?),
+                Err(error) => Err(error),
+            }
+
+            /* if resp.status().is_success() {
                 Ok(resp.json::<Value>().await?)
             } else {
                 Err(resp.json::<Value>().await?["detail"]
                     .as_str()
                     .unwrap()
                     .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
+            } */
         }
 
         /// Power RESET a group of nodes
@@ -386,7 +396,7 @@ pub mod http_client {
             xnames: Vec<String>,
             reason: Option<&String>,
             force: bool,
-        ) -> Result<Value, Box<dyn Error>> {
+        ) -> Result<Value, reqwest::Error> {
             let xname_list: Vec<String> = xnames.into_iter().collect();
             // Create CAPMC operation shutdown
             let capmc_power_reset_nodes_resp = post(
@@ -434,7 +444,7 @@ pub mod http_client {
                     max
                 );
 
-                thread::sleep(time::Duration::from_secs(delay_secs));
+                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
 
                 i += 1;
 
@@ -459,8 +469,6 @@ pub mod http_client {
     }
 
     pub mod node_power_status {
-
-        use std::error::Error;
 
         use serde_json::Value;
 
@@ -505,11 +513,8 @@ pub mod http_client {
                 .await?;
 
             match resp.error_for_status() {
-                Ok(response) => {
-                    println!("DEBUG - POWER STATUS RESPONSE: {:#?}", response);
-                    Ok(response.json::<Value>().await?)
-                },
-                Err(error) => Err(error)
+                Ok(response) => Ok(response.json::<Value>().await?),
+                Err(error) => Err(error),
             }
 
             /* if resp.status().is_success() {

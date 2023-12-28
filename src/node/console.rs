@@ -125,7 +125,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
         pods = pods_fabric.list(&params).await.unwrap();
     }
 
@@ -198,7 +198,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
         pods = pods_fabric.list(&params).await.unwrap();
     }
 

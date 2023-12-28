@@ -386,7 +386,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(delay_secs));
+        tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
         pods = pods_api.list(&params).await?;
     }
 
@@ -418,7 +418,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(delay_secs));
+        tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
         pods = pods_api.list(&params).await?;
     }
 
@@ -523,7 +523,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
         ); */
 
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
 
         let cfs_session_pod = pods_api.list(&params).await?.items[0].clone();
 
@@ -592,7 +592,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(delay_secs));
+        tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
         pods = pods_api.list(&params).await?;
     }
 
@@ -637,7 +637,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
         let pods = pods_api.list(&params).await?;
         container_status = get_container_status(&pods.items[0], &ansible_container.name);
         log::debug!(
@@ -703,7 +703,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
         pods = pods_fabric.list(&params).await.unwrap();
     }
 
@@ -775,7 +775,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
             max
         );
         i += 1;
-        thread::sleep(time::Duration::from_secs(2));
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
         pods = pods_fabric.list(&params).await.unwrap();
     }
 
