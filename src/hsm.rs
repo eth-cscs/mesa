@@ -54,7 +54,7 @@ pub mod group {
                 let api_url: String = if let Some(group_name) = group_name_opt {
                     shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + group_name
                 } else {
-                    shasta_base_url.to_owned() + "/cfs/v2/sessions"
+                    shasta_base_url.to_owned() + "/smd/hsm/v2/groups"
                 };
 
                 let network_response_rslt =
@@ -80,7 +80,7 @@ pub mod group {
                 )
                 .await;
 
-                let mut hsm_group_value_vec: Vec<Value> = match response_rslt {
+                let hsm_group_value_vec: Vec<Value> = match response_rslt {
                     Ok(response) => {
                         if group_name_opt.is_none() {
                             response.json::<Vec<Value>>().await.unwrap()
@@ -90,14 +90,6 @@ pub mod group {
                     }
                     Err(error) => return Err(error),
                 };
-
-                // Sort CFS sessions by start time order ASC
-                hsm_group_value_vec.sort_by(|a, b| {
-                    a["status"]["session"]["startTime"]
-                        .as_str()
-                        .unwrap()
-                        .cmp(b["status"]["session"]["startTime"].as_str().unwrap())
-                });
 
                 Ok(hsm_group_value_vec)
             }

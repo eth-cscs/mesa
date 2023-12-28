@@ -202,27 +202,25 @@ pub mod http_client {
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
-        ) -> Result<Value, Box<dyn Error>> {
+        ) -> Result<Value, reqwest::Error> {
             log::info!("Powering on nodes: {:?}", xnames);
 
             let power_on = PowerStatus::new(reason, xnames, force, None);
-
-            let client;
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
             // Build client
-            if std::env::var("SOCKS5").is_ok() {
+            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
                 // socks5 proxy
                 log::debug!("SOCKS5 enabled");
-                let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
 
                 // rest client to authenticate
-                client = client_builder.proxy(socks5proxy).build()?;
+                client_builder.proxy(socks5proxy).build()?
             } else {
-                client = client_builder.build()?;
-            }
+                client_builder.build()?
+            };
 
             let api_url = shasta_base_url.to_owned() + "/capmc/capmc/v1/xname_on";
 
@@ -233,14 +231,15 @@ pub mod http_client {
                 .send()
                 .await?;
 
-            if resp.status().is_success() {
+            match resp.error_for_status() {
+                Ok(response) => Ok(response.json::<Value>().await?),
+                Err(error) => Err(error)
+            }
+            /* if resp.status().is_success() {
                 Ok(resp.json::<Value>().await?)
             } else {
-                Err(resp.json::<Value>().await?["detail"]
-                    .as_str()
-                    .unwrap()
-                    .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
+                resp.error_for_status()
+            } */
         }
 
         /// Power ON a group of nodes
@@ -252,7 +251,7 @@ pub mod http_client {
             xnames: Vec<String>,
             reason: Option<String>,
             force: bool,
-        ) -> Result<Value, Box<dyn Error>> {
+        ) -> Result<Value, reqwest::Error> {
             let xname_list: Vec<String> = xnames.into_iter().collect();
             // Create CAPMC operation shutdown
             let capmc_power_on_nodes_resp = post(
@@ -472,7 +471,8 @@ pub mod http_client {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             xnames: &Vec<String>,
-        ) -> core::result::Result<Value, Box<dyn Error>> {
+        ) -> core::result::Result<Value, reqwest::Error> {
+            println!("DEBUG - CHECK NODE POWER STATUS");
             log::info!("Checking nodes status: {:?}", xnames);
 
             let node_status_payload =
@@ -504,7 +504,15 @@ pub mod http_client {
                 .send()
                 .await?;
 
-            if resp.status().is_success() {
+            match resp.error_for_status() {
+                Ok(response) => {
+                    println!("DEBUG - POWER STATUS RESPONSE: {:#?}", response);
+                    Ok(response.json::<Value>().await?)
+                },
+                Err(error) => Err(error)
+            }
+
+            /* if resp.status().is_success() {
                 let resp_json = &resp.json::<Value>().await?;
                 Ok(resp_json.clone())
             } else {
@@ -512,7 +520,7 @@ pub mod http_client {
                     .as_str()
                     .unwrap()
                     .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
+            } */
         }
     }
 }
