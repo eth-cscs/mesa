@@ -43,16 +43,16 @@ pub mod shasta {
                 request_payload.push(("succeced", is_succeded));
             }
 
-            let network_response_rslt = client
+            let response_rslt = client
                 .get(api_url)
                 .query(&request_payload)
                 .bearer_auth(shasta_token)
                 .send()
                 .await;
 
-            match network_response_rslt {
-                Ok(http_response) => http_response.error_for_status(),
-                Err(network_error) => Err(network_error),
+            match response_rslt {
+                Ok(response) => response.error_for_status(),
+                Err(error) => Err(error),
             }
         }
 
@@ -151,7 +151,7 @@ pub mod shasta {
 
             let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
 
-            let network_response_rslt = client
+            let response_rslt = client
                 .post(api_url)
                 // .post(format!("{}{}", shasta_base_url, "/cfs/v2/sessions"))
                 .bearer_auth(shasta_token)
@@ -159,9 +159,9 @@ pub mod shasta {
                 .send()
                 .await;
 
-            match network_response_rslt {
-                Ok(http_response) => http_response.error_for_status(),
-                Err(network_error) => Err(network_error),
+            match response_rslt {
+                Ok(response) => response.error_for_status(),
+                Err(error) => Err(error),
             }
         }
 

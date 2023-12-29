@@ -30,11 +30,11 @@ pub async fn get_raw(
         shasta_base_url.to_owned() + "/bos/v1/sessiontemplate"
     };
 
-    let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
+    let response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
-    match network_response_rslt {
-        Ok(http_response) => http_response.error_for_status(),
-        Err(network_err) => Err(network_err),
+    match response_rslt {
+        Ok(response) => response.error_for_status(),
+        Err(error) => Err(error),
     }
 }
 

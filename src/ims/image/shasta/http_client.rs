@@ -29,11 +29,11 @@ pub async fn get_raw(
         shasta_base_url.to_owned() + "/ims/v3/images"
     };
 
-    let network_response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
+    let response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
-    match network_response_rslt {
-        Ok(http_response) => http_response.error_for_status(),
-        Err(network_error) => Err(network_error),
+    match response_rslt {
+        Ok(response) => response.error_for_status(),
+        Err(error) => Err(error),
     }
 }
 
