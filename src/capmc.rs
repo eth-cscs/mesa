@@ -55,7 +55,6 @@ pub mod http_client {
     pub mod node_power_off {
 
         use core::time;
-        use std::{error::Error, thread};
 
         use serde_json::Value;
 
@@ -328,7 +327,6 @@ pub mod http_client {
     pub mod node_power_restart {
 
         use core::time;
-        use std::{error::Error, thread};
 
         use serde_json::Value;
 
