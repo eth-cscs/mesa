@@ -72,7 +72,7 @@ pub mod shasta {
             )
             .await;
 
-            let mut cfs_session_value_vec: Vec<Value> = match response_rslt {
+            let cfs_session_value_vec: Vec<Value> = match response_rslt {
                 Ok(response) => {
                     if cfs_session_name_opt.is_none() {
                         response.json::<Vec<Value>>().await.unwrap()
@@ -83,13 +83,37 @@ pub mod shasta {
                 Err(error) => return Err(error),
             };
 
-            // Sort CFS sessions by start time order ASC
-            cfs_session_value_vec.sort_by(|a, b| {
-                a["status"]["session"]["startTime"]
-                    .as_str()
-                    .unwrap()
-                    .cmp(b["status"]["session"]["startTime"].as_str().unwrap())
-            });
+            Ok(cfs_session_value_vec)
+        }
+
+        pub async fn get_and_filter(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            cfs_session_name_opt: Option<&String>,
+            is_succeded_opt: Option<bool>,
+            hsm_group_name_vec: &[String],
+            limit_number_opt: Option<&u8>,
+        ) -> Result<Vec<Value>, reqwest::Error> {
+            let mut cfs_session_value_vec = get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                cfs_session_name_opt,
+                is_succeded_opt,
+            )
+            .await
+            .unwrap();
+
+            super::utils::filter(
+                shasta_token,
+                shasta_token,
+                shasta_root_cert,
+                &mut cfs_session_value_vec,
+                hsm_group_name_vec,
+                limit_number_opt,
+            )
+            .await;
 
             Ok(cfs_session_value_vec)
         }

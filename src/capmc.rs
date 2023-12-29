@@ -104,15 +104,6 @@ pub mod http_client {
                 Ok(response) => Ok(response.json::<Value>().await?),
                 Err(error) => Err(error),
             }
-
-            /* if resp.status().is_success() {
-                Ok(resp.json::<Value>().await?)
-            } else {
-                Err(resp.json::<Value>().await?["detail"]
-                    .as_str()
-                    .unwrap()
-                    .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            } */
         }
 
         /// Shut down a node
@@ -140,14 +131,13 @@ pub mod http_client {
             log::debug!("Shutdown nodes resp:\n{:#?}", capmc_power_off_nodes_resp);
 
             // Check Nodes are shutdown
-            let mut nodes_status_resp =
-                hsm::component_status::shasta::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    &xname_list,
-                )
-                .await;
+            let mut nodes_status_resp = hsm::component_status::shasta::http_client::get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &xname_list,
+            )
+            .await;
 
             log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
@@ -175,14 +165,13 @@ pub mod http_client {
 
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
-                nodes_status_resp =
-                    hsm::component_status::shasta::http_client::get(
-                        shasta_token,
-                        shasta_base_url,
-                        shasta_root_cert,
-                        &xname_list,
-                    )
-                    .await;
+                nodes_status_resp = hsm::component_status::shasta::http_client::get(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &xname_list,
+                )
+                .await;
             }
 
             println!();
@@ -240,11 +229,6 @@ pub mod http_client {
                 Ok(response) => Ok(response.json::<Value>().await?),
                 Err(error) => Err(error),
             }
-            /* if resp.status().is_success() {
-                Ok(resp.json::<Value>().await?)
-            } else {
-                resp.error_for_status()
-            } */
         }
 
         /// Power ON a group of nodes
@@ -272,14 +256,13 @@ pub mod http_client {
             log::debug!("Power ON nodes resp:\n{:#?}", capmc_power_on_nodes_resp);
 
             // Check Nodes are ON
-            let mut nodes_status_resp =
-                hsm::component_status::shasta::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    &xname_list,
-                )
-                .await;
+            let mut nodes_status_resp = hsm::component_status::shasta::http_client::get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &xname_list,
+            )
+            .await;
 
             log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
@@ -307,14 +290,13 @@ pub mod http_client {
 
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
-                nodes_status_resp =
-                    hsm::component_status::shasta::http_client::get(
-                        shasta_token,
-                        shasta_base_url,
-                        shasta_root_cert,
-                        &xname_list,
-                    )
-                    .await;
+                nodes_status_resp = hsm::component_status::shasta::http_client::get(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &xname_list,
+                )
+                .await;
             }
 
             println!();
@@ -375,15 +357,6 @@ pub mod http_client {
                 Ok(response) => Ok(response.json::<Value>().await?),
                 Err(error) => Err(error),
             }
-
-            /* if resp.status().is_success() {
-                Ok(resp.json::<Value>().await?)
-            } else {
-                Err(resp.json::<Value>().await?["detail"]
-                    .as_str()
-                    .unwrap()
-                    .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            } */
         }
 
         /// Power RESET a group of nodes
@@ -414,14 +387,13 @@ pub mod http_client {
             );
 
             // Check Nodes are ON
-            let mut nodes_status_resp =
-                hsm::component_status::shasta::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    &xname_list,
-                )
-                .await;
+            let mut nodes_status_resp = hsm::component_status::shasta::http_client::get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &xname_list,
+            )
+            .await;
 
             log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
@@ -449,14 +421,13 @@ pub mod http_client {
 
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
-                nodes_status_resp =
-                    hsm::component_status::shasta::http_client::get(
-                        shasta_token,
-                        shasta_base_url,
-                        shasta_root_cert,
-                        &xname_list,
-                    )
-                    .await;
+                nodes_status_resp = hsm::component_status::shasta::http_client::get(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &xname_list,
+                )
+                .await;
             }
 
             println!();
@@ -515,16 +486,6 @@ pub mod http_client {
                 Ok(response) => Ok(response.json::<Value>().await?),
                 Err(error) => Err(error),
             }
-
-            /* if resp.status().is_success() {
-                let resp_json = &resp.json::<Value>().await?;
-                Ok(resp_json.clone())
-            } else {
-                Err(resp.json::<Value>().await?["detail"]
-                    .as_str()
-                    .unwrap()
-                    .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-            } */
         }
     }
 }

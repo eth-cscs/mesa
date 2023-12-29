@@ -34,17 +34,19 @@ pub async fn get_details(
                 .join(",");
 
         // Get all CFS sessions
-        let mut cfs_session_value_vec = crate::cfs::session::shasta::http_client::get(
+        let cfs_session_value_vec = crate::cfs::session::shasta::http_client::get_and_filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
             None,
             Some(true),
+            &[hsm_group_name.to_string()],
+            None,
         )
         .await
         .unwrap();
 
-        crate::cfs::session::shasta::utils::filter(
+        /* crate::cfs::session::shasta::utils::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -52,18 +54,7 @@ pub async fn get_details(
             &[hsm_group_name.to_string()],
             None,
         )
-        .await;
-        /* let cfs_session_value_vec = crate::cfs::session::shasta::http_client::filter(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            &[hsm_group_name.to_string()],
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap(); */
+        .await; */
 
         let most_recent_cfs_session;
         let cfs_configuration;

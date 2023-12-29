@@ -440,49 +440,6 @@ pub mod component_status {
                 }
             }
 
-            /* /// Fetches node/compnent details using HSM v2 ref --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doComponentsGet/
-            pub async fn get_component_status(
-                shasta_token: &str,
-                shasta_base_url: &str,
-                shasta_root_cert: &[u8],
-                xname: &str,
-            ) -> Result<Value, Box<dyn Error>> {
-                let client;
-
-                let client_builder = reqwest::Client::builder()
-                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-                // Build client
-                if std::env::var("SOCKS5").is_ok() {
-                    // socks5 proxy
-                    log::debug!("SOCKS5 enabled");
-                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-                    // rest client to authenticate
-                    client = client_builder.proxy(socks5proxy).build()?;
-                } else {
-                    client = client_builder.build()?;
-                }
-
-                let resp = client
-                    .get(format!(
-                        "{}/smd/hsm/v2/State/Components/{}",
-                        shasta_base_url, xname
-                    ))
-                    .header("Authorization", format!("Bearer {}", shasta_token))
-                    .send()
-                    .await?;
-
-                if resp.status().is_success() {
-                    Ok(serde_json::from_str(&resp.text().await?)?)
-                } else {
-                    Err(resp.json::<Value>().await?["detail"]
-                        .as_str()
-                        .unwrap()
-                        .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-                }
-            } */
-
             /// Fetches nodes/compnents details using HSM v2 ref --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doComponentsGet/
             pub async fn get(
                 shasta_token: &str,

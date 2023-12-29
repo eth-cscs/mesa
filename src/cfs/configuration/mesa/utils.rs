@@ -63,17 +63,19 @@ pub async fn filter(
             .unwrap();
 
         // We need CFS sessions to find images without a BOS session template
-        let mut cfs_session_value_vec = cfs::session::shasta::http_client::get(
+        let cfs_session_value_vec = cfs::session::shasta::http_client::get_and_filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
             None,
             Some(true),
+            hsm_group_name_vec,
+            None,
         )
         .await
         .unwrap();
 
-        crate::cfs::session::shasta::utils::filter(
+        /* crate::cfs::session::shasta::utils::filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -81,7 +83,7 @@ pub async fn filter(
             hsm_group_name_vec,
             None,
         )
-        .await;
+        .await; */
 
         let image_id_cfs_configuration_target_from_bos_sessiontemplate: Vec<(
             String,
