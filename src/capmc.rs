@@ -1,51 +1,53 @@
-use serde::{Deserialize, Serialize};
+pub mod r#struct {
+    use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-struct PowerStatus {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reason: Option<String>,
-    xnames: Vec<String>,
-    force: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    recursive: Option<bool>,
-}
-
-impl PowerStatus {
-    pub fn new(
+    #[derive(Debug, Serialize, Deserialize, Default)]
+    pub struct PowerStatus {
+        #[serde(skip_serializing_if = "Option::is_none")]
         reason: Option<String>,
         xnames: Vec<String>,
         force: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
         recursive: Option<bool>,
-    ) -> Self {
-        Self {
-            reason,
-            xnames,
-            force,
-            recursive,
+    }
+
+    impl PowerStatus {
+        pub fn new(
+            reason: Option<String>,
+            xnames: Vec<String>,
+            force: bool,
+            recursive: Option<bool>,
+        ) -> Self {
+            Self {
+                reason,
+                xnames,
+                force,
+                recursive,
+            }
         }
     }
-}
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-struct NodeStatus {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    filter: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    xnames: Option<Vec<String>>,
-}
-
-impl NodeStatus {
-    pub fn new(
+    #[derive(Debug, Serialize, Deserialize, Default)]
+    pub struct NodeStatus {
+        #[serde(skip_serializing_if = "Option::is_none")]
         filter: Option<String>,
-        xnames: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         source: Option<String>,
-    ) -> Self {
-        Self {
-            filter,
-            source,
-            xnames,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        xnames: Option<Vec<String>>,
+    }
+
+    impl NodeStatus {
+        pub fn new(
+            filter: Option<String>,
+            xnames: Option<Vec<String>>,
+            source: Option<String>,
+        ) -> Self {
+            Self {
+                filter,
+                source,
+                xnames,
+            }
         }
     }
 }
@@ -58,7 +60,7 @@ pub mod http_client {
 
         use serde_json::Value;
 
-        use crate::{capmc::PowerStatus, hsm};
+        use crate::{capmc::r#struct::PowerStatus, hsm};
 
         pub async fn post(
             shasta_token: &str,
@@ -193,11 +195,10 @@ pub mod http_client {
 
     pub mod node_power_on {
         use core::time;
-        use std::thread;
 
         use serde_json::Value;
 
-        use crate::{capmc::PowerStatus, hsm};
+        use crate::{capmc::r#struct::PowerStatus, hsm};
 
         pub async fn post(
             shasta_token: &str,
@@ -330,7 +331,7 @@ pub mod http_client {
 
         use serde_json::Value;
 
-        use crate::{capmc::PowerStatus, hsm};
+        use crate::{capmc::r#struct::PowerStatus, hsm};
 
         pub async fn post(
             shasta_token: &str,
@@ -470,7 +471,7 @@ pub mod http_client {
 
         use serde_json::Value;
 
-        use crate::capmc::NodeStatus;
+        use crate::capmc::r#struct::NodeStatus;
 
         pub async fn post(
             shasta_token: &str,

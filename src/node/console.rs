@@ -1,5 +1,4 @@
 use core::time;
-use std::thread;
 
 use k8s_openapi::api::core::v1::Pod;
 use kube::{

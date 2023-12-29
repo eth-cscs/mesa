@@ -1,13 +1,3 @@
-/* pub struct BootParameters {
-    hosts: Option<Vec<String>>,
-    macs: Option<Vec<String>>,
-    nids: Option<Vec<String>>,
-    params: Option<String>,
-    kernel: Option<String>,
-    initrd: Option<String>,
-    // cloud-init: Option<>, // TODO: fix this because it is supposed to be an object ????
-} */
-
 pub mod http_client {
 
     use serde_json::Value;

@@ -1,5 +1,5 @@
 use core::time;
-use std::{error::Error, str::FromStr, thread};
+use std::{error::Error, str::FromStr};
 
 use futures::TryStreamExt;
 
