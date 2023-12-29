@@ -86,7 +86,7 @@ pub async fn get_node_details(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        hsm_groups_node_list.clone(),
+        &hsm_groups_node_list,
     )
     .await
     .unwrap();

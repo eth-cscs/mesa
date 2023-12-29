@@ -145,7 +145,7 @@ pub mod http_client {
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
-                    xname_list.clone(),
+                    &xname_list,
                 )
                 .await;
 
@@ -180,7 +180,7 @@ pub mod http_client {
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
-                        xname_list.clone(),
+                        &xname_list,
                     )
                     .await;
             }
@@ -277,7 +277,7 @@ pub mod http_client {
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
-                    xname_list.clone(),
+                    &xname_list,
                 )
                 .await;
 
@@ -312,7 +312,7 @@ pub mod http_client {
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
-                        xname_list.clone(),
+                        &xname_list,
                     )
                     .await;
             }
@@ -419,7 +419,7 @@ pub mod http_client {
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
-                    xname_list.clone(),
+                    &xname_list,
                 )
                 .await;
 
@@ -454,7 +454,7 @@ pub mod http_client {
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
-                        xname_list.clone(),
+                        &xname_list,
                     )
                     .await;
             }

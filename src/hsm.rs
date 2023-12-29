@@ -395,12 +395,52 @@ pub mod group {
 pub mod component_status {
     pub mod shasta {
         pub mod http_client {
-            use std::error::Error;
 
             use reqwest::Url;
             use serde_json::Value;
 
-            /// Fetches node/compnent details using HSM v2 ref --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doComponentsGet/
+            pub async fn get_raw(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                xname_vec: &Vec<String>,
+            ) -> Result<reqwest::Response, reqwest::Error> {
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                    // rest client to authenticate
+                    client_builder.proxy(socks5proxy).build()?
+                } else {
+                    client_builder.build()?
+                };
+
+                let url_params: Vec<_> = xname_vec.iter().map(|xname| ("id", xname)).collect();
+
+                let api_url = Url::parse_with_params(
+                    &format!("{}/smd/hsm/v2/State/Components", shasta_base_url),
+                    &url_params,
+                )
+                .unwrap();
+
+                let response_rslt = client
+                    .get(api_url)
+                    .header("Authorization", format!("Bearer {}", shasta_token))
+                    .send()
+                    .await;
+
+                match response_rslt {
+                    Ok(http_response) => http_response.error_for_status(),
+                    Err(network_error) => Err(network_error),
+                }
+            }
+
+            /* /// Fetches node/compnent details using HSM v2 ref --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doComponentsGet/
             pub async fn get_component_status(
                 shasta_token: &str,
                 shasta_base_url: &str,
@@ -441,52 +481,24 @@ pub mod component_status {
                         .unwrap()
                         .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
                 }
-            }
+            } */
 
             /// Fetches nodes/compnents details using HSM v2 ref --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doComponentsGet/
             pub async fn get_components_status(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-                xnames: Vec<String>,
-            ) -> Result<Value, Box<dyn Error>> {
-                let client;
+                xname_vec: &Vec<String>,
+            ) -> Result<Value, reqwest::Error> {
+                let response_rslt =
+                    get_raw(shasta_token, shasta_base_url, shasta_root_cert, xname_vec).await;
 
-                let client_builder = reqwest::Client::builder()
-                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+                let cfs_components_value_vec: Value = match response_rslt {
+                    Ok(response) => response.json::<Value>().await.unwrap(),
+                    Err(error) => return Err(error),
+                };
 
-                // Build client
-                if std::env::var("SOCKS5").is_ok() {
-                    // socks5 proxy
-                    log::debug!("SOCKS5 enabled");
-                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-                    // rest client to authenticate
-                    client = client_builder.proxy(socks5proxy).build()?;
-                } else {
-                    client = client_builder.build()?;
-                }
-
-                let url_params: Vec<_> = xnames.iter().map(|xname| ("id", xname)).collect();
-                let api_url = Url::parse_with_params(
-                    &format!("{}/smd/hsm/v2/State/Components", shasta_base_url),
-                    &url_params,
-                )?;
-
-                let resp = client
-                    .get(api_url)
-                    .header("Authorization", format!("Bearer {}", shasta_token))
-                    .send()
-                    .await?;
-
-                if resp.status().is_success() {
-                    Ok(serde_json::from_str(&resp.text().await?)?)
-                } else {
-                    Err(resp.json::<Value>().await?["detail"]
-                        .as_str()
-                        .unwrap()
-                        .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-                }
+                Ok(cfs_components_value_vec)
             }
         }
     }
