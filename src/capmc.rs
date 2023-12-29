@@ -141,7 +141,7 @@ pub mod http_client {
 
             // Check Nodes are shutdown
             let mut nodes_status_resp =
-                hsm::component_status::shasta::http_client::get_components_status(
+                hsm::component_status::shasta::http_client::get(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
@@ -176,7 +176,7 @@ pub mod http_client {
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
                 nodes_status_resp =
-                    hsm::component_status::shasta::http_client::get_components_status(
+                    hsm::component_status::shasta::http_client::get(
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
@@ -273,7 +273,7 @@ pub mod http_client {
 
             // Check Nodes are ON
             let mut nodes_status_resp =
-                hsm::component_status::shasta::http_client::get_components_status(
+                hsm::component_status::shasta::http_client::get(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
@@ -308,7 +308,7 @@ pub mod http_client {
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
                 nodes_status_resp =
-                    hsm::component_status::shasta::http_client::get_components_status(
+                    hsm::component_status::shasta::http_client::get(
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
@@ -415,7 +415,7 @@ pub mod http_client {
 
             // Check Nodes are ON
             let mut nodes_status_resp =
-                hsm::component_status::shasta::http_client::get_components_status(
+                hsm::component_status::shasta::http_client::get(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
@@ -450,7 +450,7 @@ pub mod http_client {
                 log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
 
                 nodes_status_resp =
-                    hsm::component_status::shasta::http_client::get_components_status(
+                    hsm::component_status::shasta::http_client::get(
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,

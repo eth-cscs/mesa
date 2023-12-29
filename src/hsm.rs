@@ -484,7 +484,7 @@ pub mod component_status {
             } */
 
             /// Fetches nodes/compnents details using HSM v2 ref --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doComponentsGet/
-            pub async fn get_components_status(
+            pub async fn get(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
