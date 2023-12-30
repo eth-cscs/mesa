@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     cfs::{
-        self, configuration::shasta::r#struct::cfs_configuration_response::CfsConfigurationResponse,
+        self, configuration::mesa::r#struct::cfs_configuration_response::CfsConfigurationResponse,
     },
     hsm,
 };
@@ -49,33 +49,26 @@ pub async fn filter(
             .collect();
 
         // We need BOS session templates to find an image created by SAT
-        let bos_sessiontemplate_value_vec =
-            crate::bos::template::shasta::http_client::get_and_filter(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name_vec,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
+        let bos_sessiontemplate_value_vec = crate::bos::template::mesa::http_client::get_all(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+        )
+        .await
+        .unwrap();
 
         // We need CFS sessions to find images without a BOS session template
-        let cfs_session_value_vec = cfs::session::shasta::http_client::get_and_filter(
+        let mut cfs_session_value_vec = cfs::session::mesa::http_client::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
             None,
             Some(true),
-            hsm_group_name_vec,
-            None,
         )
         .await
         .unwrap();
 
-        /* crate::cfs::session::shasta::utils::filter(
+        cfs::session::mesa::utils::filter_by_hsm(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -83,7 +76,7 @@ pub async fn filter(
             hsm_group_name_vec,
             None,
         )
-        .await; */
+        .await;
 
         let image_id_cfs_configuration_target_from_bos_sessiontemplate: Vec<(
             String,
@@ -94,7 +87,7 @@ pub async fn filter(
         );
 
         let image_id_cfs_configuration_target_from_cfs_session: Vec<(String, String, Vec<String>)> =
-            crate::cfs::session::shasta::utils::get_image_id_cfs_configuration_target_tuple_vec(
+            cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
                 cfs_session_value_vec,
             );
 

@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
+
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
 pub async fn filter(
     bos_sessiontemplate_value_vec: &mut Vec<Value>,
@@ -103,18 +105,20 @@ pub fn check_hsms_or_xnames_belongs_to_bos_sessiontemplate(
 }
 
 pub fn get_image_id_from_bos_sessiontemplate_vec(
-    bos_sessiontemplate_value_vec: &[Value],
+    bos_sessiontemplate_value_vec: &[BosSessionTemplate],
 ) -> Vec<String> {
     bos_sessiontemplate_value_vec
         .iter()
         .flat_map(|bos_sessiontemplate_value| {
-            bos_sessiontemplate_value["boot_sets"]
-                .as_object()
+            bos_sessiontemplate_value
+                .boot_sets
+                .as_ref()
                 .unwrap()
                 .into_iter()
                 .map(|(_, boot_set_param_value)| {
-                    boot_set_param_value["path"]
-                        .as_str()
+                    boot_set_param_value
+                        .path
+                        .as_ref()
                         .unwrap()
                         .strip_prefix("s3://boot-images/")
                         .unwrap()

@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use crate::ims::image::r#struct::Image;
 
 pub async fn get(
@@ -7,22 +5,24 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     image_id_opt: Option<&str>,
-) -> Result<Vec<Image>, Box<dyn Error>> {
-    let resp = crate::ims::image::shasta::http_client::get_raw(
+) -> Result<Vec<Image>, reqwest::Error> {
+    let response_rslt = crate::ims::image::shasta::http_client::get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         image_id_opt,
     )
-    .await
-    .unwrap();
+    .await;
 
-    let mut image_vec: Vec<Image> = if resp.status().is_success() {
-        resp.json::<Vec<Image>>().await?
-    } else {
-        let response = resp.text().await;
-        log::error!("{:#?}", response);
-        return Err(response?.into());
+    let mut image_vec: Vec<Image> = match response_rslt {
+        Ok(response) => {
+            if image_id_opt.is_none() {
+                response.json::<Vec<Image>>().await.unwrap()
+            } else {
+                vec![response.json::<Image>().await.unwrap()]
+            }
+        }
+        Err(error) => return Err(error),
     };
 
     // Sort images by creation time order ASC
@@ -40,6 +40,6 @@ pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Vec<Image>, Box<dyn Error>> {
+) -> Result<Vec<Image>, reqwest::Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }

@@ -8,7 +8,7 @@ pub mod shasta {
         use std::error::Error;
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
-        pub async fn get_raw(
+        pub async fn get(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
@@ -56,7 +56,7 @@ pub mod shasta {
             }
         }
 
-        pub async fn get(
+        /* pub async fn get(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
@@ -84,9 +84,9 @@ pub mod shasta {
             };
 
             Ok(cfs_session_value_vec)
-        }
+        } */
 
-        pub async fn get_and_filter(
+        /* pub async fn get_and_filter(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
@@ -116,17 +116,17 @@ pub mod shasta {
             .await;
 
             Ok(cfs_session_value_vec)
-        }
+        } */
 
-        pub async fn get_all(
+        /* pub async fn get_all(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
         ) -> Result<Vec<Value>, reqwest::Error> {
             get(shasta_token, shasta_base_url, shasta_root_cert, None, None).await
-        }
+        } */
 
-        pub async fn post_raw(
+        pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
@@ -531,7 +531,7 @@ pub mod mesa {
             pub groups: Option<Vec<Group>>,
         }
 
-        #[derive(Debug, Serialize, Deserialize, Clone)]
+        /* #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct CfsSessionRequest {
             pub name: String,
             #[serde(rename = "configurationName")]
@@ -557,9 +557,9 @@ pub mod mesa {
             pub tags: Option<HashMap<String, String>>,
             #[serde(skip_serializing)]
             pub base_image_id: Option<String>,
-        }
+        } */
 
-        impl Default for CfsSessionRequest {
+        /* impl Default for CfsSessionRequest {
             fn default() -> Self {
                 Self {
                     name: String::default(),
@@ -574,7 +574,7 @@ pub mod mesa {
                     base_image_id: Some(String::default()),
                 }
             }
-        }
+        } */
 
         impl CfsSessionPostRequest {
             pub fn new(
@@ -642,8 +642,6 @@ pub mod mesa {
 
     pub mod http_client {
 
-        use serde_json::Value;
-
         use super::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
@@ -656,7 +654,7 @@ pub mod mesa {
             session_name_opt: Option<&String>,
             is_succeded_opt: Option<bool>,
         ) -> Result<Vec<CfsSessionGetResponse>, reqwest::Error> {
-            let response_rslt = crate::cfs::session::shasta::http_client::get_raw(
+            let response_rslt = crate::cfs::session::shasta::http_client::get(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -668,10 +666,7 @@ pub mod mesa {
             let mut cfs_session_vec: Vec<CfsSessionGetResponse> = match response_rslt {
                 Ok(response) => {
                     if session_name_opt.is_none() {
-                        serde_json::from_value::<Vec<CfsSessionGetResponse>>(
-                            response.json::<Value>().await.unwrap(),
-                        )
-                        .unwrap()
+                        response.json::<Vec<CfsSessionGetResponse>>().await.unwrap()
                     } else {
                         vec![response.json::<CfsSessionGetResponse>().await.unwrap()]
                     }
@@ -712,7 +707,7 @@ pub mod mesa {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<CfsSessionGetResponse, reqwest::Error> {
-            let response_rslt = crate::cfs::session::shasta::http_client::post_raw(
+            let response_rslt = crate::cfs::session::shasta::http_client::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -741,7 +736,7 @@ pub mod mesa {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
-            hsm_group_name_vec: &Vec<String>,
+            hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
             let node_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
@@ -784,10 +779,10 @@ pub mod mesa {
         }
 
         pub fn find_cfs_session_related_to_image_id(
-            cfs_session_value_vec: &Vec<CfsSessionGetResponse>,
+            cfs_session_vec: &Vec<CfsSessionGetResponse>,
             image_id: &str,
         ) -> Option<CfsSessionGetResponse> {
-            cfs_session_value_vec
+            cfs_session_vec
                 .iter()
                 .find(|cfs_session_value| {
                     cfs_session_value.status.as_ref().is_some_and(|status| {
@@ -809,6 +804,125 @@ pub mod mesa {
                 .name
                 .as_ref()
                 .cloned()
+        }
+
+        pub fn get_image_id_cfs_configuration_target_tuple_vec(
+            cfs_session_vec: Vec<CfsSessionGetResponse>,
+        ) -> Vec<(String, String, Vec<String>)> {
+            let mut image_id_cfs_configuration_target_from_cfs_session: Vec<(
+                String,
+                String,
+                Vec<String>,
+            )> = Vec::new();
+
+            cfs_session_vec.iter().for_each(|cfs_session| {
+                if let Some(result_id) = cfs_session
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .artifacts
+                    .as_ref()
+                    .and_then(|artifact_vec| {
+                        artifact_vec
+                            .first()
+                            .and_then(|artifact| artifact.result_id.as_ref())
+                    })
+                {
+                    let target: Vec<String> = if let Some(target_groups) =
+                        cfs_session.target.as_ref().unwrap().groups.as_ref()
+                    {
+                        target_groups
+                            .iter()
+                            .map(|group| group.name.clone())
+                            .collect()
+                    } else if let Some(ansible_limit) =
+                        cfs_session.ansible.as_ref().unwrap().limit.as_ref()
+                    {
+                        ansible_limit
+                            .split(",")
+                            .map(|xname| xname.trim().to_string())
+                            .collect()
+                    } else {
+                        vec![]
+                    };
+
+                    image_id_cfs_configuration_target_from_cfs_session.push((
+                        result_id.to_string(),
+                        cfs_session
+                            .configuration
+                            .as_ref()
+                            .unwrap()
+                            .name
+                            .as_ref()
+                            .unwrap()
+                            .to_string(),
+                        target,
+                    ));
+                } else {
+                    image_id_cfs_configuration_target_from_cfs_session.push((
+                        "".to_string(),
+                        "".to_string(),
+                        vec![],
+                    ));
+                }
+            });
+
+            image_id_cfs_configuration_target_from_cfs_session
+        }
+
+        pub fn get_image_id_from_cfs_session_vec(
+            cfs_session_value_vec: &[CfsSessionGetResponse],
+        ) -> Vec<String> {
+            cfs_session_value_vec
+                .iter()
+                .filter(|cfs_session| {
+                    cfs_session
+                        .target
+                        .as_ref()
+                        .unwrap()
+                        .definition
+                        .as_ref()
+                        .unwrap()
+                        .eq("image")
+                        && cfs_session
+                            .status
+                            .as_ref()
+                            .unwrap()
+                            .session
+                            .as_ref()
+                            .unwrap()
+                            .succeeded
+                            .as_ref()
+                            .unwrap_or(&"false".to_string())
+                            .eq("true")
+                        && cfs_session
+                            .status
+                            .as_ref()
+                            .unwrap()
+                            .artifacts
+                            .as_ref()
+                            .unwrap()
+                            .first()
+                            .unwrap()
+                            .result_id
+                            .is_some()
+                })
+                .map(|cfs_session| {
+                    cfs_session
+                        .status
+                        .as_ref()
+                        .unwrap()
+                        .artifacts
+                        .as_ref()
+                        .unwrap()
+                        .first()
+                        .unwrap()
+                        .result_id
+                        .as_ref()
+                        .unwrap()
+                        .to_string()
+                })
+                .collect::<Vec<String>>()
         }
     }
 }

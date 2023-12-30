@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use serde_json::Value;
 
 use crate::cfs::component::shasta::r#struct::Component;

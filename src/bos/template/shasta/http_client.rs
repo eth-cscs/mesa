@@ -38,7 +38,7 @@ pub async fn get_raw(
     }
 }
 
-pub async fn get(
+/* pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -64,17 +64,17 @@ pub async fn get(
     };
 
     Ok(bos_session_template_vec)
-}
+} */
 
-pub async fn get_all(
+/* pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
 ) -> Result<Vec<Value>, reqwest::Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
-}
+} */
 
-pub async fn get_and_filter(
+/* pub async fn get_and_filter(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -98,7 +98,7 @@ pub async fn get_and_filter(
     .await;
 
     Ok(bos_sessiontemplate_value_vec)
-}
+} */
 
 pub async fn post(
     shasta_token: &str,

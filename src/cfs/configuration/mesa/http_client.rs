@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::cfs::configuration::shasta::r#struct::{
+use crate::cfs::configuration::mesa::r#struct::{
     cfs_configuration_request::CfsConfigurationRequest,
     cfs_configuration_response::CfsConfigurationResponse,
 };
@@ -11,7 +11,7 @@ pub async fn get(
     shasta_root_cert: &[u8],
     configuration_name_opt: Option<&String>,
 ) -> Result<Vec<CfsConfigurationResponse>, reqwest::Error> {
-    let response_rslt = crate::cfs::configuration::shasta::http_client::get_raw(
+    let response_rslt = crate::cfs::configuration::shasta::http_client::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -85,9 +85,8 @@ pub async fn put(
         configuration,
         configuration_name,
     )
-    .await;
-
-    let cfs_configuration_response = cfs_configuration_response.unwrap();
+    .await
+    .unwrap();
 
     if cfs_configuration_response.status().is_success() {
         let cfs_configuration: CfsConfigurationResponse =

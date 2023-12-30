@@ -1,40 +1,31 @@
-use serde_json::Value;
-
 use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
 
 pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
     hsm_group_name_vec: &[String],
-    hsm_member_vec: &[String],
-    limit_number_opt: Option<&u8>,
     cfs_configuration_name_opt: Option<&str>,
+    limit_number_opt: Option<&u8>,
 ) -> Vec<BosSessionTemplate> {
     // Filter by target (hsm group name or xnames)
-    bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
-        bos_sessiontemplate
-            .boot_sets
-            .as_ref()
-            .unwrap()
-            .iter()
-            .any(|(_parameter, boot_set)| {
-                (boot_set.node_groups.is_some()
-                    && !boot_set.node_groups.as_ref().unwrap().is_empty()
-                    && boot_set
-                        .node_groups
-                        .as_ref()
-                        .unwrap()
-                        .iter()
-                        .all(|node_group| hsm_group_name_vec.contains(node_group)))
-                    || (boot_set.node_list.is_some()
-                        && !boot_set.node_list.as_ref().unwrap().is_empty()
+    if !hsm_group_name_vec.is_empty() {
+        bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
+            bos_sessiontemplate
+                .boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|(_parameter, boot_set)| {
+                    boot_set.node_groups.is_some()
+                        && !boot_set.node_groups.as_ref().unwrap().is_empty()
                         && boot_set
-                            .node_list
+                            .node_groups
                             .as_ref()
                             .unwrap()
                             .iter()
-                            .all(|node| hsm_member_vec.contains(node)))
-            })
-    });
+                            .all(|node_group| hsm_group_name_vec.contains(node_group))
+                })
+        });
+    }
 
     if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
@@ -58,7 +49,7 @@ pub async fn filter(
 }
 
 pub fn get_image_id_cfs_configuration_target_tuple_vec(
-    bos_sessiontemplate_value_vec: Vec<Value>,
+    bos_sessiontemplate_value_vec: Vec<BosSessionTemplate>,
 ) -> Vec<(String, String, Vec<String>)> {
     let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
         String,
@@ -67,25 +58,22 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
     )> = Vec::new();
 
     for bos_sessiontemplate in bos_sessiontemplate_value_vec {
-        if bos_sessiontemplate.get("cfs").is_none() {
+        if bos_sessiontemplate.cfs.is_none() {
             continue;
         }
 
         let cfs_configuration = bos_sessiontemplate
-            .pointer("/cfs/configuration")
+            .cfs
+            .as_ref()
             .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
+            .configuration
+            .as_ref()
+            .unwrap();
 
-        for (_, boot_set) in bos_sessiontemplate
-            .pointer("/boot_sets")
-            .unwrap()
-            .as_object()
-            .unwrap()
-        {
-            let path = boot_set["path"]
-                .as_str()
+        for (_, boot_set) in bos_sessiontemplate.boot_sets.as_ref().unwrap() {
+            let path = boot_set
+                .path
+                .as_ref()
                 .unwrap()
                 .strip_prefix("s3://boot-images/")
                 .unwrap()
@@ -93,19 +81,15 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
                 .unwrap()
                 .to_string();
 
-            let target: Vec<String> = if let Some(node_groups) = boot_set.get("node_groups") {
+            let target: Vec<String> = if let Some(node_groups) = boot_set.node_groups.as_ref() {
                 node_groups
-                    .as_array()
-                    .unwrap()
                     .iter()
-                    .map(|node_group| node_group.as_str().unwrap().to_string())
+                    .map(|node_group| node_group.to_string())
                     .collect()
-            } else if let Some(node_list) = boot_set.get("node_list") {
+            } else if let Some(node_list) = boot_set.node_list.as_ref() {
                 node_list
-                    .as_array()
-                    .unwrap()
                     .iter()
-                    .map(|target_group| target_group.as_str().unwrap().to_string())
+                    .map(|target_group| target_group.to_string())
                     .collect()
             } else {
                 vec![]

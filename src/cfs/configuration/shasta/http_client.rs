@@ -1,10 +1,8 @@
 use std::error::Error;
 
-use serde_json::Value;
+use crate::cfs::configuration::mesa::r#struct::cfs_configuration_request::CfsConfigurationRequest;
 
-use super::r#struct::cfs_configuration_request::CfsConfigurationRequest;
-
-pub async fn get_raw(
+pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -39,7 +37,7 @@ pub async fn get_raw(
     }
 }
 
-pub async fn get(
+/* pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -72,17 +70,17 @@ pub async fn get(
     });
 
     Ok(cfs_configuration_value_vec)
-}
+} */
 
-pub async fn get_all(
+/* pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
 ) -> Result<Vec<Value>, reqwest::Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
-}
+} */
 
-pub async fn get_and_filter(
+/* pub async fn get_and_filter(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -112,7 +110,7 @@ pub async fn get_and_filter(
     .await;
 
     Ok(configuration_value_vec)
-}
+} */
 
 pub async fn put_raw(
     shasta_token: &str,
@@ -151,7 +149,7 @@ pub async fn put_raw(
     }
 }
 
-pub async fn put(
+/* pub async fn put(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -178,7 +176,7 @@ pub async fn put(
         log::error!("FAIL response: {:#?}", response);
         Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
     }
-}
+} */
 
 pub async fn delete(
     shasta_token: &str,
