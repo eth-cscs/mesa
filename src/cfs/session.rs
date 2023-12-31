@@ -56,76 +56,6 @@ pub mod shasta {
             }
         }
 
-        /* pub async fn get(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-            cfs_session_name_opt: Option<&String>,
-            is_succeded: Option<bool>,
-        ) -> Result<Vec<Value>, reqwest::Error> {
-            let response_rslt = get_raw(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                cfs_session_name_opt,
-                is_succeded,
-            )
-            .await;
-
-            let cfs_session_value_vec: Vec<Value> = match response_rslt {
-                Ok(response) => {
-                    if cfs_session_name_opt.is_none() {
-                        response.json::<Vec<Value>>().await.unwrap()
-                    } else {
-                        vec![response.json::<Value>().await.unwrap()]
-                    }
-                }
-                Err(error) => return Err(error),
-            };
-
-            Ok(cfs_session_value_vec)
-        } */
-
-        /* pub async fn get_and_filter(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-            cfs_session_name_opt: Option<&String>,
-            is_succeded_opt: Option<bool>,
-            hsm_group_name_vec: &[String],
-            limit_number_opt: Option<&u8>,
-        ) -> Result<Vec<Value>, reqwest::Error> {
-            let mut cfs_session_value_vec = get(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                cfs_session_name_opt,
-                is_succeded_opt,
-            )
-            .await
-            .unwrap();
-
-            super::utils::filter(
-                shasta_token,
-                shasta_token,
-                shasta_root_cert,
-                &mut cfs_session_value_vec,
-                hsm_group_name_vec,
-                limit_number_opt,
-            )
-            .await;
-
-            Ok(cfs_session_value_vec)
-        } */
-
-        /* pub async fn get_all(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-        ) -> Result<Vec<Value>, reqwest::Error> {
-            get(shasta_token, shasta_base_url, shasta_root_cert, None, None).await
-        } */
-
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
@@ -530,51 +460,6 @@ pub mod mesa {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub groups: Option<Vec<Group>>,
         }
-
-        /* #[derive(Debug, Serialize, Deserialize, Clone)]
-        pub struct CfsSessionRequest {
-            pub name: String,
-            #[serde(rename = "configurationName")]
-            pub configuration_name: String,
-            #[serde(rename = "configurationLimit")]
-            #[serde(skip_serializing_if = "Option::is_none")]
-            pub configuration_limit: Option<String>,
-            #[serde(rename = "ansibleLimit")]
-            #[serde(skip_serializing_if = "Option::is_none")]
-            pub ansible_limit: Option<String>,
-            #[serde(rename = "ansibleConfig")]
-            #[serde(skip_serializing_if = "Option::is_none")]
-            pub ansible_config: Option<String>,
-            #[serde(rename = "ansibleVerbosity")]
-            #[serde(skip_serializing_if = "Option::is_none")]
-            pub ansible_verbosity: Option<u8>,
-            #[serde(rename = "ansiblePassthrough")]
-            #[serde(skip_serializing_if = "Option::is_none")]
-            pub ansible_passthrough: Option<String>,
-            #[serde(default)]
-            pub target: Target,
-            #[serde(skip_serializing_if = "Option::is_none")]
-            pub tags: Option<HashMap<String, String>>,
-            #[serde(skip_serializing)]
-            pub base_image_id: Option<String>,
-        } */
-
-        /* impl Default for CfsSessionRequest {
-            fn default() -> Self {
-                Self {
-                    name: String::default(),
-                    configuration_name: String::default(),
-                    configuration_limit: None,
-                    ansible_limit: None,
-                    ansible_config: None,
-                    ansible_verbosity: None,
-                    ansible_passthrough: None,
-                    target: Default::default(),
-                    tags: None,
-                    base_image_id: Some(String::default()),
-                }
-            }
-        } */
 
         impl CfsSessionPostRequest {
             pub fn new(

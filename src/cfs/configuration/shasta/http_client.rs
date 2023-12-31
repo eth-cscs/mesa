@@ -37,81 +37,6 @@ pub async fn get(
     }
 }
 
-/* pub async fn get(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    configuration_name_opt: Option<&str>,
-) -> Result<Vec<Value>, reqwest::Error> {
-    let response_rslt = get_raw(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        configuration_name_opt,
-    )
-    .await;
-
-    let mut cfs_configuration_value_vec: Vec<Value> = match response_rslt {
-        Ok(response) => {
-            if configuration_name_opt.is_none() {
-                response.json::<Vec<Value>>().await.unwrap()
-            } else {
-                vec![response.json::<Value>().await.unwrap()]
-            }
-        }
-        Err(error) => return Err(error),
-    };
-
-    cfs_configuration_value_vec.sort_by(|a, b| {
-        a["lastUpdated"]
-            .as_str()
-            .unwrap()
-            .cmp(b["lastUpdated"].as_str().unwrap())
-    });
-
-    Ok(cfs_configuration_value_vec)
-} */
-
-/* pub async fn get_all(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-) -> Result<Vec<Value>, reqwest::Error> {
-    get(shasta_token, shasta_base_url, shasta_root_cert, None).await
-} */
-
-/* pub async fn get_and_filter(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    configuration_name_opt: Option<&str>,
-    hsm_group_name_vec_opt: Option<&Vec<String>>,
-    most_recent_opt: Option<bool>,
-    limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn Error>> {
-    let mut configuration_value_vec = get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        configuration_name_opt,
-    )
-    .await
-    .unwrap();
-
-    crate::cfs::configuration::shasta::utils::filter(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        &mut configuration_value_vec,
-        hsm_group_name_vec_opt,
-        most_recent_opt,
-        limit_number_opt,
-    )
-    .await;
-
-    Ok(configuration_value_vec)
-} */
-
 pub async fn put_raw(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -148,35 +73,6 @@ pub async fn put_raw(
         Err(error) => Err(error),
     }
 }
-
-/* pub async fn put(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    configuration: &CfsConfigurationRequest,
-    configuration_name: &str,
-) -> Result<Value, Box<dyn Error>> {
-    let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::put_raw(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        configuration,
-        configuration_name,
-    )
-    .await
-    .unwrap();
-
-    if cfs_configuration_response.status().is_success() {
-        let response = &cfs_configuration_response.text().await?;
-        log::debug!("CFS configuration creation response:\n{:#?}", response);
-        Ok(serde_json::from_str(response)?)
-    } else {
-        eprintln!("FAIL request: {:#?}", cfs_configuration_response);
-        let response: String = cfs_configuration_response.text().await?;
-        log::error!("FAIL response: {:#?}", response);
-        Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
-} */
 
 pub async fn delete(
     shasta_token: &str,

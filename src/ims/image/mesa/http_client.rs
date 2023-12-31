@@ -14,7 +14,7 @@ pub async fn get(
     )
     .await;
 
-    let mut image_vec: Vec<Image> = match response_rslt {
+    let image_vec: Vec<Image> = match response_rslt {
         Ok(response) => {
             if image_id_opt.is_none() {
                 response.json::<Vec<Image>>().await.unwrap()
@@ -24,14 +24,6 @@ pub async fn get(
         }
         Err(error) => return Err(error),
     };
-
-    // Sort images by creation time order ASC
-    image_vec.sort_by(|a, b| {
-        a.created
-            .as_ref()
-            .unwrap()
-            .cmp(&b.created.as_ref().unwrap())
-    });
 
     Ok(image_vec)
 }

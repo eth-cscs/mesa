@@ -165,6 +165,8 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
             .await
             .unwrap();
 
+    super::mesa::utils::filter(&mut image_vec).await;
+
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
         image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();

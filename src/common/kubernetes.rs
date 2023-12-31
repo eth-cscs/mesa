@@ -517,11 +517,6 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             max
         );
 
-        /* println!(
-            "DEBUG - Init container '{}' state: {:?}",
-            init_container_name, init_container_status
-        ); */
-
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
 

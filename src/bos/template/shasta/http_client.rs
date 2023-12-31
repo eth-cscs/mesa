@@ -38,68 +38,6 @@ pub async fn get_raw(
     }
 }
 
-/* pub async fn get(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    bos_session_template_id_opt: Option<&String>,
-) -> Result<Vec<Value>, reqwest::Error> {
-    let response_rslt = get_raw(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        bos_session_template_id_opt,
-    )
-    .await;
-
-    let bos_session_template_vec: Vec<Value> = match response_rslt {
-        Ok(response) => {
-            if bos_session_template_id_opt.is_none() {
-                response.json::<Vec<Value>>().await.unwrap()
-            } else {
-                vec![response.json::<Value>().await.unwrap()]
-            }
-        }
-        Err(error) => return Err(error),
-    };
-
-    Ok(bos_session_template_vec)
-} */
-
-/* pub async fn get_all(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-) -> Result<Vec<Value>, reqwest::Error> {
-    get(shasta_token, shasta_base_url, shasta_root_cert, None).await
-} */
-
-/* pub async fn get_and_filter(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    hsm_group_name_vec: &Vec<String>,
-    bos_sessiontemplate_name_opt: Option<&String>,
-    cfs_configuration_name_vec_opt: Option<Vec<&str>>,
-    limit_number_opt: Option<&u8>,
-) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    let mut bos_sessiontemplate_value_vec: Vec<Value> =
-        get_all(shasta_token, shasta_base_url, shasta_root_cert)
-            .await
-            .unwrap();
-
-    crate::bos::template::shasta::utils::filter(
-        &mut bos_sessiontemplate_value_vec,
-        hsm_group_name_vec,
-        bos_sessiontemplate_name_opt,
-        cfs_configuration_name_vec_opt,
-        limit_number_opt,
-    )
-    .await;
-
-    Ok(bos_sessiontemplate_value_vec)
-} */
-
 pub async fn post(
     shasta_token: &str,
     shasta_base_url: &str,
