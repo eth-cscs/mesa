@@ -60,19 +60,19 @@ pub mod http_client {
 
         use serde_json::Value;
 
-        use crate::{capmc::r#struct::PowerStatus, hsm};
+        use crate::capmc::{self, r#struct::PowerStatus};
 
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            xnames: Vec<String>,
-            reason: Option<String>,
+            xname_vec: Vec<String>,
+            reason_opt: Option<String>,
             force: bool,
         ) -> Result<Value, reqwest::Error> {
-            log::info!("Shutting down nodes: {:?}", xnames);
+            log::info!("Power OFF nodes: {:?}", xname_vec);
 
-            let power_off = PowerStatus::new(reason, xnames, force, None);
+            let power_off = PowerStatus::new(reason_opt, xname_vec, force, None);
 
             let client;
 
@@ -112,73 +112,74 @@ pub mod http_client {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            xnames: Vec<String>,
-            reason: Option<String>,
+            xname_vec: Vec<String>,
+            reason_opt: Option<String>,
             force: bool,
         ) -> Result<Value, reqwest::Error> {
-            let xname_list: Vec<String> = xnames.into_iter().collect();
-            // Create CAPMC operation shutdown
-            let capmc_power_off_nodes_resp = post(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                xname_list.clone(),
-                reason,
-                force,
-            )
-            .await;
-
-            log::debug!("Shutdown nodes resp:\n{:#?}", capmc_power_off_nodes_resp);
-
             // Check Nodes are shutdown
-            let mut nodes_status_resp = hsm::component_status::shasta::http_client::get(
+            let mut node_status_value = capmc::http_client::node_power_status::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                &xname_list,
+                &xname_vec,
             )
-            .await;
+            .await
+            .unwrap();
 
-            log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+            let mut node_off_vec: Vec<String> = node_status_value["off"]
+                .as_array()
+                .unwrap_or(&Vec::new())
+                .iter()
+                .map(|xname: &Value| xname.as_str().unwrap().to_string())
+                .collect();
 
             // Check all nodes are OFF
             let mut i = 0;
             let max = 60;
             let delay_secs = 3;
-            while i <= max
-                && !nodes_status_resp.as_ref().unwrap()["Components"]
+            while i <= max && xname_vec.iter().any(|xname| !node_off_vec.contains(xname)) {
+                let _ = post(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    xname_vec.clone(),
+                    reason_opt.clone(),
+                    force,
+                )
+                .await;
+
+                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
+
+                node_status_value = capmc::http_client::node_power_status::post(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &xname_vec,
+                )
+                .await
+                .unwrap();
+
+                node_off_vec = node_status_value["off"]
                     .as_array()
-                    .unwrap()
+                    .unwrap_or(&Vec::new())
                     .iter()
-                    .all(|node| node["State"].as_str().unwrap().to_string().eq("Off"))
-            {
-                print!(
-                    "\rWaiting nodes to shutdown. Trying again in {} seconds. Attempt {} of {}",
+                    .map(|xname: &Value| xname.as_str().unwrap().to_string())
+                    .collect();
+
+                println!(
+                    "Node(s) in power state OFF: {:?}. Waiting nodes to shutdown. Trying again in {} seconds. Attempt {} of {}",
+                    node_off_vec,
                     delay_secs,
                     i + 1,
                     max
                 );
 
-                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-
                 i += 1;
-
-                log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-
-                nodes_status_resp = hsm::component_status::shasta::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    &xname_list,
-                )
-                .await;
             }
 
-            println!();
+            println!("Node(s) power state OFF: {:?}", node_off_vec);
 
-            log::debug!("node status resp:\n{:#?}", nodes_status_resp);
-
-            capmc_power_off_nodes_resp
+            Ok(node_status_value)
         }
     }
 
@@ -187,19 +188,18 @@ pub mod http_client {
 
         use serde_json::Value;
 
-        use crate::{capmc::r#struct::PowerStatus, hsm};
+        use crate::capmc::{self, r#struct::PowerStatus};
 
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            xnames: Vec<String>,
+            xname_vec: Vec<String>,
             reason: Option<String>,
-            force: bool,
         ) -> Result<Value, reqwest::Error> {
-            log::info!("Powering on nodes: {:?}", xnames);
+            log::info!("Power ON nodes: {:?}", xname_vec);
 
-            let power_on = PowerStatus::new(reason, xnames, force, None);
+            let power_on = PowerStatus::new(reason, xname_vec, false, None);
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -237,95 +237,90 @@ pub mod http_client {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            xnames: Vec<String>,
+            xname_vec: Vec<String>,
             reason: Option<String>,
-            force: bool,
         ) -> Result<Value, reqwest::Error> {
-            let xname_list: Vec<String> = xnames.into_iter().collect();
-            // Create CAPMC operation shutdown
-            let capmc_power_on_nodes_resp = post(
+            // Check Nodes are shutdown
+            let mut node_status_value = capmc::http_client::node_power_status::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                xname_list.clone(),
-                reason,
-                force,
+                &xname_vec,
             )
-            .await;
+            .await
+            .unwrap();
 
-            log::debug!("Power ON nodes resp:\n{:#?}", capmc_power_on_nodes_resp);
+            let mut node_on_vec: Vec<String> = node_status_value["on"]
+                .as_array()
+                .unwrap_or(&Vec::new())
+                .iter()
+                .map(|xname: &Value| xname.as_str().unwrap().to_string())
+                .collect();
 
-            // Check Nodes are ON
-            let mut nodes_status_resp = hsm::component_status::shasta::http_client::get(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                &xname_list,
-            )
-            .await;
-
-            log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-
-            // Check all nodes are ON
+            // Check all nodes are OFF
             let mut i = 0;
             let max = 60;
             let delay_secs = 3;
-            while i <= max
-                && !nodes_status_resp.as_ref().unwrap()["Components"]
+            while i <= max && xname_vec.iter().any(|xname| !node_on_vec.contains(xname)) {
+                let _ = post(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    xname_vec.clone(),
+                    reason.clone(),
+                )
+                .await;
+
+                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
+
+                node_status_value = capmc::http_client::node_power_status::post(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &xname_vec,
+                )
+                .await
+                .unwrap();
+
+                node_on_vec = node_status_value["on"]
                     .as_array()
-                    .unwrap()
+                    .unwrap_or(&Vec::new())
                     .iter()
-                    .all(|node| node["State"].as_str().unwrap().to_string().eq("On"))
-            {
-                print!(
-                    "\rWaiting nodes to power on. Trying again in {} seconds. Attempt {} of {}",
+                    .map(|xname: &Value| xname.as_str().unwrap().to_string())
+                    .collect();
+
+                println!(
+                    "Node(s) in power state ON: {:?}. Waiting nodes to shutdown. Trying again in {} seconds. Attempt {} of {}",
+                    node_on_vec,
                     delay_secs,
                     i + 1,
                     max
                 );
 
-                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-
                 i += 1;
-
-                log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-
-                nodes_status_resp = hsm::component_status::shasta::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    &xname_list,
-                )
-                .await;
             }
 
-            println!();
+            println!("Node(s) power state ON: {:?}", node_on_vec);
 
-            log::debug!("node status resp:\n{:#?}", nodes_status_resp);
-
-            capmc_power_on_nodes_resp
+            Ok(node_status_value)
         }
     }
 
-    pub mod node_power_restart {
-
-        use core::time;
+    pub mod node_power_reset {
 
         use serde_json::Value;
 
-        use crate::{capmc::r#struct::PowerStatus, hsm};
+        use crate::capmc::{self, r#struct::PowerStatus};
 
         pub async fn post(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            reason: Option<&String>,
-            xnames: Vec<String>,
+            xname_vec: Vec<String>,
+            reason: Option<String>,
             force: bool,
         ) -> Result<Value, reqwest::Error> {
-            log::info!("Restarting nodes: {:?}", xnames);
-
-            let node_restart = PowerStatus::new(reason.cloned(), xnames, force, None);
+            let node_restart = PowerStatus::new(reason, xname_vec, force, None);
 
             let client;
 
@@ -359,82 +354,79 @@ pub mod http_client {
             }
         }
 
-        /// Power RESET a group of nodes
-        /// This is  sync call meaning it won't return untill all nodes are ON
         pub async fn post_sync(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            xnames: Vec<String>,
-            reason: Option<&String>,
+            xname_vec: Vec<String>,
+            reason_opt: Option<String>,
             force: bool,
         ) -> Result<Value, reqwest::Error> {
-            let xname_list: Vec<String> = xnames.into_iter().collect();
-            // Create CAPMC operation shutdown
-            let capmc_power_reset_nodes_resp = post(
+            log::info!("Power RESET node: {:?}", xname_vec);
+
+            let _ = capmc::http_client::node_power_off::post_sync(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                reason,
-                xname_list.clone(),
+                xname_vec.clone(),
+                reason_opt.clone(),
                 force,
             )
             .await;
 
-            log::debug!(
-                "Power RESET nodes resp:\n{:#?}",
-                capmc_power_reset_nodes_resp
-            );
-
-            // Check Nodes are ON
-            let mut nodes_status_resp = hsm::component_status::shasta::http_client::get(
+            let power_on_resp = capmc::http_client::node_power_on::post_sync(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                &xname_list,
+                xname_vec,
+                reason_opt,
             )
             .await;
 
-            log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
+            power_on_resp
+        }
 
-            // Check all nodes are ON
-            let mut i = 0;
-            let max = 60;
-            let delay_secs = 3;
-            while i <= max
-                && !nodes_status_resp.as_ref().unwrap()["Components"]
-                    .as_array()
+        /// Power RESET a group of nodes
+        /// This is  sync call meaning it won't return untill all nodes are ON
+        pub async fn post_sync_vec(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            xnames: Vec<String>,
+            reason_opt: Option<String>,
+            force: bool,
+        ) -> Result<Value, reqwest::Error> {
+            let mut nodes_reseted = Vec::new();
+
+            let mut tasks = tokio::task::JoinSet::new();
+
+            for xname in xnames {
+                let shasta_token_string = shasta_token.to_string();
+                let shasta_base_url_string = shasta_base_url.to_string();
+                let shasta_root_cert_vec = shasta_root_cert.to_vec();
+                let reason_cloned = reason_opt.clone();
+
+                tasks.spawn(async move {
+                    post_sync(
+                        &shasta_token_string,
+                        &shasta_base_url_string,
+                        &shasta_root_cert_vec,
+                        vec![xname],
+                        reason_cloned,
+                        force,
+                    )
+                    .await
                     .unwrap()
-                    .iter()
-                    .all(|node| node["State"].as_str().unwrap().to_string().eq("On"))
-            {
-                print!(
-                    "\rWaiting nodes to power on. Trying again in {} seconds. Attempt {} of {}",
-                    delay_secs,
-                    i + 1,
-                    max
-                );
-
-                tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-
-                i += 1;
-
-                log::debug!("nodes_status:\n{:#?}", nodes_status_resp);
-
-                nodes_status_resp = hsm::component_status::shasta::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    &xname_list,
-                )
-                .await;
+                });
             }
 
-            println!();
+            while let Some(message) = tasks.join_next().await {
+                if let Ok(node_power_status) = message {
+                    nodes_reseted.push(node_power_status);
+                }
+            }
 
-            log::debug!("node status resp:\n{:#?}", nodes_status_resp);
-
-            capmc_power_reset_nodes_resp
+            Ok(serde_json::to_value(nodes_reseted).unwrap())
         }
     }
 
@@ -450,7 +442,6 @@ pub mod http_client {
             shasta_root_cert: &[u8],
             xnames: &Vec<String>,
         ) -> core::result::Result<Value, reqwest::Error> {
-            println!("DEBUG - CHECK NODE POWER STATUS");
             log::info!("Checking nodes status: {:?}", xnames);
 
             let node_status_payload =

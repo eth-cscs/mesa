@@ -831,7 +831,10 @@ pub async fn get_output(mut attached: AttachedProcess) -> String {
 mod test {
 
     use k8s_openapi::api::core::v1::Pod;
-    use kube::{api::ListParams, Api};
+    use kube::{
+        api::{AttachParams, ListParams},
+        Api,
+    };
 
     use crate::common::vault::http_client::fetch_shasta_k8s_secrets;
 
@@ -844,6 +847,7 @@ mod test {
         let vault_base_url = "https://hashicorp-vault.cscs.ch:8200";
         let vault_secret_path = "shasta";
         let vault_role_id = "b15517de-cabb-06ba-af98-633d216c6d99";
+        let pod_name = "cfs-7e54c14a-89fb-4564-886e-d11d69866212-d25rn";
 
         let shasta_k8s_secrets =
             fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
@@ -852,11 +856,22 @@ mod test {
             .await
             .unwrap();
 
-        let api_pods: Api<Pod> = Api::namespaced(client, "cicd");
+        let api_pods: Api<Pod> = Api::namespaced(client, "services");
 
         let lp = ListParams::default().limit(1);
         let pod_detail_list = api_pods.list(&lp).await;
 
         println!("Pods:\n{:#?}", pod_detail_list);
+
+        let ap = AttachParams::default().container("ansible");
+
+        let attached = api_pods
+            .exec(pod_name, vec!["sh", "-c", "echo $LAYER_CURRENT"], &ap)
+            .await
+            .unwrap();
+
+        let output = crate::common::kubernetes::get_output(attached).await;
+
+        println!("Current CFS configurarion layer is {}", output);
     }
 }

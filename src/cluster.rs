@@ -43,7 +43,6 @@ impl VCluster {
         shasta_root_cert: &[u8],
         hsm_group_name: &str,
         reason: Option<String>,
-        force: bool,
     ) -> Result<(), Box<dyn Error>> {
         let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
             shasta_token,
@@ -59,7 +58,6 @@ impl VCluster {
             shasta_root_cert,
             hsm_group_node_list,
             reason,
-            force,
         )
         .await;
 
@@ -71,7 +69,7 @@ impl VCluster {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         hsm_group_name: &str,
-        reason: Option<&String>,
+        reason: Option<String>,
         force: bool,
     ) -> Result<(), Box<dyn Error>> {
         let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
@@ -82,7 +80,7 @@ impl VCluster {
         )
         .await;
 
-        let _ = crate::capmc::http_client::node_power_restart::post_sync(
+        let _ = crate::capmc::http_client::node_power_reset::post_sync(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
