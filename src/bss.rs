@@ -152,7 +152,7 @@ pub mod utils {
         node: &String,
     ) -> Option<Value> {
         node_boot_params_list
-            .into_iter()
+            .iter()
             .find(|node_boot_param| {
                 node_boot_param["hosts"]
                     .as_array()

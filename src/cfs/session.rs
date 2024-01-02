@@ -616,6 +616,11 @@ pub mod mesa {
 
         use super::r#struct::CfsSessionGetResponse;
 
+        /// Filter CFS sessions related to a list of HSM group names, how this works is, it will
+        /// get the list of nodes within those HSM groups and filter all CFS sessions in the system
+        /// using either the HSM group names or nodes as target.
+        /// NOTE: Please make sure the user has access to the HSM groups he is asking for before
+        /// calling this function
         pub async fn filter_by_hsm(
             shasta_token: &str,
             shasta_base_url: &str,
@@ -624,13 +629,14 @@ pub mod mesa {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let node_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                hsm_group_name_vec,
-            )
-            .await;
+            let xname_vec: Vec<String> =
+                hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    hsm_group_name_vec,
+                )
+                .await;
 
             // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
             // hsm_group.members.ids
@@ -648,8 +654,8 @@ pub mod mesa {
                             limit
                                 .split(',')
                                 .map(|node| node.trim().to_string())
-                                .collect::<HashSet<_>>()
-                                .is_subset(&HashSet::from_iter(node_vec.clone()))
+                                .collect::<HashSet<String>>()
+                                .is_subset(&HashSet::from_iter(xname_vec.clone()))
                         })
                     })
                 });
@@ -663,8 +669,60 @@ pub mod mesa {
             }
         }
 
+        pub async fn filter_by_xname(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
+            xname_vec: &[String],
+            limit_number_opt: Option<&u8>,
+        ) {
+            let hsm_group_name_vec: Vec<String> =
+                hsm::group::shasta::utils::get_hsm_group_vec_from_xname_vec(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    xname_vec,
+                )
+                .await;
+
+            // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
+            // hsm_group.members.ids
+            if !hsm_group_name_vec.is_empty() {
+                cfs_session_vec.retain(|cfs_session| {
+                    cfs_session.target.clone().is_some_and(|target| {
+                        target.groups.is_some_and(|groups| {
+                            !groups.is_empty()
+                                && groups
+                                    .iter()
+                                    .any(|group| hsm_group_name_vec.contains(&group.name))
+                        })
+                    }) || cfs_session.ansible.clone().is_some_and(|ansible| {
+                        ansible.limit.is_some_and(|limit| {
+                            limit
+                                .split(',')
+                                .map(|node| node.trim().to_string())
+                                .collect::<HashSet<String>>()
+                                .is_subset(&HashSet::from_iter(xname_vec.to_vec()))
+                        })
+                    })
+                });
+
+                if let Some(limit_number) = limit_number_opt {
+                    // Limiting the number of results to return to client
+                    *cfs_session_vec = cfs_session_vec
+                        [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
+                        .to_vec();
+                }
+            }
+        }
+
+        /// Filter CFS sessions related to a list of HSM group names and a list of nodes and filter
+        /// all CFS sessions in the system using either the HSM group names or nodes as target.
+        /// NOTE: Please make sure the user has access to the HSM groups and nodes he is asking for before
+        /// calling this function
         pub fn find_cfs_session_related_to_image_id(
-            cfs_session_vec: &Vec<CfsSessionGetResponse>,
+            cfs_session_vec: &[CfsSessionGetResponse],
             image_id: &str,
         ) -> Option<CfsSessionGetResponse> {
             cfs_session_vec
@@ -724,7 +782,7 @@ pub mod mesa {
                         cfs_session.ansible.as_ref().unwrap().limit.as_ref()
                     {
                         ansible_limit
-                            .split(",")
+                            .split(',')
                             .map(|xname| xname.trim().to_string())
                             .collect()
                     } else {

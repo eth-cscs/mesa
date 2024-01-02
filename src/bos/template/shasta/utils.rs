@@ -114,7 +114,7 @@ pub fn get_image_id_from_bos_sessiontemplate_vec(
                 .boot_sets
                 .as_ref()
                 .unwrap()
-                .into_iter()
+                .iter()
                 .map(|(_, boot_set_param_value)| {
                     boot_set_param_value
                         .path

@@ -374,16 +374,14 @@ pub mod http_client {
             )
             .await;
 
-            let power_on_resp = capmc::http_client::node_power_on::post_sync(
+            capmc::http_client::node_power_on::post_sync(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 xname_vec,
                 reason_opt,
             )
-            .await;
-
-            power_on_resp
+            .await
         }
 
         /// Power RESET a group of nodes

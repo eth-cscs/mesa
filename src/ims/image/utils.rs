@@ -40,7 +40,7 @@ pub async fn filter(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     image_vec: &mut Vec<Image>,
-    hsm_group_name_vec: &Vec<String>,
+    hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<(Image, String, String)> {
     if let Some(limit_number) = limit_number_opt {
@@ -157,7 +157,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    hsm_group_name_vec: &Vec<String>,
+    hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<(Image, String, String)> {
     let mut image_vec: Vec<Image> =

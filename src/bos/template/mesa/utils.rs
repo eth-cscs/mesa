@@ -70,7 +70,7 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
             .as_ref()
             .unwrap();
 
-        for (_, boot_set) in bos_sessiontemplate.boot_sets.as_ref().unwrap() {
+        for boot_set in bos_sessiontemplate.boot_sets.as_ref().unwrap().values() {
             let path = boot_set
                 .path
                 .as_ref()
@@ -117,7 +117,7 @@ pub fn get_cfs_configuration_name(bos_sessiontemplate: &BosSessionTemplate) -> O
 }
 
 pub fn find_bos_sessiontemplate_related_to_image_id(
-    bos_sessiontemplate_vec: &Vec<BosSessionTemplate>,
+    bos_sessiontemplate_vec: &[BosSessionTemplate],
     image_id: &str,
 ) -> Option<BosSessionTemplate> {
     bos_sessiontemplate_vec

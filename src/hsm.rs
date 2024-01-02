@@ -198,7 +198,7 @@ pub mod group {
                 member_hsm_map
             }
 
-            pub async fn get_members_ids(
+            pub async fn get_member_vec_from_hsm_group_name(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
@@ -228,23 +228,54 @@ pub mod group {
                 shasta_root_cert: &[u8],
                 xname: &String,
             ) -> Option<String> {
-                let hsm_groups_details =
+                let hsm_group_value_vec =
                     http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
                         .await
                         .unwrap();
 
-                for hsm_group_details in hsm_groups_details.iter() {
+                for hsm_group_details in hsm_group_value_vec.iter() {
                     if hsm_group_details["members"]["ids"]
                         .as_array()
                         .unwrap()
                         .iter()
-                        .any(|value| value.as_str().unwrap() == xname)
+                        .any(|hsm_group_member| hsm_group_member.as_str().unwrap() == xname)
                     {
                         return Some(hsm_group_details["label"].as_str().unwrap().to_string());
                     }
                 }
 
                 None
+            }
+
+            /// Returns the list of HSM group names related to a list of nodes
+            pub async fn get_hsm_group_vec_from_xname_vec(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                xname_vec: &[String],
+            ) -> Vec<String> {
+                let xname_value_vec: Vec<Value> = xname_vec
+                    .iter()
+                    .map(|xname| serde_json::json!(xname))
+                    .collect();
+
+                let mut hsm_group_value_vec =
+                    http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
+                        .await
+                        .unwrap();
+
+                hsm_group_value_vec.retain(|hsm_group_value| {
+                    hsm_group_value["members"]["ids"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|hsm_group_member| xname_value_vec.contains(hsm_group_member))
+                });
+
+                hsm_group_value_vec
+                    .iter()
+                    .map(|hsm_group_value| hsm_group_value["label"].as_str().unwrap().to_string())
+                    .collect::<Vec<String>>()
             }
 
             pub fn get_hsm_group_from_cfs_session_related_to_cfs_configuration(
@@ -418,7 +449,7 @@ pub mod component_status {
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-                xname_vec: &Vec<String>,
+                xname_vec: &[String],
             ) -> Result<reqwest::Response, reqwest::Error> {
                 let client_builder = reqwest::Client::builder()
                     .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);

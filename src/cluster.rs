@@ -16,7 +16,7 @@ impl VCluster {
         reason: Option<String>,
         force: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -44,7 +44,7 @@ impl VCluster {
         hsm_group_name: &str,
         reason: Option<String>,
     ) -> Result<(), Box<dyn Error>> {
-        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -72,7 +72,7 @@ impl VCluster {
         reason: Option<String>,
         force: bool,
     ) -> Result<(), Box<dyn Error>> {
-        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -100,7 +100,7 @@ impl VCluster {
         shasta_root_cert: &[u8],
         hsm_group_name: &str,
     ) -> Option<HashMap<String, String>> {
-        let hsm_group_node_list = hsm::group::shasta::utils::get_members_ids(
+        let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -131,7 +131,7 @@ impl VCluster {
             let node_vec: Vec<String> = boot_param["hosts"]
                 .as_array()
                 .unwrap()
-                .into_iter()
+                .iter()
                 .map(|host_value| host_value.as_str().unwrap().to_string())
                 .collect();
 
