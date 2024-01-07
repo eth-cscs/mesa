@@ -137,21 +137,21 @@ pub mod r#hw_components {
 pub mod r#struct {
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Serialize, Deserialize, Default)]
-    struct HsmGroup {
-        label: String,
+    #[derive(Debug, Serialize, Deserialize, Clone)]
+    pub struct HsmGroup {
+        pub label: String,
         #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
+        pub description: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        tags: Option<Vec<String>>,
+        pub tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        members: Option<Vec<Member>>,
+        pub members: Option<Vec<Member>>,
     }
 
-    #[derive(Debug, Serialize, Deserialize, Default)]
-    struct Member {
+    #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+    pub struct Member {
         #[serde(skip_serializing_if = "Option::is_none")]
-        ids: Option<Vec<String>>,
+        pub ids: Option<Vec<String>>,
     }
 }
 
@@ -500,6 +500,38 @@ pub mod group {
     }
 
     pub mod mesa {
+        pub mod http_client {
+            use crate::hsm::{group::shasta::http_client::get_raw, r#struct::HsmGroup};
+
+            pub async fn get(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                group_name_opt: Option<&String>,
+            ) -> Result<Vec<HsmGroup>, reqwest::Error> {
+                let response_rslt = get_raw(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    group_name_opt,
+                )
+                .await;
+
+                let hsm_group_vec: Vec<HsmGroup> = match response_rslt {
+                    Ok(response) => {
+                        if group_name_opt.is_none() {
+                            response.json::<Vec<HsmGroup>>().await.unwrap()
+                        } else {
+                            vec![response.json::<HsmGroup>().await.unwrap()]
+                        }
+                    }
+                    Err(error) => return Err(error),
+                };
+
+                Ok(hsm_group_vec)
+            }
+        }
+
         pub mod utils {
             use crate::cfs::session::mesa::r#struct::CfsSessionGetResponse;
 
