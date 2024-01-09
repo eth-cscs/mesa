@@ -8,6 +8,7 @@ pub async fn get_raw(
     shasta_root_cert: &[u8],
     image_id_opt: Option<&str>,
 ) -> Result<reqwest::Response, reqwest::Error> {
+    log::info!("Fetching images - id: {:?}", image_id_opt);
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -60,7 +61,11 @@ pub async fn get(
         return Err(response?.into());
     };
 
-    let mut image_value_vec: Vec<Value> = json_response.as_array().unwrap().to_vec();
+    let mut image_value_vec: Vec<Value> = if image_id_opt.is_some() {
+        serde_json::from_value::<Vec<Value>>(json_response)?
+    } else {
+        [json_response].to_vec()
+    };
 
     // Sort images by creation time order ASC
     image_value_vec.sort_by(|a, b| {
