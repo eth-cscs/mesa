@@ -62,9 +62,9 @@ pub async fn get(
     };
 
     let mut image_value_vec: Vec<Value> = if image_id_opt.is_some() {
-        serde_json::from_value::<Vec<Value>>(json_response)?
-    } else {
         [json_response].to_vec()
+    } else {
+        serde_json::from_value::<Vec<Value>>(json_response)?
     };
 
     // Sort images by creation time order ASC
