@@ -641,7 +641,7 @@ pub mod component_status {
                 .unwrap();
 
                 let response_rslt = client
-                    .get(api_url)
+                    .get(api_url.clone())
                     .header("Authorization", format!("Bearer {}", shasta_token))
                     .send()
                     .await;
