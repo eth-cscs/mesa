@@ -192,11 +192,12 @@ pub async fn get_node_details(
                 )
                 .unwrap()
             } else {
-                eprintln!(
+                log::warn!(
                     "No configuration found for node {} related to image id {}",
-                    node, kernel_image_path_in_boot_params,
+                    node,
+                    kernel_image_path_in_boot_params
                 );
-                std::process::exit(1);
+                "Not found".to_string()
             }
         };
 
