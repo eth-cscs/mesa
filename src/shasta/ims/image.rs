@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ImsImageRecord2Update {
+    pub link: ImsLink,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arch: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ImsLink {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -20,11 +27,14 @@ pub struct ImsImage {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<ImsLink>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arch: Option<String>,
 }
 pub mod http_client {
 
     use std::error::Error;
-    use crate::shasta::ims::image::{ImsLink,ImsImage};
+    use crate::shasta::ims::image::{ImsLink,ImsImage,ImsImageRecord2Update};
 
     use serde_json::Value;
 
@@ -225,4 +235,51 @@ pub mod http_client {
             Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }
     }
+
+    /// update an IMS image record --> https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/ims.md#post_v2_image
+    pub async fn update_image(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        ims_image_id: &String,
+        ims_link: &ImsImageRecord2Update,
+    ) -> Result<Value, Box<dyn Error>> {
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + &ims_image_id;
+
+        let resp = client
+            .patch(api_url)
+            .header("Authorization", format!("Bearer {}", shasta_token))
+            .json(&ims_link)
+            .send()
+            .await?;
+
+        let json_response:Value;
+
+        if resp.status().is_success() {
+            log::debug!("{:#?}", resp);
+            json_response = serde_json::from_str(&resp.text().await?)?;
+            Ok(json_response)
+        } else {
+            log::debug!("{:#?}", resp);
+            Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
 }
