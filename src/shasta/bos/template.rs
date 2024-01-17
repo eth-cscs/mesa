@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Link {
     #[serde(skip_serializing_if = "Option::is_none")]
     rel: Option<String>,
@@ -8,7 +8,7 @@ pub struct Link {
     href: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Property {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -39,7 +39,7 @@ pub struct Property {
     pub rootfs_provider_passthrough: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Property2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
@@ -70,7 +70,7 @@ pub struct Property2 {
     rootfs_provider_passthrough: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct BootSet {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compute: Option<Property>,
@@ -78,7 +78,7 @@ pub struct BootSet {
     property2: Option<Property2>, */
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Cfs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub clone_url: Option<String>,
@@ -92,7 +92,7 @@ pub struct Cfs {
     pub configuration: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BosTemplateRequest {
     pub name: String,
     #[serde(rename = "templateUrl")]
@@ -144,12 +144,47 @@ pub struct Component {
     pub error: Option<String>,
 }
 
+
 impl BosTemplateRequest {
     /* pub fn from_sat_file_serde_yaml(bos_template_yaml: &serde_yaml::Value) -> Self {
 
         BosTemplate
     } */
+    pub fn set_bootset_compute_path(&self, ims_image_path:String) -> Self {
 
+        let compute_property = Property {
+            name: self.boot_sets.clone().unwrap().compute.unwrap().name,
+            boot_ordinal: self.boot_sets.clone().unwrap().compute.unwrap().boot_ordinal,
+            shutdown_ordinal: self.boot_sets.clone().unwrap().compute.unwrap().shutdown_ordinal,
+            path: Some(ims_image_path),
+            type_prop: self.boot_sets.clone().unwrap().compute.unwrap().type_prop,
+            etag: self.boot_sets.clone().unwrap().compute.unwrap().etag,
+            kernel_parameters: self.boot_sets.clone().unwrap().compute.unwrap().kernel_parameters,
+            network: self.boot_sets.clone().unwrap().compute.unwrap().network,
+            node_list: self.boot_sets.clone().unwrap().compute.unwrap().node_list,
+            node_roles_groups: self.boot_sets.clone().unwrap().compute.unwrap().node_roles_groups,
+            node_groups: self.boot_sets.clone().unwrap().compute.unwrap().node_groups,
+            rootfs_provider: self.boot_sets.clone().unwrap().compute.unwrap().rootfs_provider,
+            rootfs_provider_passthrough: self.boot_sets.clone().unwrap().compute.unwrap().rootfs_provider_passthrough,
+        };
+
+        let boot_set = BootSet {
+            compute: Some(compute_property),
+        };
+
+        BosTemplateRequest {
+            name: self.name.clone(),
+            template_url: self.template_url.clone(),
+            description: self.description.clone(),
+            cfs_url: self.cfs_url.clone(),
+            cfs_branch: self.cfs_branch.clone(),
+            enable_cfs: self.enable_cfs.clone(),
+            cfs: self.cfs.clone(),
+            partition: self.partition.clone(),
+            boot_sets: Some(boot_set),
+            links: self.links.clone(),
+        }
+    }
     pub fn new_for_node_list(
         bos_session_template_name: String,
         cfs_configuration_name: Option<String>,
