@@ -65,6 +65,8 @@ aws-smithy-runtime = { version = "1.0.1" }
 aws-smithy-runtime-api = { version = "1.0.1", features = ["client"] }
 aws-smithy-client = { version = "0.60.3" }
 aws-smithy-types = { version = "1.1.2", features = ["rt-tokio", "http-body-0-4-x"] }
+humansize = "2.0.0"
+indicatif = "0.17.7"
 
 mime_guess = "2"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

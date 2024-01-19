@@ -1,11 +1,13 @@
 use tempfile::{NamedTempFile};
 use std::env::temp_dir;
 use std::io::{Read, Write};
-use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object, s3_remove_object, s3_upload_object};
+use crate::shasta::ims::s3::s3::{s3_auth, s3_download_object, s3_remove_object, s3_upload_object, s3_multipart_upload_object};
 use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use directories::ProjectDirs;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use serde_json::Value;
 
 pub const TOKEN_VAR_NAME:&str = "MANTA_CSM_TOKEN";
@@ -15,6 +17,8 @@ pub const BUCKET_NAME:&str = "boot-images";
 pub const OBJECT_PATH:&str = "manta-test-2-delete/dummy.txt";
 pub const SITE:&str = "alps";
 
+const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
+const MAX_CHUNKS: u64 = 10000;
 /// # DOCS
 ///
 /// TO RUN:
@@ -158,7 +162,7 @@ pub async fn test_3_s3_get_object() {
 
 
 #[tokio::test]
-pub async fn test_4_s3_remove_object() {
+pub async fn test_5_s3_remove_object() {
     println!("----- TEST S3 REMOVE OBJECT -----");
 
     let object_path = OBJECT_PATH;
@@ -177,6 +181,96 @@ pub async fn test_4_s3_remove_object() {
     let _result = match s3_remove_object(&sts_value,
                                            &object_path,
                                            &bucket_name).await {
+        Ok(_result) => {
+            println!("Object deletion completed.");
+        },
+        Err(error) => assert!(false, "Error {}", error.to_string())
+    };
+    assert!(true, "OK, the file was removed successfully.")
+}
+
+#[tokio::test]
+pub async fn test_6_multipart_s3_put_object() {
+    // tracing_subscriber::fmt::init();
+    println!("----- TEST S3 PUT OBJECT -----");
+
+    let bucket_name = BUCKET_NAME;
+    let object_path = OBJECT_PATH;
+
+    // create dummy file on the local filesystem
+    let mut file1 = match NamedTempFile::new() {
+        Ok(file1) => file1,
+        Err(error) => panic!("{}", error.to_string())
+    };
+    println!("Temporary file created as {}",file1.path().display().to_string());
+
+    let mut file2 = match file1.reopen() {
+        Ok(file2) => file2,
+        Err(error) => panic!("{}", error.to_string())
+    };
+
+    let text = "This is a temporary object used by Manta tests that can be deleted.";
+
+    while file2.metadata().unwrap().len() <= CHUNK_SIZE * 4 {
+        let rand_string: String = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(256)
+            .map(char::from)
+            .collect();
+        let return_string: String = "\n".to_string();
+        file2.write_all(rand_string.as_ref())
+            .expect("Error writing to file1.");
+        file2.write_all(return_string.as_ref())
+            .expect("Error writing to file1.");
+    }
+
+    // let mut buf = String::new();
+    // match file2.read_to_string(&mut buf){
+    //     Ok(_p) => println!("Contents of the file that will be uploaded: {}", buf),
+    //     Err(error) => panic!("{}", error.to_string())
+    // };
+
+    // Connect and auth to S3
+    let sts_value = match authenticate_with_s3().await {
+        Ok(sts_value) => {
+            println!("Debug - STS token:\n{:#?}", sts_value);
+            sts_value
+        }
+        Err(error) => panic!("{}", error.to_string())
+    };
+
+    // Upload dummy file
+    let _result = match s3_multipart_upload_object(&sts_value,
+                                         &object_path,
+                                         &bucket_name,
+                                         &file1.path().display().to_string()).await {
+        Ok(_result) => {
+            println!("Upload completed.");
+        },
+        Err(error) => assert!(false, "Error {}", error.to_string())
+    };
+}
+// Remove any of the files uploaded by the multipart code, it's not doing an actual multipart remove (is that even possible?)
+#[tokio::test]
+pub async fn test_7_s3_multipart_remove_object() {
+    println!("----- TEST S3 REMOVE OBJECT -----");
+
+    let object_path = OBJECT_PATH;
+    let bucket_name = BUCKET_NAME;
+
+    let sts_value = match authenticate_with_s3().await {
+        Ok(sts_value) => {
+            println!("Debug - STS token:\n{:#?}", sts_value);
+            sts_value
+        }
+        Err(error) => panic!("{}", error.to_string())
+    };
+
+    println!("Removing file {}/ {}", &bucket_name, &object_path);
+
+    let _result = match s3_remove_object(&sts_value,
+                                         &object_path,
+                                         &bucket_name).await {
         Ok(_result) => {
             println!("Object deletion completed.");
         },

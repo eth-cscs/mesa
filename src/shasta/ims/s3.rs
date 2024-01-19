@@ -13,6 +13,8 @@ pub mod s3 {
     use aws_config::SdkConfig;
     use aws_sdk_s3::primitives::ByteStream;
     use aws_sdk_s3::Client;
+    use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
+    use aws_sdk_s3::types::CompletedPart;
 
     // Get a token for S3 and return the result
     // If something breaks, return an error
@@ -283,5 +285,147 @@ pub mod s3 {
             Err(error) => panic!("Error cleaning file {}: {}", &object_path, error),
             //
         }
+    }
+
+
+    /// Uploads an object to S3 using the multipart method
+    ///
+    /// # Needs
+    /// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
+    /// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
+    /// - `bucket` bucket where the object will be stored
+    /// - `file_path` <p>path in the local filesystem where the file is located
+    /// # Returns
+    ///   * String: size the object uploaded OR
+    ///   * Box<dyn Error>: descriptive error if not possible to upload the object
+    pub async fn s3_multipart_upload_object(
+        sts_value: &Value,
+        object_path: &str,
+        bucket: &str,
+        file_path: &str,
+    ) -> Result<String, Box<dyn Error>> {
+
+        use aws_sdk_s3::operation::{
+            create_multipart_upload::CreateMultipartUploadOutput, get_object::GetObjectOutput,
+        };
+        use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
+        use aws_sdk_s3::{config::Region, Client as S3Client};
+        use aws_smithy_types::byte_stream::{ByteStream, Length};
+
+        use humansize::DECIMAL;
+        use indicatif::ProgressBar;
+
+        let client = setup_client(&sts_value).await;
+
+
+        //In bytes, minimum chunk size of 5MB. Increase CHUNK_SIZE to send larger chunks.
+        const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
+        const MAX_CHUNKS: u64 = 10000;
+
+        // create multipart upload
+        let multipart_upload_res: CreateMultipartUploadOutput = client
+            .create_multipart_upload()
+            .bucket(bucket)
+            .key(object_path)
+            .send()
+            .await
+            .unwrap();
+
+        let upload_id = multipart_upload_res.upload_id().unwrap();
+
+        // Get details of the upload, this is needed because multipart uploads
+        // are tricky and have a minimum chunk size of 5MB
+        let path = Path::new(&file_path);
+        let file_size = tokio::fs::metadata(path)
+            .await
+            .expect("it exists I swear")
+            .len();
+
+        let mut chunk_count = (file_size / CHUNK_SIZE) + 1;
+        let mut size_of_last_chunk = file_size % CHUNK_SIZE;
+        if size_of_last_chunk == 0 {
+            size_of_last_chunk = CHUNK_SIZE;
+            chunk_count -= 1;
+        }
+
+        let bar = ProgressBar::new(chunk_count);
+
+        if file_size == 0 {
+            panic!("Bad file size.");
+        }
+        if chunk_count > MAX_CHUNKS {
+            panic!("Too many chunks! Try increasing your chunk size.")
+        }
+
+        let mut upload_parts: Vec<CompletedPart> = Vec::new();
+
+        for chunk_index in 0..chunk_count {
+            let this_chunk = if chunk_count - 1 == chunk_index {
+                size_of_last_chunk
+            } else {
+                CHUNK_SIZE
+            };
+            let stream = ByteStream::read_from()
+                .path(path)
+                .offset(chunk_index * CHUNK_SIZE)
+                .length(Length::Exact(this_chunk))
+                .build()
+                .await
+                .unwrap();
+            //Chunk index needs to start at 0, but part numbers start at 1.
+            let part_number = (chunk_index as i32) + 1;
+            let upload_part_res = client
+                .upload_part()
+                .key(object_path)
+                .bucket(bucket)
+                .upload_id(upload_id)
+                .body(stream)
+                .part_number(part_number)
+                .send()
+                .await?;
+            upload_parts.push(
+                CompletedPart::builder()
+                    .e_tag(upload_part_res.e_tag.unwrap_or_default())
+                    .part_number(part_number)
+                    .build(),
+            );
+            bar.inc(1);
+        }
+        // complete the multipart upload
+        let completed_multipart_upload: CompletedMultipartUpload = CompletedMultipartUpload::builder()
+            .set_parts(Some(upload_parts))
+            .build();
+
+        let _complete_multipart_upload_res = client
+            .complete_multipart_upload()
+            .bucket(bucket)
+            .key(object_path)
+            .multipart_upload(completed_multipart_upload)
+            .upload_id(upload_id)
+            .send()
+            .await
+            .unwrap();
+
+        bar.finish();
+
+        Ok(String::new())
+
+        // let body = aws_sdk_s3::primitives::ByteStream::from_path(Path::new(&file_path)).await;
+
+        // match client
+        //     .put_object()
+        //     .bucket(bucket)
+        //     .key(object_path)
+        //     .body(body.unwrap())
+        //     .send()
+        //     .await
+        // {
+        //     Ok(_file) => {
+        //         log::debug!("Uploaded file '{}' successfully", &file_path);
+        //         Ok(String::from("client"))
+        //     }
+        //     Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
+        //     //
+        // }
     }
 }
