@@ -1,5 +1,4 @@
 pub mod s3 {
-    use aws_config::SdkConfig;
     use hyper::client::HttpConnector;
     use std::error::Error;
     use std::fs::File;
@@ -10,6 +9,8 @@ pub mod s3 {
     use tokio_stream::StreamExt;
 
     use anyhow::Result;
+
+    use aws_config::SdkConfig;
     use aws_sdk_s3::primitives::ByteStream;
     use aws_sdk_s3::Client;
 
@@ -77,6 +78,8 @@ pub mod s3 {
     }
 
     async fn setup_client(sts_value: &Value) -> Client {
+        use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
+
         // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
         let region_provider =
             aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
@@ -93,18 +96,19 @@ pub mod s3 {
                 auth: None,
                 connector: http_connector.clone(),
             };
-            let smithy_connector = aws_smithy_client::hyper_ext::Adapter::builder()
-                // Optionally set things like timeouts as well
-                .connector_settings(
-                    aws_smithy_client::http_connector::ConnectorSettings::builder()
-                        .connect_timeout(std::time::Duration::from_secs(10))
-                        .build(),
-                )
-                .build(socks_http_connector);
+            // let smithy_connector = aws_smithy_client::hyper_ext::Adapter::builder()
+            //     // Optionally set things like timeouts as well
+            //     .connector_settings(
+            //         aws_smithy_client::http_connector::ConnectorSettings::builder()
+            //             .connect_timeout(std::time::Duration::from_secs(10))
+            //             .build(),
+            //     )
+            //     .build(socks_http_connector);
+            let http_client = HyperClientBuilder::new().build(socks_http_connector);
 
             config = aws_config::from_env()
                 .region(region_provider)
-                .http_connector(smithy_connector)
+                .http_client(http_client)
                 .endpoint_url(sts_value["Credentials"]["EndpointURL"].as_str().unwrap())
                 .app_name(aws_config::AppName::new("manta").unwrap())
                 // .no_credentials()
@@ -229,7 +233,7 @@ pub mod s3 {
     ) -> Result<String, Box<dyn Error>> {
         let client = setup_client(&sts_value).await;
 
-        let body = ByteStream::from_path(Path::new(&file_path)).await;
+        let body = aws_sdk_s3::primitives::ByteStream::from_path(Path::new(&file_path)).await;
 
         match client
             .put_object()

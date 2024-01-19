@@ -59,13 +59,18 @@ termion = "2.0.1" # used by manta_console to enable terminal raw
 dhat = "0.3.2"
 base64 = "0.13.1"
 jsonwebtoken = "8.3.0"
-aws-sdk-s3 = "0.34.0" # used to download IMS images from S3 endpoint
-aws-config = "0.56.1" # used to configure the http connector to s3 endpoint with socks5 and CSM CA root
-aws-smithy-client = "0.56.1"
+aws-sdk-s3 = "1.12.0" # used to download IMS images from S3 endpoint
+aws-config = "1.1.2" # used to configure the http connector to s3 endpoint with socks5 and CSM CA root
+aws-smithy-runtime = { version = "1.0.1" }
+aws-smithy-runtime-api = { version = "1.0.1", features = ["client"] }
+aws-smithy-client = { version = "0.60.3" }
+aws-smithy-types = { version = "1.1.2", features = ["rt-tokio", "http-body-0-4-x"] }
+
 mime_guess = "2"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 rand = "0.8.5"
 tempfile = "3.8.1"
+uuid = "1.6.1"
 # aws-smithy-runtime-api = "0.56.1"
 # aws-smithy-runtime = "0.56.1"
 
