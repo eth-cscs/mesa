@@ -13,7 +13,7 @@ pub mod shasta {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             session_name_opt: Option<&String>,
-            is_succeded: Option<bool>,
+            is_succeded_opt: Option<bool>,
         ) -> Result<reqwest::Response, reqwest::Error> {
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -39,7 +39,7 @@ pub mod shasta {
             // Add params to request
             let mut request_payload = Vec::new();
 
-            if is_succeded.is_some() {
+            if let Some(is_succeded) = is_succeded_opt {
                 request_payload.push(("succeced", is_succeded));
             }
 
