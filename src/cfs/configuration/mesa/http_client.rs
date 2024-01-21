@@ -9,13 +9,13 @@ pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    configuration_name_opt: Option<&String>,
+    configuration_name_opt: Option<&str>,
 ) -> Result<Vec<CfsConfigurationResponse>, reqwest::Error> {
     let response_rslt = crate::cfs::configuration::shasta::http_client::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        configuration_name_opt.map(|config| config.as_str()),
+        configuration_name_opt,
     )
     .await;
 
@@ -45,7 +45,7 @@ pub async fn get_and_filter(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    configuration_name: Option<&String>,
+    configuration_name: Option<&str>,
     hsm_group_name_vec: &Vec<String>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
@@ -54,7 +54,7 @@ pub async fn get_and_filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            None,
+            configuration_name,
         )
         .await
         .unwrap_or_default();
@@ -64,7 +64,6 @@ pub async fn get_and_filter(
         shasta_base_url,
         shasta_root_cert,
         &mut cfs_configuration_value_vec,
-        configuration_name,
         hsm_group_name_vec,
         limit_number_opt,
     )
@@ -78,6 +77,22 @@ pub async fn put(
     configuration: &CfsConfigurationRequest,
     configuration_name: &str,
 ) -> Result<CfsConfigurationResponse, Value> {
+    // Check if CFS configuration already exists
+    let cfs_configuration_rslt = get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        Some(&configuration_name.to_string()),
+    )
+    .await;
+
+    if cfs_configuration_rslt.is_ok_and(|cfs_configuration_vec| !cfs_configuration_vec.is_empty()) {
+        return Err(serde_json::json!(format!(
+            "ERROR: CFS configuration '{}' already exists",
+            configuration_name
+        )));
+    }
+
     let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::put_raw(
         shasta_token,
         shasta_base_url,
