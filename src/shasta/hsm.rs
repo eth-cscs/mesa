@@ -3,7 +3,7 @@
 /// https://github.com/Cray-HPE/docs-csm/blob/release/1.3/api/smd.md
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct HsmGroup {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -16,7 +16,7 @@ pub struct HsmGroup {
     pub exclusiveGroup: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Member {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ids: Option<Vec<String>>,
@@ -51,6 +51,46 @@ pub mod http_client {
     use reqwest::Url;
     use serde_json::Value;
     use crate::shasta::hsm::{HsmGroup, Member};
+
+    pub async fn delete_hsm_group(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_opt: &String // label in HSM
+    ) -> Result<String, Box<dyn Error>> {
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+        let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name_opt;
+
+        let resp = client
+            .delete(url_api)
+            .header("Authorization", format!("Bearer {}", shasta_token))
+            .send()
+            .await?;
+
+        let json_response:Value;
+
+        if resp.status().is_success() {
+            return Ok(resp.text().await?.into());
+        } else {
+            log::debug!("delete return code: {}\n", resp.status().to_string());
+            return Err(resp.text().await?.into()) ;// Black magic conversion from Err(Box::new("my error msg")) which does not
+        };
+    }
 
     /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
     pub async fn create_new_hsm_group(
@@ -132,7 +172,12 @@ pub mod http_client {
         if resp.status().is_success() {
             json_response = serde_json::from_str(&resp.text().await?)?;
         } else {
-            return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+            println!("Return code: {}\n", resp.status().to_string());
+            if resp.status().to_string().to_lowercase().contains("409") {
+                return Err(resp.text().await?.into());
+            } else {
+                return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+            }
         };
 
         Ok(json_response.as_array().unwrap().to_owned())
