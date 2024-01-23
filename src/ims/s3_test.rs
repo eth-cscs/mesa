@@ -1,5 +1,7 @@
 use crate::ims::s3::{s3_auth, s3_download_object, s3_remove_object, s3_upload_object};
 use directories::ProjectDirs;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use serde_json::Value;
 use std::env::temp_dir;
 use std::error::Error;
@@ -15,6 +17,8 @@ pub const BUCKET_NAME: &str = "boot-images";
 pub const OBJECT_PATH: &str = "manta-test-2-delete/dummy.txt";
 pub const SITE: &str = "alps";
 
+const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
+const MAX_CHUNKS: u64 = 10000;
 /// # DOCS
 ///
 /// TO RUN:
@@ -62,6 +66,202 @@ async fn authenticate_with_s3() -> anyhow::Result<Value, Box<dyn Error>> {
     };
 
     s3_auth(&shasta_token, &shasta_base_url, &shasta_root_cert).await
+}
+
+async fn setup_client(sts_value: &Value) -> aws_sdk_s3::Client {
+    use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
+
+    // default provider fallback to us-east-1 since csm doesn't use the concept of regions
+    let region_provider =
+        aws_config::meta::region::RegionProviderChain::default_provider().or_else("us-east-1");
+    let config: aws_config::SdkConfig;
+
+    if let Ok(socks5_env) = std::env::var("socks5") {
+        log::debug!("socks5 enabled");
+
+        let mut http_connector: hyper::client::HttpConnector = hyper::client::HttpConnector::new();
+        http_connector.enforce_http(false);
+
+        let socks_http_connector = hyper_socks2::SocksConnector {
+            proxy_addr: socks5_env.to_string().parse::<hyper::Uri>().unwrap(), // scheme is required by httpconnector
+            auth: None,
+            connector: http_connector.clone(),
+        };
+        // let smithy_connector = aws_smithy_client::hyper_ext::adapter::builder()
+        //     // optionally set things like timeouts as well
+        //     .connector_settings(
+        //         aws_smithy_client::http_connector::connectorsettings::builder()
+        //             .connect_timeout(std::time::duration::from_secs(10))
+        //             .build(),
+        //     )
+        //     .build(socks_http_connector);
+        let http_client = HyperClientBuilder::new().build(socks_http_connector);
+
+        config = aws_config::from_env()
+            .region(region_provider)
+            .http_client(http_client)
+            .endpoint_url(sts_value["credentials"]["endpointurl"].as_str().unwrap())
+            .app_name(aws_config::AppName::new("manta").unwrap())
+            // .no_credentials()
+            .load()
+            .await;
+    } else {
+        config = aws_config::from_env()
+            .region(region_provider)
+            .endpoint_url(sts_value["credentials"]["endpointurl"].as_str().unwrap())
+            .app_name(aws_config::AppName::new("manta").unwrap())
+            // .no_credentials()
+            .load()
+            .await;
+    }
+
+    let client = aws_sdk_s3::Client::from_conf(
+        aws_sdk_s3::Client::new(&config)
+            .config()
+            .to_builder()
+            .force_path_style(true)
+            .build(),
+    );
+    client
+}
+
+/// Uploads an object to S3 using the multipart method
+///
+/// # Needs
+/// - `sts_value` the temporary S3 token obtained from STS via `s3_auth()`
+/// - `object_path` path within the bucket in S3 of the object e.g. `392o1h-1-234-w1/manifest.json`
+/// - `bucket` bucket where the object will be stored
+/// - `file_path` <p>path in the local filesystem where the file is located
+/// # Returns
+///   * String: size the object uploaded OR
+///   * Box<dyn Error>: descriptive error if not possible to upload the object
+pub async fn s3_multipart_upload_object(
+    sts_value: &Value,
+    object_path: &str,
+    bucket: &str,
+    file_path: &str,
+) -> Result<String, Box<dyn Error>> {
+    use aws_sdk_s3::operation::{
+        create_multipart_upload::CreateMultipartUploadOutput, get_object::GetObjectOutput,
+    };
+    use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
+    use aws_sdk_s3::{config::Region, Client as S3Client};
+    use aws_smithy_types::byte_stream::{ByteStream, Length};
+
+    use humansize::DECIMAL;
+    use indicatif::ProgressBar;
+
+    let client = setup_client(&sts_value).await;
+
+    //In bytes, minimum chunk size of 5MB. Increase CHUNK_SIZE to send larger chunks.
+    const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
+    const MAX_CHUNKS: u64 = 10000;
+
+    // create multipart upload
+    let multipart_upload_res: CreateMultipartUploadOutput = client
+        .create_multipart_upload()
+        .bucket(bucket)
+        .key(object_path)
+        .send()
+        .await
+        .unwrap();
+
+    let upload_id = multipart_upload_res.upload_id().unwrap();
+
+    // Get details of the upload, this is needed because multipart uploads
+    // are tricky and have a minimum chunk size of 5MB
+    let path = std::path::Path::new(&file_path);
+    let file_size = tokio::fs::metadata(path)
+        .await
+        .expect("it exists I swear")
+        .len();
+
+    let mut chunk_count = (file_size / CHUNK_SIZE) + 1;
+    let mut size_of_last_chunk = file_size % CHUNK_SIZE;
+    if size_of_last_chunk == 0 {
+        size_of_last_chunk = CHUNK_SIZE;
+        chunk_count -= 1;
+    }
+
+    let bar = ProgressBar::new(chunk_count);
+
+    if file_size == 0 {
+        panic!("Bad file size.");
+    }
+    if chunk_count > MAX_CHUNKS {
+        panic!("Too many chunks! Try increasing your chunk size.")
+    }
+
+    let mut upload_parts: Vec<CompletedPart> = Vec::new();
+
+    for chunk_index in 0..chunk_count {
+        let this_chunk = if chunk_count - 1 == chunk_index {
+            size_of_last_chunk
+        } else {
+            CHUNK_SIZE
+        };
+        let stream = ByteStream::read_from()
+            .path(path)
+            .offset(chunk_index * CHUNK_SIZE)
+            .length(Length::Exact(this_chunk))
+            .build()
+            .await
+            .unwrap();
+        //Chunk index needs to start at 0, but part numbers start at 1.
+        let part_number = (chunk_index as i32) + 1;
+        let upload_part_res = client
+            .upload_part()
+            .key(object_path)
+            .bucket(bucket)
+            .upload_id(upload_id)
+            .body(stream)
+            .part_number(part_number)
+            .send()
+            .await?;
+        upload_parts.push(
+            CompletedPart::builder()
+                .e_tag(upload_part_res.e_tag.unwrap_or_default())
+                .part_number(part_number)
+                .build(),
+        );
+        bar.inc(1);
+    }
+    // complete the multipart upload
+    let completed_multipart_upload: CompletedMultipartUpload = CompletedMultipartUpload::builder()
+        .set_parts(Some(upload_parts))
+        .build();
+
+    let _complete_multipart_upload_res = client
+        .complete_multipart_upload()
+        .bucket(bucket)
+        .key(object_path)
+        .multipart_upload(completed_multipart_upload)
+        .upload_id(upload_id)
+        .send()
+        .await
+        .unwrap();
+
+    bar.finish();
+
+    Ok(String::new())
+
+    // let body = aws_sdk_s3::primitives::ByteStream::from_path(Path::new(&file_path)).await;
+
+    // match client
+    //     .put_object()
+    //     .bucket(bucket)
+    //     .key(object_path)
+    //     .body(body.unwrap())
+    //     .send()
+    //     .await
+    // {
+    //     Ok(_file) => {
+    //         log::debug!("Uploaded file '{}' successfully", &file_path);
+    //         Ok(String::from("client"))
+    //     }
+    //     Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
+    //     //
+    // }
 }
 
 #[tokio::test]
@@ -165,7 +365,105 @@ pub async fn test_3_s3_get_object() {
 }
 
 #[tokio::test]
-pub async fn test_4_s3_remove_object() {
+pub async fn test_5_s3_remove_object() {
+    println!("----- TEST S3 REMOVE OBJECT -----");
+
+    let object_path = OBJECT_PATH;
+    let bucket_name = BUCKET_NAME;
+
+    let sts_value = match authenticate_with_s3().await {
+        Ok(sts_value) => {
+            println!("Debug - STS token:\n{:#?}", sts_value);
+            sts_value
+        }
+        Err(error) => panic!("{}", error.to_string()),
+    };
+
+    println!("Removing file {}/ {}", &bucket_name, &object_path);
+
+    let _result = match s3_remove_object(&sts_value, &object_path, &bucket_name).await {
+        Ok(_result) => {
+            println!("Object deletion completed.");
+        }
+        Err(error) => assert!(false, "Error {}", error.to_string()),
+    };
+    assert!(true, "OK, the file was removed successfully.")
+}
+
+#[tokio::test]
+pub async fn test_6_multipart_s3_put_object() {
+    // tracing_subscriber::fmt::init();
+    println!("----- TEST S3 PUT OBJECT -----");
+
+    let bucket_name = BUCKET_NAME;
+    let object_path = OBJECT_PATH;
+
+    // create dummy file on the local filesystem
+    let mut file1 = match NamedTempFile::new() {
+        Ok(file1) => file1,
+        Err(error) => panic!("{}", error.to_string()),
+    };
+    println!(
+        "Temporary file created as {}",
+        file1.path().display().to_string()
+    );
+
+    let mut file2 = match file1.reopen() {
+        Ok(file2) => file2,
+        Err(error) => panic!("{}", error.to_string()),
+    };
+
+    let text = "This is a temporary object used by Manta tests that can be deleted.";
+
+    while file2.metadata().unwrap().len() <= CHUNK_SIZE * 4 {
+        let rand_string: String = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(256)
+            .map(char::from)
+            .collect();
+        let return_string: String = "\n".to_string();
+        file2
+            .write_all(rand_string.as_ref())
+            .expect("Error writing to file1.");
+        file2
+            .write_all(return_string.as_ref())
+            .expect("Error writing to file1.");
+    }
+
+    // let mut buf = String::new();
+    // match file2.read_to_string(&mut buf){
+    //     Ok(_p) => println!("Contents of the file that will be uploaded: {}", buf),
+    //     Err(error) => panic!("{}", error.to_string())
+    // };
+
+    // Connect and auth to S3
+    let sts_value = match authenticate_with_s3().await {
+        Ok(sts_value) => {
+            println!("Debug - STS token:\n{:#?}", sts_value);
+            sts_value
+        }
+        Err(error) => panic!("{}", error.to_string()),
+    };
+
+    // Upload dummy file
+    let _result = match s3_multipart_upload_object(
+        &sts_value,
+        &object_path,
+        &bucket_name,
+        &file1.path().display().to_string(),
+    )
+    .await
+    {
+        Ok(_result) => {
+            println!("Upload completed.");
+        }
+        Err(error) => assert!(false, "Error {}", error.to_string()),
+    };
+}
+
+// Remove any of the files uploaded by the multipart code, it's not doing an actual multipart remove (is that even possible?)
+#[tokio::test]
+pub async fn test_7_s3_multipart_remove_object() {
     println!("----- TEST S3 REMOVE OBJECT -----");
 
     let object_path = OBJECT_PATH;
