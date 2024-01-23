@@ -287,7 +287,6 @@ pub mod s3 {
         }
     }
 
-
     /// Uploads an object to S3 using the multipart method
     ///
     /// # Needs

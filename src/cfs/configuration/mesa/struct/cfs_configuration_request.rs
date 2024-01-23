@@ -21,7 +21,7 @@ pub struct Layer {
     branch: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+#[derive(Debug, Deserialize, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
 pub struct CfsConfigurationRequest {
     pub name: String,
     pub layers: Vec<Layer>,

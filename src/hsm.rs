@@ -145,7 +145,10 @@ pub mod r#struct {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub members: Option<Vec<Member>>,
+        pub members: Option<Member>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(rename(serialize = "exclusiveGroup"))]
+        pub exclusive_group: Option<String>,
     }
 
     #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -501,7 +504,14 @@ pub mod group {
 
     pub mod mesa {
         pub mod http_client {
-            use crate::hsm::{group::shasta::http_client::get_raw, r#struct::HsmGroup};
+            use std::error::Error;
+
+            use serde_json::Value;
+
+            use crate::hsm::{
+                group::shasta::http_client::get_raw,
+                r#struct::{HsmGroup, Member},
+            };
 
             pub async fn get(
                 shasta_token: &str,
@@ -529,6 +539,138 @@ pub mod group {
                 };
 
                 Ok(hsm_group_vec)
+            }
+
+            /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
+            pub async fn create_new_hsm_group(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                hsm_group_name_opt: &String, // label in HSM
+                xnames: &Vec<String>,
+                exclusive: &str,
+                description: &str,
+                tags: &Vec<String>,
+            ) -> Result<Vec<Value>, Box<dyn Error>> {
+                let client;
+
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                if std::env::var("SOCKS5").is_ok() {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                    // rest client to authenticate
+                    client = client_builder.proxy(socks5proxy).build()?;
+                } else {
+                    client = client_builder.build()?;
+                }
+                // Example body to create a new group:
+                // {
+                //   "label": "blue",
+                //   "description": "This is the blue group",
+                //   "tags": [
+                //     "optional_tag1",
+                //     "optional_tag2"
+                //   ],
+                //   "exclusiveGroup": "optional_excl_group",
+                //   "members": {
+                //     "ids": [
+                //       "x1c0s1b0n0",
+                //       "x1c0s1b0n1",
+                //       "x1c0s2b0n0",
+                //       "x1c0s2b0n1"
+                //     ]
+                //   }
+                // }
+                // Describe the JSON object
+
+                // Create the variables that represent our JSON object
+                let myxnames = Member {
+                    ids: Option::from(xnames.clone()),
+                };
+
+                let hsm_group_json = HsmGroup {
+                    label: hsm_group_name_opt.clone(),
+                    description: Option::from(description.to_string().clone()),
+                    tags: Option::from(tags.clone()),
+                    exclusive_group: Option::from(exclusive.to_string().clone()),
+                    members: Some(myxnames),
+                };
+                let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
+            Ok(m) => m,
+            Err(e) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
+        };
+
+                println!("{:#?}", &hsm_group_json_body);
+
+                let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
+
+                let resp = client
+                    .post(url_api)
+                    .header("Authorization", format!("Bearer {}", shasta_token))
+                    .json(&hsm_group_json) // make sure this is not a string!
+                    .send()
+                    .await?;
+
+                let json_response: Value;
+
+                if resp.status().is_success() {
+                    json_response = serde_json::from_str(&resp.text().await?)?;
+                } else {
+                    println!("Return code: {}\n", resp.status().to_string());
+                    if resp.status().to_string().to_lowercase().contains("409") {
+                        return Err(resp.text().await?.into());
+                    } else {
+                        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+                    }
+                };
+
+                Ok(json_response.as_array().unwrap().to_owned())
+            }
+
+            pub async fn delete_hsm_group(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                hsm_group_name_opt: &String, // label in HSM
+            ) -> Result<String, Box<dyn Error>> {
+                let client;
+
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                if std::env::var("SOCKS5").is_ok() {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                    // rest client to authenticate
+                    client = client_builder.proxy(socks5proxy).build()?;
+                } else {
+                    client = client_builder.build()?;
+                }
+                let url_api =
+                    shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name_opt;
+
+                let resp = client
+                    .delete(url_api)
+                    .header("Authorization", format!("Bearer {}", shasta_token))
+                    .send()
+                    .await?;
+
+                let json_response: Value;
+
+                if resp.status().is_success() {
+                    return Ok(resp.text().await?.into());
+                } else {
+                    log::debug!("delete return code: {}\n", resp.status().to_string());
+                    return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
+                };
             }
         }
 
