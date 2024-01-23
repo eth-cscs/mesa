@@ -82,7 +82,7 @@ pub async fn put(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        Some(&configuration_name.to_string()),
+        Some(configuration_name),
     )
     .await;
 

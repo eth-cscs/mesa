@@ -546,11 +546,11 @@ pub mod group {
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-                hsm_group_name_opt: &String, // label in HSM
-                xnames: &Vec<String>,
+                hsm_group_name_opt: &str, // label in HSM
+                xnames: &[String],
                 exclusive: &str,
                 description: &str,
-                tags: &Vec<String>,
+                tags: &[String],
             ) -> Result<Vec<Value>, Box<dyn Error>> {
                 let client;
 
@@ -590,19 +590,19 @@ pub mod group {
 
                 // Create the variables that represent our JSON object
                 let myxnames = Member {
-                    ids: Option::from(xnames.clone()),
+                    ids: Some(xnames.to_owned()),
                 };
 
                 let hsm_group_json = HsmGroup {
-                    label: hsm_group_name_opt.clone(),
+                    label: hsm_group_name_opt.to_owned(),
                     description: Option::from(description.to_string().clone()),
-                    tags: Option::from(tags.clone()),
+                    tags: Option::from(tags.to_owned()),
                     exclusive_group: Option::from(exclusive.to_string().clone()),
                     members: Some(myxnames),
                 };
                 let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
             Ok(m) => m,
-            Err(e) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
+            Err(_) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
         };
 
                 println!("{:#?}", &hsm_group_json_body);
@@ -621,7 +621,7 @@ pub mod group {
                 if resp.status().is_success() {
                     json_response = serde_json::from_str(&resp.text().await?)?;
                 } else {
-                    println!("Return code: {}\n", resp.status().to_string());
+                    println!("Return code: {}\n", resp.status());
                     if resp.status().to_string().to_lowercase().contains("409") {
                         return Err(resp.text().await?.into());
                     } else {
@@ -663,14 +663,12 @@ pub mod group {
                     .send()
                     .await?;
 
-                let json_response: Value;
-
                 if resp.status().is_success() {
-                    return Ok(resp.text().await?.into());
+                    Ok(resp.text().await?)
                 } else {
                     log::debug!("delete return code: {}\n", resp.status().to_string());
-                    return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-                };
+                    Err(resp.text().await?.into())
+                }
             }
         }
 
@@ -799,7 +797,7 @@ pub mod component_status {
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-                xname_vec: &Vec<String>,
+                xname_vec: &[String],
             ) -> Result<Value, reqwest::Error> {
                 let response_rslt =
                     get_raw(shasta_token, shasta_base_url, shasta_root_cert, xname_vec).await;

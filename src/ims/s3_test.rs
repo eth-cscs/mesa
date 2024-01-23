@@ -18,7 +18,6 @@ pub const OBJECT_PATH: &str = "manta-test-2-delete/dummy.txt";
 pub const SITE: &str = "alps";
 
 const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
-const MAX_CHUNKS: u64 = 10000;
 /// # DOCS
 ///
 /// TO RUN:
@@ -68,7 +67,7 @@ async fn authenticate_with_s3() -> anyhow::Result<Value, Box<dyn Error>> {
     s3_auth(&shasta_token, &shasta_base_url, &shasta_root_cert).await
 }
 
-async fn setup_client(sts_value: &Value) -> aws_sdk_s3::Client {
+/* async fn setup_client(sts_value: &Value) -> aws_sdk_s3::Client {
     use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
 
     // default provider fallback to us-east-1 since csm doesn't use the concept of regions
@@ -123,7 +122,7 @@ async fn setup_client(sts_value: &Value) -> aws_sdk_s3::Client {
             .build(),
     );
     client
-}
+} */
 
 #[tokio::test]
 pub async fn test_1_s3_auth() {
@@ -260,7 +259,7 @@ pub async fn test_6_multipart_s3_put_object() {
     let object_path = OBJECT_PATH;
 
     // create dummy file on the local filesystem
-    let mut file1 = match NamedTempFile::new() {
+    let file1 = match NamedTempFile::new() {
         Ok(file1) => file1,
         Err(error) => panic!("{}", error.to_string()),
     };
@@ -273,8 +272,6 @@ pub async fn test_6_multipart_s3_put_object() {
         Ok(file2) => file2,
         Err(error) => panic!("{}", error.to_string()),
     };
-
-    let text = "This is a temporary object used by Manta tests that can be deleted.";
 
     while file2.metadata().unwrap().len() <= CHUNK_SIZE * 4 {
         let rand_string: String = thread_rng()

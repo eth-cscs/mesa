@@ -148,7 +148,7 @@ pub mod utils {
     use serde_json::Value;
 
     pub fn find_boot_params_related_to_node(
-        node_boot_params_list: &Vec<Value>,
+        node_boot_params_list: &[Value],
         node: &String,
     ) -> Option<Value> {
         node_boot_params_list

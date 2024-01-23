@@ -6,11 +6,9 @@ use std::io::Write;
 use std::path::Path;
 
 use serde_json::Value;
-use tokio_stream::StreamExt;
 
 use anyhow::Result;
-use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::Client;
+use aws_sdk_s3::{primitives::ByteStream, Client};
 
 // Get a token for S3 and return the result
 // If something breaks, return an error
@@ -149,7 +147,7 @@ pub async fn s3_download_object(
     bucket: &str,
     destination_path: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let client = setup_client(&sts_value).await;
+    let client = setup_client(sts_value).await;
 
     let filename = Path::new(object_path).file_name().unwrap();
     let file_path = Path::new(destination_path).join(filename);
@@ -229,7 +227,7 @@ pub async fn s3_upload_object(
     bucket: &str,
     file_path: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let client = setup_client(&sts_value).await;
+    let client = setup_client(sts_value).await;
 
     let body = ByteStream::from_path(Path::new(&file_path)).await;
 
@@ -264,7 +262,7 @@ pub async fn s3_remove_object(
     object_path: &str,
     bucket: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let client = setup_client(&sts_value).await;
+    let client = setup_client(sts_value).await;
 
     match client
         .delete_object()
@@ -298,17 +296,13 @@ pub async fn s3_multipart_upload_object(
     bucket: &str,
     file_path: &str,
 ) -> Result<String, Box<dyn Error>> {
-    use aws_sdk_s3::operation::{
-        create_multipart_upload::CreateMultipartUploadOutput, get_object::GetObjectOutput,
-    };
+    use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
     use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
-    use aws_sdk_s3::{config::Region, Client as S3Client};
-    use aws_smithy_types::byte_stream::{ByteStream, Length};
+    use aws_smithy_types::byte_stream::Length;
 
-    use humansize::DECIMAL;
     use indicatif::ProgressBar;
 
-    let client = setup_client(&sts_value).await;
+    let client = setup_client(sts_value).await;
 
     //In bytes, minimum chunk size of 5MB. Increase CHUNK_SIZE to send larger chunks.
     const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
