@@ -322,8 +322,7 @@ pub async fn s3_multipart_upload_object(
     // Get details of the upload, this is needed because multipart uploads
     // are tricky and have a minimum chunk size of 5MB
     let path = Path::new(&file_path);
-    let file_size = tokio::fs::metadata(path)
-        .await
+    let file_size = std::fs::metadata(path)
         .expect("it exists I swear")
         .len();
 
