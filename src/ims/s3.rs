@@ -128,6 +128,24 @@ async fn setup_client(sts_value: &Value) -> Client {
     );
     client
 }
+/// Gets the size of a given object in S3
+/// path of the object: s3://bucket/key
+/// returns i64 or error
+pub async fn s3_get_object_size(
+    sts_value: &Value,
+    key: &str,
+    bucket: &str,
+) -> Result<i64, Box<dyn Error>> {
+    let client = setup_client(sts_value).await;
+    let _object = match client.get_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await {
+        Ok(object) => return Ok(object.content_length().clone().unwrap()),
+        Err(e) => panic!("Error, unable to get object size from s3. Error msg: {}", e)
+    };
+}
 
 /// Gets an object from S3
 ///
