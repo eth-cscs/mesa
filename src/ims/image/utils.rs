@@ -92,15 +92,15 @@ pub async fn filter(
     .await;
 
     // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
-    let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
+    let mut image_id_cfs_configuration_from_cfs_session: Vec<(
         String,
         String,
         Vec<String>,
-    )> = crate::bos::template::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
-        bos_sessiontemplate_value_vec,
+    )> = crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
+        cfs_session_value_vec.clone(),
     );
 
-    image_id_cfs_configuration_from_bos_sessiontemplate
+    image_id_cfs_configuration_from_cfs_session
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
@@ -119,7 +119,7 @@ pub async fn filter(
         let target_group_name_vec: Vec<String>;
         let cfs_configuration: String;
 
-        if let Some(tuple) = image_id_cfs_configuration_from_bos_sessiontemplate
+        if let Some(tuple) = image_id_cfs_configuration_from_cfs_session
             .iter()
             .find(|tuple| tuple.0.eq(image_id))
         {
