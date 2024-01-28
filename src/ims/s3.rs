@@ -9,7 +9,9 @@ use serde_json::Value;
 
 use anyhow::Result;
 use aws_sdk_s3::{primitives::ByteStream, Client};
+use indicatif::{ProgressBar,ProgressStyle};
 
+pub const BAR_FORMAT: &str = "[{elapsed_precise}] {bar:40.cyan/blue} ({bytes_per_sec}) {bytes:>7}/{total_bytes:7} {msg} [ETA {eta}]";
 // Get a token for S3 and return the result
 // If something breaks, return an error
 pub async fn s3_auth(
@@ -128,6 +130,24 @@ async fn setup_client(sts_value: &Value) -> Client {
     );
     client
 }
+/// Gets the size of a given object in S3
+/// path of the object: s3://bucket/key
+/// returns i64 or error
+pub async fn s3_get_object_size(
+    sts_value: &Value,
+    key: &str,
+    bucket: &str,
+) -> Result<i64, Box<dyn Error>> {
+    let client = setup_client(sts_value).await;
+    let _object = match client.get_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await {
+        Ok(object) => return Ok(object.content_length().clone().unwrap()),
+        Err(e) => panic!("Error, unable to get object size from s3. Error msg: {}", e)
+    };
+}
 
 /// Gets an object from S3
 ///
@@ -148,6 +168,7 @@ pub async fn s3_download_object(
     destination_path: &str,
 ) -> Result<String, Box<dyn Error>> {
     let client = setup_client(sts_value).await;
+
 
     let filename = Path::new(object_path).file_name().unwrap();
     let file_path = Path::new(destination_path).join(filename);
@@ -172,27 +193,6 @@ pub async fn s3_download_object(
         ),
     };
 
-    // --- list buckets ---
-    // let resp_rslt = client.list_buckets().send().await;
-    // match resp_rslt {
-    //     Ok(resp) => {
-    //         // println!("DEBUG - DATA:\n{:#?}", resp);
-    //
-    //         let buckets = resp.buckets().unwrap();
-    //         // let buckets = resp.buckets();
-    //
-    //         println!("Debug - Buckets:\n{:?}", buckets);
-    //     }
-    //     Err(error) => eprintln!("Error: {:#?}", error),
-    // };
-
-    // let resp = client.list_objects_v2().bucket(bucket).send().await;
-    // match resp {
-    //     Ok(resp) => println!("DEBUG - DATA:\n{:#?}", resp),
-    //     Err(error) => eprintln!("Error: {:#?}", error),
-    // }
-
-    // --- Download file from the specified bucket ---
     let mut object = client
         .get_object()
         .bucket(bucket)
@@ -200,14 +200,15 @@ pub async fn s3_download_object(
         .send()
         .await?;
 
-    // // let byte_count = 0_usize;
+    let bar_size = object.content_length().clone().unwrap();
+    let bar = ProgressBar::new(bar_size as u64);
+    bar.set_style(ProgressStyle::with_template(BAR_FORMAT).unwrap());
+
     while let Some(bytes) = object.body.try_next().await? {
         let bytes = file.write(&bytes)?;
-        // byte_count += bytes;
-        log::debug!("Intermediate write of {bytes} bytes...");
+        bar.inc(bytes as u64);
     }
-    //
-
+    bar.finish();
     Ok(file_path.to_string_lossy().to_string())
 }
 
@@ -300,8 +301,6 @@ pub async fn s3_multipart_upload_object(
     use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
     use aws_smithy_types::byte_stream::Length;
 
-    use indicatif::ProgressBar;
-
     let client = setup_client(sts_value).await;
 
     //In bytes, minimum chunk size of 5MB. Increase CHUNK_SIZE to send larger chunks.
@@ -333,7 +332,8 @@ pub async fn s3_multipart_upload_object(
         chunk_count -= 1;
     }
 
-    let bar = ProgressBar::new(chunk_count);
+    let bar = ProgressBar::new(file_size);
+    bar.set_style(ProgressStyle::with_template(BAR_FORMAT).unwrap());
 
     if file_size == 0 {
         panic!("Bad file size.");
@@ -374,7 +374,7 @@ pub async fn s3_multipart_upload_object(
                 .part_number(part_number)
                 .build(),
         );
-        bar.inc(1);
+        bar.inc(this_chunk);
     }
     // complete the multipart upload
     let completed_multipart_upload: CompletedMultipartUpload = CompletedMultipartUpload::builder()
@@ -394,22 +394,4 @@ pub async fn s3_multipart_upload_object(
     bar.finish();
 
     Ok(String::new())
-
-    // let body = aws_sdk_s3::primitives::ByteStream::from_path(Path::new(&file_path)).await;
-
-    // match client
-    //     .put_object()
-    //     .bucket(bucket)
-    //     .key(object_path)
-    //     .body(body.unwrap())
-    //     .send()
-    //     .await
-    // {
-    //     Ok(_file) => {
-    //         log::debug!("Uploaded file '{}' successfully", &file_path);
-    //         Ok(String::from("client"))
-    //     }
-    //     Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
-    //     //
-    // }
 }
