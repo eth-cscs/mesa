@@ -5,6 +5,8 @@ use crate::cfs::configuration::mesa::r#struct::{
     cfs_configuration_response::CfsConfigurationResponse,
 };
 
+use super::r#struct::cfs_configuration_response::ApiError;
+
 pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -76,7 +78,7 @@ pub async fn put(
     shasta_root_cert: &[u8],
     configuration: &CfsConfigurationRequest,
     configuration_name: &str,
-) -> Result<CfsConfigurationResponse, Value> {
+) -> Result<CfsConfigurationResponse, ApiError> {
     // Check if CFS configuration already exists
     let cfs_configuration_rslt = get(
         shasta_token,
@@ -87,10 +89,11 @@ pub async fn put(
     .await;
 
     if cfs_configuration_rslt.is_ok_and(|cfs_configuration_vec| !cfs_configuration_vec.is_empty()) {
-        return Err(serde_json::json!(format!(
-            "ERROR: CFS configuration '{}' already exists",
-            configuration_name
-        )));
+        return Err(ApiError::MesaError(format!("CFS configuration '{}' already exists.", configuration_name)));
+        // return Err(serde_json::json!(format!(
+        //     "ERROR: CFS configuration '{}' already exists",
+        //     configuration_name
+        // )));
     }
 
     let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::put_raw(
@@ -108,6 +111,10 @@ pub async fn put(
             cfs_configuration_response.json().await.unwrap();
         Ok(cfs_configuration)
     } else {
-        Err(cfs_configuration_response.json().await.unwrap())
+        let error_detail = cfs_configuration_response.json::<serde_json::Value>().await.unwrap()["detail"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        Err(ApiError::CsmError(error_detail))
     }
 }

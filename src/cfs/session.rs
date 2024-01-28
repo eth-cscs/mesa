@@ -62,7 +62,10 @@ pub mod shasta {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<reqwest::Response, reqwest::Error> {
-            log::debug!("Session:\n{:#?}", session);
+            log::debug!(
+                "Session:\n{}",
+                serde_json::to_string_pretty(session).unwrap()
+            );
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -90,7 +93,7 @@ pub mod shasta {
                 .await;
 
             match response_rslt {
-                Ok(response) => response.error_for_status(),
+                Ok(response) => Ok(response),
                 Err(error) => Err(error),
             }
         }
@@ -347,6 +350,8 @@ pub mod shasta {
 pub mod mesa {
     pub mod r#struct {
 
+        use thiserror::Error;
+
         use std::collections::HashMap;
 
         use serde::{Deserialize, Serialize};
@@ -523,11 +528,29 @@ pub mod mesa {
                 cfs_session
             }
         }
+
+        /* #[derive(thiserror::Error, Debug)]
+        pub enum CsmApiError {
+            #[error("Error: {0}")]
+            Error404(String),
+            #[error("Crash: {0}")]
+            ErrorCrash(serde_json::Value),
+        } */
+
+        #[derive(thiserror::Error, Debug)]
+        pub enum ApiError {
+            #[error("Error: {0}")]
+            MesaError(String),
+            #[error("Error: {0}")]
+            CsmError(String),
+            #[error("Crash: {0}")]
+            ErrorCrash(serde_json::Value),
+        }
     }
 
     pub mod http_client {
 
-        use super::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
+        use super::r#struct::{ApiError, CfsSessionGetResponse, CfsSessionPostRequest};
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions ordered by start time.
@@ -591,21 +614,26 @@ pub mod mesa {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
-        ) -> Result<CfsSessionGetResponse, reqwest::Error> {
-            let response_rslt = crate::cfs::session::shasta::http_client::post(
+        ) -> Result<CfsSessionGetResponse, ApiError> {
+            let response = crate::cfs::session::shasta::http_client::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 session,
             )
-            .await;
+            .await
+            .unwrap();
 
-            let cfs_session: CfsSessionGetResponse = match response_rslt {
-                Ok(response) => response.json::<CfsSessionGetResponse>().await.unwrap(),
-                Err(error) => return Err(error),
-            };
-
-            Ok(cfs_session)
+            if response.status().is_success() {
+                Ok(response.json::<CfsSessionGetResponse>().await.unwrap())
+            } else {
+                let error_detail = response.json::<serde_json::Value>().await.unwrap()["detail"]
+                    .as_str()
+                    .unwrap()
+                    .trim()
+                    .to_string();
+                Err(ApiError::CsmError(error_detail))
+            }
         }
     }
 

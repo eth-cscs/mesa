@@ -2,7 +2,10 @@ use std::error::Error;
 
 use serde_json::Value;
 
-use crate::{bos, ims::image::r#struct::Image};
+use crate::{
+    bos, bss::http_client::get_boot_params,
+    hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec, ims::image::r#struct::Image,
+};
 
 // Get Image using fuzzy finder, meaning returns any image which name contains a specific
 // string.
@@ -37,6 +40,14 @@ pub async fn get_fuzzy(
 
 /// Returns a tuple like(Image sruct, cfs configuration name, list of target - either hsm group name
 /// or xnames)
+/// This method tries to filter by HSM group which means it will make use of:
+/// CFS sessions to find which image id was created against which HSM group
+/// BOS sessiontemplates to find the HSM group related to nodes being rebooted in the past
+/// Image ids in boot params for nodes in HSM groups we are looking for (This is needed to not miss
+/// images currenly used which name may not have HSM group we are looking for included not CFS
+/// session nor BOS sessiontemplate)
+/// Image names with HSM group name included (This is a bad practice because this is a free text
+/// prone to human errors)
 pub async fn filter(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -91,16 +102,12 @@ pub async fn filter(
     )
     .await;
 
-    // println!("DEBUG - CFS session:\n{:#?}", cfs_session_vec);
-    let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
-        String,
-        String,
-        Vec<String>,
-    )> = crate::bos::template::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
-        bos_sessiontemplate_value_vec,
-    );
+    let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
+        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
+            cfs_session_value_vec.clone(),
+        );
 
-    image_id_cfs_configuration_from_bos_sessiontemplate
+    image_id_cfs_configuration_from_cfs_session
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
@@ -111,6 +118,41 @@ pub async fn filter(
     image_id_cfs_configuration_from_cfs_session_vec
         .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty());
 
+    // Get IMAGES in nodes boot params. This is because CSCS staff deletes the CFS sessions and/or
+    // BOS sessiontemplate breaking the history with actual state, therefore I need to go to boot
+    // params to get the image id used to boot the nodes belonging to a HSM group
+    let hsm_member_vec = get_member_vec_from_hsm_name_vec(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        hsm_group_name_vec,
+    )
+    .await;
+
+    let boot_param_value_vec = get_boot_params(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &hsm_member_vec,
+    )
+    .await
+    .unwrap_or(Vec::new());
+
+    let image_id_from_boot_params: Vec<String> = boot_param_value_vec
+        .iter()
+        .map(|boot_param_value| {
+            boot_param_value["kernel"]
+                .as_str()
+                .unwrap()
+                .strip_prefix("s3://boot-images/")
+                .unwrap()
+                .strip_suffix("/kernel")
+                .unwrap()
+                .to_string()
+        })
+        .collect();
+
+    // Get Image details from IMS images API endpoint
     let mut image_detail_vec: Vec<(Image, String, String)> = Vec::new();
 
     for image in image_vec {
@@ -119,23 +161,34 @@ pub async fn filter(
         let target_group_name_vec: Vec<String>;
         let cfs_configuration: String;
 
-        if let Some(tuple) = image_id_cfs_configuration_from_bos_sessiontemplate
+        if let Some(tuple) = image_id_cfs_configuration_from_cfs_session
             .iter()
             .find(|tuple| tuple.0.eq(image_id))
         {
+            // Image details in CFS session
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
         } else if let Some(tuple) = image_id_cfs_configuration_from_cfs_session_vec
             .iter()
             .find(|tuple| tuple.0.eq(image_id))
         {
+            // Image details in BOS session template
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
+        } else if image_id_from_boot_params.contains(image_id) {
+            // Image details where image is found in a node boot param related to HSM we are
+            // working with
+            cfs_configuration = "Not found".to_string();
+            target_group_name_vec = vec![];
         } else if hsm_group_name_vec
             .iter()
             .any(|hsm_group_name| image.name.contains(hsm_group_name))
         {
-            cfs_configuration = "".to_string();
+            // Image details where the image name contains the HSM group name we are filtering (This
+            // is a bad practice hence image name is a free text and user may make mistakes typing
+            // it but CSCS staff deletes the CFS sessions therefore we should do this to fetch as
+            // much related images as we can)
+            cfs_configuration = "Not found".to_string();
             target_group_name_vec = vec![];
         } else {
             continue;

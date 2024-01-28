@@ -285,6 +285,12 @@ pub mod group {
                     .collect()
             }
 
+            /// Get the list of xnames which are members of a list of HSM groups. 
+            /// eg: 
+            /// given following HSM groups:
+            /// tenant_a: [x1003c1s7b0n0, x1003c1s7b0n1]
+            /// tenant_b: [x1003c1s7b1n0]
+            /// Then calling this function with hsm_name_vec: &["tenant_a", "tenant_b"] should return [x1003c1s7b0n0, x1003c1s7b0n1, x1003c1s7b1n0]
             pub async fn get_member_vec_from_hsm_name_vec(
                 shasta_token: &str,
                 shasta_base_url: &str,
@@ -855,7 +861,7 @@ pub mod hw_inventory {
 
                 if resp.status().is_success() {
                     let response = serde_json::from_str(&resp.text().await?);
-                    // println!("DEBUG - response: {:?}", response);
+                    log::debug!("response: {:?}", response);
                     Ok(response?)
                 } else {
                     Err(resp.json::<Value>().await?["detail"]
