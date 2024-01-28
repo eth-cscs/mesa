@@ -1,5 +1,3 @@
-use serde_json::Value;
-
 use crate::cfs::configuration::mesa::r#struct::{
     cfs_configuration_request::CfsConfigurationRequest,
     cfs_configuration_response::CfsConfigurationResponse,

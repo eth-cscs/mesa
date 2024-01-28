@@ -350,8 +350,6 @@ pub mod shasta {
 pub mod mesa {
     pub mod r#struct {
 
-        use thiserror::Error;
-
         use std::collections::HashMap;
 
         use serde::{Deserialize, Serialize};
