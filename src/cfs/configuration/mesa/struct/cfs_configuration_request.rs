@@ -19,6 +19,8 @@ pub struct Layer {
     playbook: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
     branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tag: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
@@ -34,6 +36,7 @@ impl Layer {
         name: String,
         playbook: String,
         branch: Option<String>,
+        tag: Option<String>,
     ) -> Self {
         Self {
             clone_url,
@@ -41,6 +44,7 @@ impl Layer {
             name,
             playbook,
             branch,
+            tag,
         }
     }
 }
@@ -88,6 +92,7 @@ impl CfsConfigurationRequest {
                     layer_yaml["git"]["branch"]
                         .as_str()
                         .map(|branch| branch.to_string()),
+                    layer_yaml["git"]["tag"].as_str().map(|tag| tag.to_string()),
                 );
                 cfs_configuration.add_layer(layer);
             } else {
@@ -111,6 +116,7 @@ impl CfsConfigurationRequest {
                             .unwrap_or_default()
                             .to_string(),
                     ),
+                    None,
                 );
                 cfs_configuration.add_layer(layer);
             }
@@ -197,6 +203,7 @@ impl CfsConfigurationRequest {
                     chrono::offset::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
                 ),
                 String::from("site.yml"),
+                None,
                 None,
             );
 

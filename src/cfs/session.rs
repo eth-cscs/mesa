@@ -62,7 +62,10 @@ pub mod shasta {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<reqwest::Response, reqwest::Error> {
-            log::debug!("Session:\n{:#?}", session);
+            log::debug!(
+                "Session:\n{}",
+                serde_json::to_string_pretty(session).unwrap()
+            );
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -90,8 +93,11 @@ pub mod shasta {
                 .await;
 
             match response_rslt {
-                Ok(response) => response.error_for_status(),
-                Err(error) => Err(error),
+                Ok(response) => Ok(response),
+                Err(error) => {
+                    eprintln!("Network ERROR");
+                    Err(error)
+                }
             }
         }
 
