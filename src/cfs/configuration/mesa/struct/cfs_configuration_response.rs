@@ -239,3 +239,13 @@ impl CfsConfigurationResponse {
         cfs_configuration
     }
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum ApiError {
+    #[error("Error: {0}")]
+    MesaError(String),
+    #[error("Error: {0}")]
+    CsmError(String),
+    #[error("Crash: {0}")]
+    ErrorCrash(serde_json::Value),
+}
