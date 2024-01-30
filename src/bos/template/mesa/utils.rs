@@ -3,26 +3,28 @@ use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
 pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
     hsm_group_name_vec: &[String],
+    xname_vec: &[String],
     cfs_configuration_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<BosSessionTemplate> {
-    // Filter by target (hsm group name or xnames)
-    if !hsm_group_name_vec.is_empty() {
+    // Filter by list of HSM group or xnames as target
+    if !hsm_group_name_vec.is_empty() || !xname_vec.is_empty() {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
             bos_sessiontemplate
                 .boot_sets
                 .as_ref()
                 .unwrap()
                 .iter()
-                .any(|(_parameter, boot_set)| {
-                    boot_set.node_groups.is_some()
-                        && !boot_set.node_groups.as_ref().unwrap().is_empty()
-                        && boot_set
-                            .node_groups
-                            .as_ref()
-                            .unwrap()
-                            .iter()
-                            .all(|node_group| hsm_group_name_vec.contains(node_group))
+                .any(|(_, boot_set)| {
+                    boot_set.node_groups.as_ref().is_some_and(|node_group| {
+                        !node_group.is_empty()
+                            && node_group
+                                .iter()
+                                .all(|node_group| hsm_group_name_vec.contains(node_group))
+                    }) || boot_set.node_list.as_ref().is_some_and(|node_list| {
+                        !node_list.is_empty()
+                            && node_list.iter().all(|node| xname_vec.contains(node))
+                    })
                 })
         });
     }

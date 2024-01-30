@@ -53,6 +53,7 @@ pub async fn filter(
     bos::template::mesa::utils::filter(
         &mut bos_sessiontemplate_vec,
         hsm_group_name_vec,
+        &Vec::new(),
         None,
         None,
     )
