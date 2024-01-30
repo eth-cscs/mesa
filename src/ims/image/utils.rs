@@ -103,7 +103,7 @@ pub async fn filter(
     .await;
 
     let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
-        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
+        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_value_vec.clone(),
         );
 
@@ -111,7 +111,7 @@ pub async fn filter(
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
-        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
+        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_value_vec,
         );
 
@@ -278,7 +278,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
-        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
+        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_vec,
         );
 

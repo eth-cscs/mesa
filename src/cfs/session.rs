@@ -775,7 +775,70 @@ pub mod mesa {
                 .cloned()
         }
 
+        /// Returns a tuple like (image_id, cfs_configuration_name, target) from a list of CFS
+        /// sessions
         pub fn get_image_id_cfs_configuration_target_tuple_vec(
+            cfs_session_vec: Vec<CfsSessionGetResponse>,
+        ) -> Vec<(String, String, Vec<String>)> {
+            let mut image_id_cfs_configuration_target_from_cfs_session: Vec<(
+                String,
+                String,
+                Vec<String>,
+            )> = Vec::new();
+
+            cfs_session_vec.iter().for_each(|cfs_session| {
+                let result_id: String = cfs_session
+                    .status
+                    .as_ref()
+                    .and_then(|status| {
+                        status.artifacts.as_ref().and_then(|artifacts| {
+                            artifacts
+                                .first()
+                                .and_then(|artifact| artifact.result_id.as_ref())
+                        })
+                    })
+                    .unwrap_or(&"".to_string())
+                    .to_string();
+
+                let target: Vec<String> = if let Some(target_groups) =
+                    cfs_session.target.as_ref().unwrap().groups.as_ref()
+                {
+                    target_groups
+                        .iter()
+                        .map(|group| group.name.clone())
+                        .collect()
+                } else if let Some(ansible_limit) =
+                    cfs_session.ansible.as_ref().unwrap().limit.as_ref()
+                {
+                    ansible_limit
+                        .split(',')
+                        .map(|xname| xname.trim().to_string())
+                        .collect()
+                } else {
+                    vec![]
+                };
+
+                image_id_cfs_configuration_target_from_cfs_session.push((
+                    result_id,
+                    cfs_session
+                        .configuration
+                        .as_ref()
+                        .unwrap()
+                        .name
+                        .as_ref()
+                        .unwrap()
+                        .to_string(),
+                    target,
+                ));
+            });
+
+            image_id_cfs_configuration_target_from_cfs_session
+        }
+
+        /// Returns a tuple like (image_id, cfs_configuration_name, target) from a list of CFS
+        /// sessions. Only returns values from CFS sessions with an artifact.result_id value
+        /// (meaning CFS sessions completed and successful of type image)
+        pub fn get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_vec: Vec<CfsSessionGetResponse>,
         ) -> Vec<(String, String, Vec<String>)> {
             let mut image_id_cfs_configuration_target_from_cfs_session: Vec<(
