@@ -370,6 +370,46 @@ pub mod mesa {
             pub tags: Option<HashMap<String, String>>,
         }
 
+        impl CfsSessionGetResponse {
+            /// Returns list of result_ids
+            fn get_result_id(&self) -> Option<String> {
+                self.status.as_ref().and_then(|status| {
+                    status.artifacts.as_ref().and_then(|artifacts| {
+                        artifacts
+                            .first()
+                            .and_then(|artifact| artifact.result_id.clone())
+                    })
+                })
+            }
+
+            /// Returns list of HSM groups targeted
+            fn get_target_hsm(&self) -> Option<Vec<String>> {
+                self.target.as_ref().and_then(|target| {
+                    target
+                        .groups
+                        .as_ref()
+                        .map(|group_vec| group_vec.iter().map(|group| group.name.clone()).collect())
+                })
+            }
+
+            /// Returns 'true' if the CFS session target definition is 'image'. Otherwise (target
+            /// definiton dynamic) will return 'false'
+            fn is_target_def_image(&self) -> bool {
+                self.target.as_ref().is_some_and(|target| {
+                    target
+                        .definition
+                        .as_ref()
+                        .is_some_and(|definition| definition == "image")
+                })
+            }
+
+            fn get_configuration_name(&self) -> Option<String> {
+                self.configuration
+                    .as_ref()
+                    .and_then(|configuration| configuration.name.clone())
+            }
+        }
+
         #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct Configuration {
             #[serde(skip_serializing_if = "Option::is_none")]
