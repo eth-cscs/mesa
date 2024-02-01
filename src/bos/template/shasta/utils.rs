@@ -109,23 +109,34 @@ pub fn get_image_id_from_bos_sessiontemplate_vec(
 ) -> Vec<String> {
     bos_sessiontemplate_value_vec
         .iter()
-        .flat_map(|bos_sessiontemplate_value| {
-            bos_sessiontemplate_value
-                .boot_sets
-                .as_ref()
-                .unwrap()
+        .flat_map(|bos_sessiontemplate| {
+            bos_sessiontemplate
+                .get_path()
                 .iter()
-                .map(|(_, boot_set_param_value)| {
-                    boot_set_param_value
-                        .path
-                        .as_ref()
-                        .unwrap()
-                        .strip_prefix("s3://boot-images/")
+                .map(|path| {
+                    path.strip_prefix("s3://boot-images/")
                         .unwrap()
                         .strip_suffix("/manifest.json")
                         .unwrap()
                         .to_string()
                 })
+                .collect::<Vec<String>>()
+            /* bos_sessiontemplate
+            .boot_sets
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|(_, boot_set_param_value)| {
+                boot_set_param_value
+                    .path
+                    .as_ref()
+                    .unwrap()
+                    .strip_prefix("s3://boot-images/")
+                    .unwrap()
+                    .strip_suffix("/manifest.json")
+                    .unwrap()
+                    .to_string()
+            }) */
         })
         .collect()
 }

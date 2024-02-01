@@ -308,4 +308,38 @@ pub mod response_payload {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub link: Option<Vec<Link>>,
     }
+
+    impl BosSessionTemplate {
+        /// Returns HSM group names related to the BOS sessiontemplate
+        pub fn get_target_hsm(&self) -> Vec<String> {
+            self.boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .flat_map(|(_, boot_param)| boot_param.node_groups.clone().unwrap_or(Vec::new()))
+                .collect()
+        }
+
+        pub fn get_target_xname(&self) -> Vec<String> {
+            self.boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .flat_map(|(_, boot_param)| boot_param.node_list.clone().unwrap_or(Vec::new()))
+                .collect()
+        }
+
+        pub fn get_confguration(&self) -> Option<String> {
+            self.cfs.as_ref().unwrap().configuration.clone()
+        }
+
+        pub fn get_path(&self) -> Vec<String> {
+            self.boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|(_, boot_param)| boot_param.path.clone().unwrap_or_default())
+                .collect()
+        }
+    }
 }

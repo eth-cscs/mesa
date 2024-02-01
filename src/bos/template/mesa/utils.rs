@@ -10,22 +10,33 @@ pub async fn filter(
     // Filter by list of HSM group or xnames as target
     if !hsm_group_name_vec.is_empty() || !xname_vec.is_empty() {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
-            bos_sessiontemplate
-                .boot_sets
-                .as_ref()
-                .unwrap()
-                .iter()
-                .any(|(_, boot_set)| {
-                    boot_set.node_groups.as_ref().is_some_and(|node_group| {
-                        !node_group.is_empty()
-                            && node_group
-                                .iter()
-                                .all(|node_group| hsm_group_name_vec.contains(node_group))
-                    }) || boot_set.node_list.as_ref().is_some_and(|node_list| {
-                        !node_list.is_empty()
-                            && node_list.iter().all(|node| xname_vec.contains(node))
-                    })
+            let bos_sessiontemplate_target_hsm = bos_sessiontemplate.get_target_hsm();
+            let bos_sessiontemplate_target_xname = bos_sessiontemplate.get_target_xname();
+
+            !bos_sessiontemplate_target_hsm.is_empty()
+                && bos_sessiontemplate_target_hsm
+                    .iter()
+                    .all(|target_hsm| hsm_group_name_vec.contains(target_hsm))
+                || !bos_sessiontemplate_target_xname.is_empty()
+                    && bos_sessiontemplate_target_xname
+                        .iter()
+                        .all(|target_xname| xname_vec.contains(target_xname))
+            /* bos_sessiontemplate
+            .boot_sets
+            .as_ref()
+            .unwrap()
+            .iter()
+            .any(|(_, boot_set)| {
+                boot_set.node_groups.as_ref().is_some_and(|node_group| {
+                    !node_group.is_empty()
+                        && node_group
+                            .iter()
+                            .all(|node_group| hsm_group_name_vec.contains(node_group))
+                }) || boot_set.node_list.as_ref().is_some_and(|node_list| {
+                    !node_list.is_empty()
+                        && node_list.iter().all(|node| xname_vec.contains(node))
                 })
+            }) */
         });
     }
 
@@ -72,7 +83,29 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
             .as_ref()
             .unwrap();
 
-        for boot_set in bos_sessiontemplate.boot_sets.as_ref().unwrap().values() {
+        let path = bos_sessiontemplate
+            .get_path()
+            .first()
+            .unwrap()
+            .strip_prefix("s3://boot-images/")
+            .unwrap()
+            .strip_suffix("/manifest.json")
+            .unwrap()
+            .to_string();
+
+        let target = [
+            bos_sessiontemplate.get_target_hsm(),
+            bos_sessiontemplate.get_target_xname(),
+        ]
+        .concat();
+
+        image_id_cfs_configuration_from_bos_sessiontemplate.push((
+            path.to_string(),
+            cfs_configuration.to_string(),
+            target,
+        ));
+
+        /* for boot_set in bos_sessiontemplate.boot_sets.as_ref().unwrap().values() {
             let path = boot_set
                 .path
                 .as_ref()
@@ -102,13 +135,13 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
                 cfs_configuration.to_string(),
                 target,
             ));
-        }
+        } */
     }
 
     image_id_cfs_configuration_from_bos_sessiontemplate
 }
 
-pub fn get_cfs_configuration_name(bos_sessiontemplate: &BosSessionTemplate) -> Option<String> {
+/* pub fn get_cfs_configuration_name(bos_sessiontemplate: &BosSessionTemplate) -> Option<String> {
     bos_sessiontemplate
         .cfs
         .as_ref()
@@ -116,7 +149,7 @@ pub fn get_cfs_configuration_name(bos_sessiontemplate: &BosSessionTemplate) -> O
         .configuration
         .as_ref()
         .cloned()
-}
+} */
 
 pub fn find_bos_sessiontemplate_related_to_image_id(
     bos_sessiontemplate_vec: &[BosSessionTemplate],
@@ -126,17 +159,23 @@ pub fn find_bos_sessiontemplate_related_to_image_id(
         .iter()
         .find(|bos_sessiontemplate| {
             bos_sessiontemplate
-                .boot_sets
-                .as_ref()
-                .unwrap()
-                .values()
+                .get_path()
+                .iter()
                 .next()
-                .as_ref()
-                .unwrap()
-                .path
-                .as_ref()
                 .unwrap()
                 .contains(image_id)
+            /* bos_sessiontemplate
+            .boot_sets
+            .as_ref()
+            .unwrap()
+            .values()
+            .next()
+            .as_ref()
+            .unwrap()
+            .path
+            .as_ref()
+            .unwrap()
+            .contains(image_id) */
         })
         .cloned()
 }
