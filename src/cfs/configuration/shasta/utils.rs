@@ -56,7 +56,7 @@ pub async fn filter(
             .unwrap()
             .into_iter()
             .filter(|bos_sessiontemplate| {
-                let boot_set_vec = bos_sessiontemplate
+                /* let boot_set_vec = bos_sessiontemplate
                     .clone()
                     .boot_sets
                     .clone()
@@ -70,26 +70,33 @@ pub async fn filter(
                 let mut boot_set_node_list_vec =
                     boot_set_vec.iter().flat_map(|(_parameter, boot_set)| {
                         boot_set.clone().node_list.clone().unwrap_or_default()
-                    });
+                    }); */
 
-                boot_set_node_groups_vec.clone().count() > 0
+                let boot_set_node_groups_vec = bos_sessiontemplate.get_target_hsm();
+                let boot_set_node_list_vec = bos_sessiontemplate.get_target_xname();
+
+                boot_set_node_groups_vec.len() > 0
                     && boot_set_node_groups_vec
+                        .iter()
                         .all(|node_group| hsm_group_name_vec.contains(&node_group))
-                    || boot_set_node_list_vec.clone().count() > 0
-                        && boot_set_node_list_vec.all(|xname| hsm_group_member_vec.contains(&xname))
+                    || boot_set_node_list_vec.len() > 0
+                        && boot_set_node_list_vec
+                            .iter()
+                            .all(|xname| hsm_group_member_vec.contains(&xname))
             })
             .collect::<Vec<_>>();
 
             let cfs_configuration_name_from_bos_sessiontemplate = bos_sessiontemplate_vec
                 .iter()
                 .map(|bos_sessiontemplate| {
-                    bos_sessiontemplate
-                        .cfs
-                        .clone()
-                        .unwrap()
-                        .configuration
-                        .clone()
-                        .unwrap()
+                    bos_sessiontemplate.get_confguration().unwrap()
+                    /* bos_sessiontemplate
+                    .cfs
+                    .clone()
+                    .unwrap()
+                    .configuration
+                    .clone()
+                    .unwrap() */
                 })
                 .collect::<Vec<_>>();
 

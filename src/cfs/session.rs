@@ -372,7 +372,7 @@ pub mod mesa {
 
         impl CfsSessionGetResponse {
             /// Returns list of result_ids
-            fn get_result_id(&self) -> Option<String> {
+            pub fn get_result_id(&self) -> Option<String> {
                 self.status.as_ref().and_then(|status| {
                     status.artifacts.as_ref().and_then(|artifacts| {
                         artifacts
@@ -383,7 +383,7 @@ pub mod mesa {
             }
 
             /// Returns list of HSM groups targeted
-            fn get_target_hsm(&self) -> Option<Vec<String>> {
+            pub fn get_target_hsm(&self) -> Option<Vec<String>> {
                 self.target.as_ref().and_then(|target| {
                     target
                         .groups
@@ -392,21 +392,51 @@ pub mod mesa {
                 })
             }
 
-            /// Returns 'true' if the CFS session target definition is 'image'. Otherwise (target
-            /// definiton dynamic) will return 'false'
-            fn is_target_def_image(&self) -> bool {
-                self.target.as_ref().is_some_and(|target| {
-                    target
-                        .definition
-                        .as_ref()
-                        .is_some_and(|definition| definition == "image")
+            /// Returns list of xnames targeted
+            pub fn get_target_xname(&self) -> Option<Vec<String>> {
+                self.ansible.as_ref().and_then(|ansible| {
+                    ansible.limit.as_ref().map(|limit| {
+                        limit
+                            .split(',')
+                            .map(|xname| xname.trim().to_string())
+                            .collect()
+                    })
                 })
             }
 
-            fn get_configuration_name(&self) -> Option<String> {
+            /// Returns 'true' if the CFS session target definition is 'image'. Otherwise (target
+            /// definiton dynamic) will return 'false'
+            pub fn is_target_def_image(&self) -> bool {
+                self.get_target_def()
+                    .is_some_and(|target_def| target_def == "image")
+            }
+
+            /// Returns target definition of the CFS session:
+            /// image --> CFS session to build an image
+            /// dynamic --> CFS session to configure a node
+            pub fn get_target_def(&self) -> Option<String> {
+                self.target
+                    .as_ref()
+                    .and_then(|target| target.definition.clone())
+            }
+
+            pub fn get_configuration_name(&self) -> Option<String> {
                 self.configuration
                     .as_ref()
                     .and_then(|configuration| configuration.name.clone())
+            }
+
+            pub fn is_success(&self) -> bool {
+                self.status
+                    .as_ref()
+                    .unwrap()
+                    .session
+                    .as_ref()
+                    .unwrap()
+                    .succeeded
+                    .as_ref()
+                    .unwrap()
+                    == "true"
             }
         }
 
@@ -676,8 +706,6 @@ pub mod mesa {
     }
 
     pub mod utils {
-        use std::collections::HashSet;
-
         use crate::hsm;
 
         use super::r#struct::CfsSessionGetResponse;
@@ -708,7 +736,7 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    cfs_session.target.clone().is_some_and(|target| {
+                    /* cfs_session.target.clone().is_some_and(|target| {
                         target.groups.is_some_and(|groups| {
                             !groups.is_empty()
                                 && groups
@@ -723,7 +751,18 @@ pub mod mesa {
                                 .collect::<HashSet<String>>()
                                 .is_subset(&HashSet::from_iter(xname_vec.clone()))
                         })
-                    })
+                    }) */
+                    cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
+                        target_hsm_vec
+                            .iter()
+                            .any(|target_hsm| hsm_group_name_vec.contains(&target_hsm))
+                    }) || cfs_session
+                        .get_target_xname()
+                        .is_some_and(|target_xname_vec| {
+                            target_xname_vec
+                                .iter()
+                                .any(|target_xname| xname_vec.contains(target_xname))
+                        })
                 });
 
                 if let Some(limit_number) = limit_number_opt {
@@ -756,7 +795,7 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    cfs_session.target.clone().is_some_and(|target| {
+                    /* cfs_session.target.clone().is_some_and(|target| {
                         target.groups.is_some_and(|groups| {
                             !groups.is_empty()
                                 && groups
@@ -771,7 +810,18 @@ pub mod mesa {
                                 .collect::<HashSet<String>>()
                                 .is_subset(&HashSet::from_iter(xname_vec.to_vec()))
                         })
-                    })
+                    }) */
+                    cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
+                        target_hsm_vec
+                            .iter()
+                            .any(|target_hsm| hsm_group_name_vec.contains(&target_hsm))
+                    }) || cfs_session
+                        .get_target_xname()
+                        .is_some_and(|target_xname_vec| {
+                            target_xname_vec
+                                .iter()
+                                .any(|target_xname| xname_vec.contains(target_xname))
+                        })
                 });
 
                 if let Some(limit_number) = limit_number_opt {
@@ -791,16 +841,24 @@ pub mod mesa {
             cfs_session_vec: &[CfsSessionGetResponse],
             image_id: &str,
         ) -> Option<CfsSessionGetResponse> {
-            cfs_session_vec
-                .iter()
-                .find(|cfs_session_value| {
-                    cfs_session_value.status.as_ref().is_some_and(|status| {
-                        status.artifacts.as_ref().is_some_and(|artifact| {
-                            artifact.first().as_ref().is_some_and(|first_artifact| {
-                                first_artifact.result_id.as_ref().unwrap().eq(image_id)
-                            })
+            /* cfs_session_vec
+            .iter()
+            .find(|cfs_session_value| {
+                cfs_session_value.status.as_ref().is_some_and(|status| {
+                    status.artifacts.as_ref().is_some_and(|artifact| {
+                        artifact.first().as_ref().is_some_and(|first_artifact| {
+                            first_artifact.result_id.as_ref().unwrap().eq(image_id)
                         })
                     })
+                })
+            })
+            .cloned() */
+            cfs_session_vec
+                .iter()
+                .find(|cfs_session| {
+                    cfs_session
+                        .get_result_id()
+                        .is_some_and(|result_id| result_id == image_id)
                 })
                 .cloned()
         }
@@ -827,20 +885,22 @@ pub mod mesa {
             )> = Vec::new();
 
             cfs_session_vec.iter().for_each(|cfs_session| {
-                let result_id: String = cfs_session
-                    .status
-                    .as_ref()
-                    .and_then(|status| {
-                        status.artifacts.as_ref().and_then(|artifacts| {
-                            artifacts
-                                .first()
-                                .and_then(|artifact| artifact.result_id.as_ref())
-                        })
+                /* let result_id: String = cfs_session
+                .status
+                .as_ref()
+                .and_then(|status| {
+                    status.artifacts.as_ref().and_then(|artifacts| {
+                        artifacts
+                            .first()
+                            .and_then(|artifact| artifact.result_id.as_ref())
                     })
-                    .unwrap_or(&"".to_string())
-                    .to_string();
+                })
+                .unwrap_or(&"".to_string())
+                .to_string(); */
 
-                let target: Vec<String> = if let Some(target_groups) =
+                let result_id: String = cfs_session.get_result_id().unwrap_or("".to_string());
+
+                /* let target: Vec<String> = if let Some(target_groups) =
                     cfs_session.target.as_ref().unwrap().groups.as_ref()
                 {
                     target_groups
@@ -856,18 +916,26 @@ pub mod mesa {
                         .collect()
                 } else {
                     vec![]
-                };
+                }; */
+
+                let target: Vec<String> = cfs_session
+                    .get_target_hsm()
+                    .or_else(|| cfs_session.get_target_xname())
+                    .unwrap_or(Vec::new());
+
+                let cfs_configuration = cfs_session.get_configuration_name().unwrap();
 
                 image_id_cfs_configuration_target_from_cfs_session.push((
                     result_id,
-                    cfs_session
-                        .configuration
-                        .as_ref()
-                        .unwrap()
-                        .name
-                        .as_ref()
-                        .unwrap()
-                        .to_string(),
+                    /* cfs_session
+                    .configuration
+                    .as_ref()
+                    .unwrap()
+                    .name
+                    .as_ref()
+                    .unwrap()
+                    .to_string(), */
+                    cfs_configuration,
                     target,
                 ));
             });
@@ -888,19 +956,24 @@ pub mod mesa {
             )> = Vec::new();
 
             cfs_session_vec.iter().for_each(|cfs_session| {
-                if let Some(result_id) = cfs_session
-                    .status
-                    .as_ref()
-                    .unwrap()
-                    .artifacts
-                    .as_ref()
-                    .and_then(|artifact_vec| {
-                        artifact_vec
-                            .first()
-                            .and_then(|artifact| artifact.result_id.as_ref())
-                    })
+                if let Some(result_id) = cfs_session.get_result_id()
+                /* .status
+                .as_ref()
+                .unwrap()
+                .artifacts
+                .as_ref()
+                .and_then(|artifact_vec| {
+                    artifact_vec
+                        .first()
+                        .and_then(|artifact| artifact.result_id.as_ref())
+                }) */
                 {
-                    let target: Vec<String> = if let Some(target_groups) =
+                    let target: Vec<String> = cfs_session
+                        .get_target_hsm()
+                        .or_else(|| cfs_session.get_target_xname())
+                        .unwrap_or(Vec::new());
+
+                    /* let target: Vec<String> = if let Some(target_groups) =
                         cfs_session.target.as_ref().unwrap().groups.as_ref()
                     {
                         target_groups
@@ -916,18 +989,21 @@ pub mod mesa {
                             .collect()
                     } else {
                         vec![]
-                    };
+                    }; */
+
+                    let cfs_configuration = cfs_session.get_configuration_name().unwrap();
 
                     image_id_cfs_configuration_target_from_cfs_session.push((
                         result_id.to_string(),
-                        cfs_session
-                            .configuration
-                            .as_ref()
-                            .unwrap()
-                            .name
-                            .as_ref()
-                            .unwrap()
-                            .to_string(),
+                        cfs_configuration,
+                        /* cfs_session
+                        .configuration
+                        .as_ref()
+                        .unwrap()
+                        .name
+                        .as_ref()
+                        .unwrap()
+                        .to_string(), */
                         target,
                     ));
                 } else {
@@ -942,22 +1018,25 @@ pub mod mesa {
             image_id_cfs_configuration_target_from_cfs_session
         }
 
+        /// Return a list of the images ids related with a list of CFS sessions. The result list if
+        /// filtered to CFS session completed and target def 'image' therefore the length of the
+        /// resulting list may be smaller than the list of CFS sessions
         pub fn get_image_id_from_cfs_session_vec(
             cfs_session_value_vec: &[CfsSessionGetResponse],
         ) -> Vec<String> {
             cfs_session_value_vec
                 .iter()
                 .filter(|cfs_session| {
-                    cfs_session
-                        .target
+                    cfs_session.is_target_def_image()
+                        /* .target
                         .as_ref()
                         .unwrap()
                         .definition
                         .as_ref()
                         .unwrap()
-                        .eq("image")
-                        && cfs_session
-                            .status
+                        .eq("image") */
+                        && cfs_session.is_success()
+                            /* .status
                             .as_ref()
                             .unwrap()
                             .session
@@ -966,33 +1045,33 @@ pub mod mesa {
                             .succeeded
                             .as_ref()
                             .unwrap_or(&"false".to_string())
-                            .eq("true")
-                        && cfs_session
-                            .status
-                            .as_ref()
-                            .unwrap()
-                            .artifacts
-                            .as_ref()
-                            .unwrap()
-                            .first()
-                            .unwrap()
-                            .result_id
-                            .is_some()
+                            .eq("true") */
+                        && cfs_session.get_result_id().is_some()
+                    /* .status
+                    .as_ref()
+                    .unwrap()
+                    .artifacts
+                    .as_ref()
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .result_id
+                    .is_some() */
                 })
                 .map(|cfs_session| {
-                    cfs_session
-                        .status
-                        .as_ref()
-                        .unwrap()
-                        .artifacts
-                        .as_ref()
-                        .unwrap()
-                        .first()
-                        .unwrap()
-                        .result_id
-                        .as_ref()
-                        .unwrap()
-                        .to_string()
+                    cfs_session.get_result_id().unwrap()
+                    /* .status
+                    .as_ref()
+                    .unwrap()
+                    .artifacts
+                    .as_ref()
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .result_id
+                    .as_ref()
+                    .unwrap()
+                    .to_string() */
                 })
                 .collect::<Vec<String>>()
         }
