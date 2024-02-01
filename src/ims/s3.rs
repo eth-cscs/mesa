@@ -232,7 +232,7 @@ pub async fn s3_upload_object(
 
     let body = ByteStream::from_path(Path::new(&file_path)).await;
 
-    match client
+    let put_object_output = match client
         .put_object()
         .bucket(bucket)
         .key(object_path)
@@ -240,13 +240,13 @@ pub async fn s3_upload_object(
         .send()
         .await
     {
-        Ok(_file) => {
+        Ok(put_object_output) => {
             log::debug!("Uploaded file '{}' successfully", &file_path);
-            Ok(String::from("client"))
+            return Ok(put_object_output.e_tag.clone().unwrap())
         }
         Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
         //
-    }
+    };
 }
 
 /// Removes an object from S3
@@ -393,5 +393,5 @@ pub async fn s3_multipart_upload_object(
 
     bar.finish();
 
-    Ok(String::new())
+    Ok(_complete_multipart_upload_res.e_tag.clone().unwrap())
 }
