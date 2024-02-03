@@ -2,15 +2,76 @@
 
 pub mod http_client {
 
+    use std::error::Error;
+
     use crate::config;
     use serde_json::Value;
+
+    pub async fn get_tag_details(
+        repo_url: &str,
+        tag: &str,
+        gitea_token: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Value, Box<dyn Error>> {
+        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
+        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+
+        let gitea_api_base_url = gitea_external_base_url.to_owned() + "api/v1";
+
+        let repo_name = repo_url
+            .trim_start_matches(gitea_internal_base_url)
+            .trim_end_matches(".git");
+        let repo_name = repo_name
+            .trim_start_matches(gitea_external_base_url)
+            .trim_end_matches(".git");
+
+        log::info!("repo_url: {}", repo_url);
+        log::info!("gitea_base_url: {}", gitea_internal_base_url);
+        log::info!("repo_name: {}", repo_name);
+
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = format!("{}/repos/{}/tags/{}", gitea_api_base_url, repo_name, tag);
+
+        log::info!("Request to {}", api_url);
+
+        let resp = client
+            .get(api_url)
+            .header("Authorization", format!("token {}", gitea_token))
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            let json_response = &resp.text().await?;
+
+            Ok(serde_json::from_str(json_response)?)
+        } else {
+            let error_msg = format!("ERROR: tag {} not found in Shasta CVS. Please check gitea admin or wait sync to finish.", tag);
+
+            Err(error_msg.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
 
     pub async fn get_commit_details(
         repo_url: &str,
         commitid: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> core::result::Result<Value, Box<dyn std::error::Error>> {
+    ) -> Result<Value, Box<dyn Error>> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 

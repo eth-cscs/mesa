@@ -12,15 +12,15 @@ use crate::common::{gitea, local_git_repo};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Layer {
     #[serde(rename = "cloneUrl")]
-    clone_url: String,
+    pub clone_url: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
-    commit: Option<String>,
-    name: String,
+    pub commit: Option<String>,
+    pub name: String,
     playbook: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
-    branch: Option<String>,
+    pub branch: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    tag: Option<String>,
+    pub tag: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
