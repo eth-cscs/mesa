@@ -4,7 +4,7 @@ pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
     hsm_group_name_vec: &[String],
     xname_vec: &[String],
-    cfs_configuration_name_opt: Option<&str>,
+    // cfs_configuration_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<BosSessionTemplate> {
     // Filter by list of HSM group or xnames as target
@@ -40,7 +40,7 @@ pub async fn filter(
         });
     }
 
-    if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
+    /* if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
             bos_sessiontemplate.cfs.as_ref().is_some_and(|cfs| {
                 cfs.configuration
@@ -48,7 +48,7 @@ pub async fn filter(
                     .is_some_and(|configuration| configuration.eq(cfs_configuration_name))
             })
         })
-    }
+    } */
 
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client

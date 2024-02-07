@@ -1,13 +1,16 @@
 /// Structs related to CFS confguration with data related to most recent commit id like, author
 /// name, commit date, etc
 ///
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use k8s_openapi::chrono;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use substring::Substring;
 
 use crate::common::{gitea, local_git_repo};
+
+use super::cfs_configuration_response::ApiError;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Layer {
@@ -67,7 +70,12 @@ impl CfsConfigurationRequest {
         self.layers.push(layer);
     }
 
-    pub fn from_sat_file_serde_yaml(configuration_yaml: &serde_yaml::Value) -> Self {
+    pub async fn from_sat_file_serde_yaml(
+        shasta_root_cert: &[u8],
+        gitea_token: &str,
+        configuration_yaml: &serde_yaml::Value,
+        cray_product_catalog: &BTreeMap<String, String>,
+    ) -> Self {
         let mut cfs_configuration = Self::new();
 
         cfs_configuration.name = configuration_yaml["name"].as_str().unwrap().to_string();
@@ -77,50 +85,120 @@ impl CfsConfigurationRequest {
 
             if layer_yaml.get("git").is_some() {
                 // Git layer
-                let repo_name = layer_yaml["name"].as_str().unwrap().to_string();
+
+                let layer_name = layer_yaml["name"].as_str().unwrap().to_string();
+
                 let repo_url = layer_yaml["git"]["url"].as_str().unwrap().to_string();
+
+                let commit_id_value_opt = layer_yaml["git"].get("commit_id");
+                let tag_value_opt = layer_yaml["git"].get("tag");
+                let branch_value_opt = layer_yaml["git"].get("branch");
+
+                let commit_id: Option<String> = if commit_id_value_opt.is_some() {
+                    // Git commit id
+                    layer_yaml["git"]
+                        .get("commit_id")
+                        .map(|commit_id| commit_id.as_str().unwrap().to_string())
+                } else if let Some(git_tag_value) = tag_value_opt {
+                    // Git tag
+                    let git_tag = git_tag_value.as_str().unwrap();
+
+                    log::info!("git tag: {}", git_tag_value.as_str().unwrap());
+
+                    let tag_details = gitea::http_client::get_tag_details(
+                        &repo_url,
+                        &git_tag,
+                        gitea_token,
+                        shasta_root_cert,
+                    )
+                    .await
+                    .unwrap();
+
+                    log::info!("tag details:\n{:#?}", tag_details);
+
+                    tag_details["id"].as_str().map(|commit| commit.to_string())
+                } else if branch_value_opt.is_some() {
+                    // Branch name
+                    None
+                } else {
+                    // This should be an error but we will let CSM to handle this
+                    None
+                };
+
                 let layer = Layer::new(
                     repo_url,
-                    layer_yaml["git"]["commit"]
-                        .as_str()
-                        .map(|commit| commit.to_string()),
-                    repo_name,
+                    commit_id,
+                    layer_name,
                     layer_yaml["playbook"]
                         .as_str()
                         .unwrap_or_default()
                         .to_string(),
-                    layer_yaml["git"]["branch"]
-                        .as_str()
-                        .map(|branch| branch.to_string()),
-                    layer_yaml["git"]["tag"].as_str().map(|tag| tag.to_string()),
+                    branch_value_opt.map(|branch| branch.as_str().unwrap().to_string()),
+                    None,
                 );
                 cfs_configuration.add_layer(layer);
-            } else {
+            } else if layer_yaml.get("product").is_some() {
                 // Product layer
+
+                let product_name = layer_yaml["product"]["name"].as_str().unwrap();
+                let product_version = layer_yaml["product"]["version"].as_str().unwrap();
+                let product_branch_value_opt = layer_yaml["product"].get("branch");
+
+                let product = cray_product_catalog.get(product_name);
+
+                if product.is_none() {
+                    eprintln!("Product {} not found in cray product catalog", product_name);
+                    std::process::exit(1);
+                }
+
+                let cos_cray_product_catalog =
+                    serde_yaml::from_str::<Value>(product.unwrap()).unwrap();
+
+                let product_details = cos_cray_product_catalog
+                    .get(product_version)
+                    .and_then(|product| product.get("configuration"));
+
+                if product_details.is_none() {
+                    eprintln!("Product details for product name '{}', product_version '{}' and 'configuration' not found in cray product catalog", product_name, product_version);
+                    std::process::exit(1);
+                }
+
+                log::info!(
+                    "CRAY product catalog details (filtered):\n{:#?}",
+                    product_details.unwrap()
+                );
+
                 let repo_url = format!(
                     "https://api-gw-service-nmn.local/vcs/cray/{}-config-management.git",
                     layer_yaml["name"].as_str().unwrap()
                 );
+
+                let commit_id_opt = if product_branch_value_opt.is_some() {
+                    // If branch is provided, then ignore the commit id in the CRAY products table
+                    None
+                } else {
+                    product_details.map(|commit_value| commit_value.as_str().unwrap().to_string())
+                };
+
                 let layer = Layer::new(
                     repo_url,
-                    // Some(layer_json["product"]["commit"].as_str().unwrap_or_default().to_string()),
-                    None,
+                    commit_id_opt,
                     layer_yaml["product"]["name"]
                         .as_str()
                         .unwrap_or_default()
                         .to_string(),
                     layer_yaml["playbook"].as_str().unwrap().to_string(),
-                    Some(
-                        layer_yaml["product"]["branch"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .to_string(),
-                    ),
+                    product_branch_value_opt
+                        .map(|branch_value| branch_value.as_str().unwrap().to_string()),
                     None,
                 );
                 cfs_configuration.add_layer(layer);
+            } else {
+                eprintln!("ERROR - configurations section in SAT file error - CFS configuration layer error");
+                std::process::exit(1);
             }
         }
+
         cfs_configuration
     }
 

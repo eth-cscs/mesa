@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde_json::Value;
 
 use crate::{
@@ -5,8 +7,93 @@ use crate::{
     cfs::{
         self, configuration::mesa::r#struct::cfs_configuration_response::CfsConfigurationResponse,
     },
+    common::gitea,
     hsm,
 };
+
+use super::r#struct::{
+    cfs_configuration_request::CfsConfigurationRequest, cfs_configuration_response::ApiError,
+};
+
+pub async fn create_from_sat_file(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    gitea_token: &str,
+    cray_product_catalog: &BTreeMap<String, String>,
+    sat_file_configuration_yaml: &serde_yaml::Value,
+    tag: &str,
+) -> Result<CfsConfigurationResponse, ApiError> {
+    let mut cfs_configuration = CfsConfigurationRequest::from_sat_file_serde_yaml(
+        shasta_root_cert,
+        gitea_token,
+        sat_file_configuration_yaml,
+        cray_product_catalog,
+    )
+    .await;
+
+    // Rename configuration name
+    cfs_configuration.name = cfs_configuration.name.replace("__DATE__", tag);
+
+    /* for cfs_configuration_layer in cfs_configuration.layers.iter_mut() {
+        log::info!("CFS configuration layer:\n{:#?}", cfs_configuration_layer);
+
+        if let Some(git_tag) = cfs_configuration_layer.tag.as_ref() {
+            log::info!("git tag: {}", git_tag);
+            let tag_details = gitea::http_client::get_tag_details(
+                &cfs_configuration_layer.clone_url,
+                &git_tag,
+                gitea_token,
+                shasta_root_cert,
+            )
+            .await
+            .unwrap();
+
+            log::info!("tag details:\n{:#?}", tag_details);
+            let commit_id: Option<String> =
+                tag_details["id"].as_str().map(|commit| commit.to_string());
+
+            cfs_configuration_layer.commit = commit_id;
+        }
+    } */
+
+    create(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &mut cfs_configuration,
+    )
+    .await
+}
+
+pub async fn create(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    cfs_configuration: &mut CfsConfigurationRequest,
+) -> Result<CfsConfigurationResponse, ApiError> {
+    log::debug!("CFS configuration:\n{:#?}", cfs_configuration);
+
+    let cfs_configuration_rslt = cfs::configuration::mesa::http_client::put(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &cfs_configuration,
+        &cfs_configuration.name,
+    )
+    .await;
+
+    match cfs_configuration_rslt {
+        Ok(cfs_configuration) => {
+            log::info!(
+                "CFS configuration '{}' successfully created",
+                cfs_configuration.name
+            );
+            Ok(cfs_configuration)
+        }
+        Err(error) => Err(ApiError::CsmError(error.to_string())),
+    }
+}
 
 pub async fn filter(
     shasta_token: &str,
@@ -54,7 +141,7 @@ pub async fn filter(
         &mut bos_sessiontemplate_vec,
         hsm_group_name_vec,
         &Vec::new(),
-        None,
+        // None,
         None,
     )
     .await;

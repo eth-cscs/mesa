@@ -75,7 +75,7 @@ pub async fn filter(
         &mut bos_sessiontemplate_value_vec,
         hsm_group_name_vec,
         &Vec::new(),
-        None,
+        // None,
         None,
     )
     .await;
@@ -242,7 +242,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
         &mut bos_sessiontemplate_vec,
         hsm_group_name_vec,
         &Vec::new(),
-        None,
+        // None,
         None,
     )
     .await;

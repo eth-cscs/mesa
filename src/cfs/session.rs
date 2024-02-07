@@ -62,10 +62,7 @@ pub mod shasta {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<reqwest::Response, reqwest::Error> {
-            log::debug!(
-                "Session:\n{}",
-                serde_json::to_string_pretty(session).unwrap()
-            );
+            log::info!("Session:\n{:#?}", session);
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -348,11 +345,20 @@ pub mod shasta {
 }
 
 pub mod mesa {
+    use crate::cfs;
+
     pub mod r#struct {
 
-        use std::collections::HashMap;
+        use std::collections::{BTreeMap, HashMap};
 
         use serde::{Deserialize, Serialize};
+        use serde_json::Value;
+        use serde_yaml::to_string;
+
+        use crate::{
+            cfs,
+            ims::{self, recipe::r#struct::RecipeGetResponse},
+        };
 
         #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct CfsSessionGetResponse {
@@ -574,26 +580,335 @@ pub mod mesa {
                 cfs_session
             }
 
-            pub fn from_sat_file_serde_yaml(session_yaml: &serde_yaml::Value) -> Self {
-                let groups_name = session_yaml["configuration_group_names"]
+            pub async fn create_image_from_sat_file_serde_yaml(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                image_yaml: &serde_yaml::Value, // NOTE: image may be an IMS job or a CFS session
+                cray_product_catalog: &BTreeMap<String, String>,
+                tag: &str,
+            ) -> Result<String, ApiError> {
+                log::info!("Creating an image");
+                // Collect CFS session details from SAT file
+                // Get CFS session name from SAT file
+                let mut name = image_yaml["name"].as_str().unwrap().to_string();
+
+                // Rename session name
+                name = name.replace("__DATE__", tag);
+
+                // Get CFS configuration related to CFS session in SAT file
+                let mut configuration: String = image_yaml["configuration"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string();
+
+                // Rename session's configuration name
+                configuration = configuration.replace("__DATE__", tag);
+
+                // Get HSM groups related to CFS session in SAT file
+                let groups_name: Vec<String> = image_yaml["configuration_group_names"]
                     .as_sequence()
-                    .unwrap()
+                    .unwrap_or(&Vec::new())
                     .iter()
                     .map(|group_name| group_name.as_str().unwrap().to_string())
                     .collect();
 
+                let base_image_id: String;
+
+                // Get/process base image
+                if let Some(sat_file_image_ims_value_yaml) = image_yaml.get("ims") {
+                    // ----------- BASE IMAGE - BACKWARD COMPATIBILITY WITH PREVIOUS SAT FILE
+                    log::info!("SAT file - old version");
+                    if sat_file_image_ims_value_yaml
+                        .get("is_recipe")
+                        .is_some_and(|is_recipe_value| is_recipe_value.as_bool().unwrap() == false)
+                        && sat_file_image_ims_value_yaml.get("id").is_some()
+                    {
+                        // Create final image from CFS session
+                        base_image_id = sat_file_image_ims_value_yaml["id"]
+                            .as_str()
+                            .unwrap()
+                            .to_string();
+                    } else {
+                        return Err(ApiError::MesaError(
+                            "Functionality not built. Exit".to_string(),
+                        ));
+                    }
+                } else if let Some(sat_file_image_base_value_yaml) = image_yaml.get("base") {
+                    if let Some(sat_file_image_base_image_ref_value_yaml) =
+                        sat_file_image_base_value_yaml.get("image_ref")
+                    {
+                        // Process image with 'image_ref' from another image in this same SAT file
+                        let image_id = "TODO";
+
+                        return Err(ApiError::MesaError(
+                            "Functionality not implemented".to_string(),
+                        ));
+                    } else if let Some(sat_file_image_base_ims_value_yaml) =
+                        sat_file_image_base_value_yaml.get("ims")
+                    {
+                        log::info!("SAT file - IMS job");
+                        let ims_job_type =
+                            sat_file_image_base_ims_value_yaml["type"].as_str().unwrap();
+                        if ims_job_type == "recipe" {
+                            log::info!("SAT file - IMS job type recipe");
+                            // Base image is an IMS recipe
+
+                            // Base image needs to be created from a IMS job using an IMS recipe
+                            let recipe_name =
+                                sat_file_image_base_ims_value_yaml["name"].as_str().unwrap();
+
+                            // Get all IMS recipes
+                            let recipe_detail_vec: Vec<RecipeGetResponse> =
+                                ims::recipe::http_client::get(
+                                    shasta_token,
+                                    shasta_base_url,
+                                    shasta_root_cert,
+                                    None,
+                                )
+                                .await
+                                .unwrap();
+
+                            // Filter recipes by name
+                            let recipe_detail_opt = recipe_detail_vec
+                                .iter()
+                                .find(|recipe| recipe.name == recipe_name);
+
+                            log::info!("IMS recipe details:\n{:#?}", recipe_detail_opt);
+
+                            // Check recipe with requested name exists
+                            let recipe_id = if let Some(recipe_detail) = recipe_detail_opt {
+                                recipe_detail.id.as_ref().unwrap()
+                            } else {
+                                return Err(ApiError::MesaError(format!(
+                                    "IMS recipe with name '{}' - not found. Exit",
+                                    recipe_name
+                                )));
+                            };
+
+                            log::info!("IMS recipe id found '{}'", recipe_id);
+
+                            // Get root public ssh key
+                            let root_public_ssh_key_value: Value =
+                                ims::public_keys::http_client::get_single(
+                                    shasta_token,
+                                    shasta_base_url,
+                                    shasta_root_cert,
+                                    Some("mgmt root key"),
+                                )
+                                .await
+                                .unwrap();
+
+                            let root_public_ssh_key =
+                                root_public_ssh_key_value["id"].as_str().unwrap();
+
+                            let ims_job = ims::job::r#struct::JobPostRequest {
+                                job_type: "create".to_string(),
+                                image_root_archive_name: name.clone(),
+                                kernel_file_name: Some("vmlinuz".to_string()),
+                                initrd_file_name: Some("initrd".to_string()),
+                                kernel_parameters_file_name: Some("kernel-parameters".to_string()),
+                                artifact_id: recipe_id.to_string(),
+                                public_key_id: root_public_ssh_key.to_string(),
+                                ssh_containers: None, // Should this be None ???
+                                enable_debug: Some(false),
+                                build_env_size: Some(15),
+                            };
+
+                            let ims_job: Value = ims::job::http_client::post_sync(
+                                shasta_token,
+                                shasta_base_url,
+                                shasta_root_cert,
+                                &ims_job,
+                            )
+                            .await
+                            .unwrap();
+
+                            log::info!("IMS job response:\n{:#?}", ims_job);
+
+                            base_image_id =
+                                ims_job["resultant_image_id"].as_str().unwrap().to_string();
+                        } else if ims_job_type == "image" {
+                            log::info!("SAT file - IMS job type image");
+                            return Err(ApiError::MesaError(
+                                "Functionality not implemented".to_string(),
+                            ));
+                        } else {
+                            return Err(ApiError::MesaError(
+                                "Can't process 'images.base.ims' section in SAT file. Exit"
+                                    .to_string(),
+                            ));
+                        }
+
+                    // ----------- BASE IMAGE - CRAY PRODUCT CATALOG
+                    } else if let Some(sat_file_image_base_product_value_yaml) =
+                        sat_file_image_base_value_yaml.get("product")
+                    {
+                        log::info!("SAT file - product job");
+                        // Base image created from a cray product
+                        let product_name = sat_file_image_base_product_value_yaml["name"]
+                            .as_str()
+                            .unwrap();
+
+                        let product_version = sat_file_image_base_product_value_yaml["version"]
+                            .as_str()
+                            .unwrap();
+
+                        let product_type = sat_file_image_base_product_value_yaml["type"]
+                            .as_str()
+                            .unwrap()
+                            .to_string()
+                            + "s";
+
+                        let product_details =
+                            &serde_yaml::from_str::<Value>(&cray_product_catalog[product_name])
+                                .unwrap()[product_version][product_type.clone()];
+
+                        log::info!("Recipe details:\n{:#?}", product_details);
+
+                        // ----------- BASE IMAGE - CRAY PRODUCT CATALOG TYPE RECIPE
+                        if product_type == "recipes" {
+                            // Create base image from an IMS job (the 'id' field in
+                            // images[].base.product.id is the id of the IMS recipe used to
+                            // build the new base image)
+
+                            log::info!("SAT file - product job based on IMS recipe");
+
+                            let recipe_id: String = product_details
+                                .as_object()
+                                .unwrap()
+                                .values()
+                                .collect::<Vec<_>>()
+                                .first()
+                                .unwrap()["id"]
+                                .as_str()
+                                .unwrap()
+                                .to_string();
+
+                            // Get root public ssh key
+                            let root_public_ssh_key_value: Value =
+                                ims::public_keys::http_client::get_single(
+                                    shasta_token,
+                                    shasta_base_url,
+                                    shasta_root_cert,
+                                    Some("mgmt root key"),
+                                )
+                                .await
+                                .unwrap();
+
+                            let root_public_ssh_key =
+                                root_public_ssh_key_value["id"].as_str().unwrap();
+
+                            let ims_job = ims::job::r#struct::JobPostRequest {
+                                job_type: "create".to_string(),
+                                image_root_archive_name: name.clone(),
+                                kernel_file_name: Some("vmlinuz".to_string()),
+                                initrd_file_name: Some("initrd".to_string()),
+                                kernel_parameters_file_name: Some("kernel-parameters".to_string()),
+                                artifact_id: recipe_id,
+                                public_key_id: root_public_ssh_key.to_string(),
+                                ssh_containers: None, // Should this be None ???
+                                enable_debug: Some(false),
+                                build_env_size: Some(15),
+                            };
+
+                            /* let ims_job_response = ims::job::http_client::post_sync(
+                                shasta_token,
+                                shasta_base_url,
+                                shasta_root_cert,
+                                &ims_job,
+                            )
+                            .await
+                            .unwrap();
+
+                            log::info!(
+                                "IMS job response:\n{}",
+                                serde_json::to_string_pretty(&ims_job_response).unwrap()
+                            );
+
+                            base_image_id = ims_job_response["id"].as_str().unwrap().to_string(); */
+
+                            let ims_job: Value = ims::job::http_client::post_sync(
+                                shasta_token,
+                                shasta_base_url,
+                                shasta_root_cert,
+                                &ims_job,
+                            )
+                            .await
+                            .unwrap();
+
+                            log::info!(
+                                "IMS job response:\n{}",
+                                serde_json::to_string_pretty(&ims_job).unwrap()
+                            );
+
+                            base_image_id =
+                                ims_job["resultant_image_id"].as_str().unwrap().to_string();
+
+                        // ----------- BASE IMAGE - CRAY PRODUCT CATALOG TYPE IMAGE
+                        } else if product_type == "images" {
+                            // Base image already created and its id is available in the Cray
+                            // product catalog
+                            log::info!("Getting base image id from Cray product catalog");
+                            base_image_id = product_details
+                                .as_object()
+                                .unwrap()
+                                .values()
+                                .collect::<Vec<_>>()
+                                .first()
+                                .unwrap()["id"]
+                                .as_str()
+                                .unwrap()
+                                .to_string();
+                        } else {
+                            return Err(ApiError::MesaError(
+                                "Can't process 'images.base.product' section in SAT file. Exit"
+                                    .to_string(),
+                            ));
+                        }
+                    } else {
+                        return Err(ApiError::MesaError(
+                            "Can't process 'images.base' section in SAT file. Exit".to_string(),
+                        ));
+                    }
+                } else {
+                    return Err(ApiError::MesaError(
+                        "Can't process 'images.base' section in SAT file. Exit".to_string(),
+                    ));
+                }
+
+                if configuration.is_empty() {
+                    log::info!(
+                        "No CFS session needs to be created since there is no CFS configuration assigned to this image"
+                    );
+                    return Ok(base_image_id);
+                }
+
+                // Create a CFS session
+                log::info!("Creating CFS session");
+
+                // Create CFS session
                 let cfs_session = CfsSessionPostRequest::new(
-                    session_yaml["name"].as_str().unwrap().to_string(),
-                    session_yaml["configuration"].as_str().unwrap().to_string(),
+                    name.clone(),
+                    configuration,
                     None,
                     None,
                     None,
                     true,
-                    Some(groups_name),
-                    // Some(base_image_id.to_string()),
-                    Some(session_yaml["ims"]["id"].as_str().unwrap().to_string()),
+                    Some(groups_name.to_vec()),
+                    Some(base_image_id),
                 );
-                cfs_session
+
+                let cfs_session = cfs::session::mesa::http_client::post_sync(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &cfs_session,
+                )
+                .await
+                .unwrap();
+
+                return Ok(cfs_session.get_result_id().unwrap());
             }
         }
 
@@ -618,7 +933,10 @@ pub mod mesa {
 
     pub mod http_client {
 
-        use super::r#struct::{ApiError, CfsSessionGetResponse, CfsSessionPostRequest};
+        use super::{
+            r#struct::{ApiError, CfsSessionGetResponse, CfsSessionPostRequest},
+            wait_cfs_session_to_finish,
+        };
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions ordered by start time.
@@ -703,12 +1021,124 @@ pub mod mesa {
                 Err(ApiError::CsmError(error_detail))
             }
         }
+
+        pub async fn post_sync(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            session: &CfsSessionPostRequest,
+        ) -> Result<CfsSessionGetResponse, ApiError> {
+            let cfs_session_response = crate::cfs::session::shasta::http_client::post(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                session,
+            )
+            .await
+            .unwrap();
+
+            let cfs_session: CfsSessionGetResponse = cfs_session_response
+                .json::<CfsSessionGetResponse>()
+                .await
+                .unwrap();
+
+            let cfs_session_name: String = cfs_session.name.unwrap();
+
+            // Wait till the CFS session finishes
+            wait_cfs_session_to_finish(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &cfs_session_name,
+            )
+            .await;
+
+            // Get most recent CFS session status
+            let cfs_session: CfsSessionGetResponse = get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                Some(&cfs_session_name),
+                None,
+            )
+            .await
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+
+            Ok(cfs_session)
+        }
     }
 
     pub mod utils {
-        use crate::hsm;
+        use std::collections::BTreeMap;
 
-        use super::r#struct::CfsSessionGetResponse;
+        use crate::{
+            cfs::{self, session::mesa::r#struct::CfsSessionPostRequest},
+            hsm,
+        };
+
+        use super::r#struct::{ApiError, CfsSessionGetResponse};
+
+        pub async fn create_from_sat_file(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            gitea_token: &str,
+            cray_product_catalog: &BTreeMap<String, String>,
+            image_yaml: &serde_yaml::Value,
+            ansible_verbosity_opt: Option<&String>,
+            ansible_passthrough_opt: Option<&String>,
+            tag: &str,
+        ) {
+            let mut cfs_session = CfsSessionPostRequest::create_image_from_sat_file_serde_yaml(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                image_yaml,
+                cray_product_catalog,
+                tag,
+            )
+            .await;
+            // .unwrap();
+
+            // Rename session name
+            /* cfs_session.name = cfs_session.name.replace("__DATE__", tag);
+
+            // Rename session's configuration name
+            cfs_session.configuration_name =
+                cfs_session.configuration_name.replace("__DATE__", tag);
+
+            // Set ansible verbosity
+            cfs_session.ansible_verbosity = Some(
+                ansible_verbosity_opt
+                    .cloned()
+                    .unwrap_or("0".to_string())
+                    .parse::<u8>()
+                    .unwrap(),
+            );
+
+            // Set ansible passthrough params
+            cfs_session.ansible_passthrough = ansible_passthrough_opt.cloned();
+
+            log::debug!("CFS session creation payload:\n{:#?}", cfs_session);
+
+            let create_cfs_session_resp = cfs::session::mesa::http_client::post(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &cfs_session,
+            )
+            .await;
+
+            log::debug!(
+                "CFS session creation response:\n{:#?}",
+                create_cfs_session_resp
+            );
+
+            create_cfs_session_resp */
+        }
 
         /// Filter CFS sessions related to a list of HSM group names, how this works is, it will
         /// get the list of nodes within those HSM groups and filter all CFS sessions in the system
@@ -1074,6 +1504,53 @@ pub mod mesa {
                     .to_string() */
                 })
                 .collect::<Vec<String>>()
+        }
+    }
+
+    /// Wait a CFS session to finish
+    pub async fn wait_cfs_session_to_finish(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        cfs_session_id: &str,
+    ) {
+        let mut i = 0;
+        let max = 1800; // Max ammount of attempts to check if CFS session has ended
+        loop {
+            let cfs_session: r#struct::CfsSessionGetResponse =
+                cfs::session::mesa::http_client::get(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    Some(&cfs_session_id.to_string()),
+                    None,
+                )
+                .await
+                .unwrap()
+                .first()
+                .unwrap()
+                .clone();
+
+            log::debug!("CFS session details:\n{:#?}", cfs_session);
+
+            let cfs_session_status = cfs_session.status.unwrap().session.unwrap().status.unwrap();
+
+            if cfs_session_status != "complete" && i < max {
+                println!(
+                "Waiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}",
+                cfs_session_id, cfs_session_status, i, max
+            );
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+                i += 1;
+            } else {
+                println!(
+                    "CFS session '{}' finished with status '{}'.\nExit",
+                    cfs_session_id, cfs_session_status
+                );
+                break;
+            }
         }
     }
 }

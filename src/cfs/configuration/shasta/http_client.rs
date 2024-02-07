@@ -61,17 +61,18 @@ pub async fn put_raw(
 
     let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations/" + configuration_name;
 
-    let response_rslt = client
+    let request_payload = serde_json::json!({"layers": configuration.layers});
+    log::info!(
+        "CFS configuration request payload:\n{}",
+        serde_json::to_string_pretty(&request_payload).unwrap()
+    );
+
+    client
         .put(api_url)
-        .json(&serde_json::json!({"layers": configuration.layers})) // Encapsulating configuration.layers
+        .json(&request_payload) // Encapsulating configuration.layers
         .bearer_auth(shasta_token)
         .send()
-        .await;
-
-    match response_rslt {
-        Ok(response) => response.error_for_status(),
-        Err(error) => Err(error),
-    }
+        .await
 }
 
 pub async fn delete(

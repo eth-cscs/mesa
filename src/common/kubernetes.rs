@@ -1,4 +1,5 @@
 use core::time;
+use std::collections::BTreeMap;
 use std::{error::Error, str::FromStr};
 
 use futures::TryStreamExt;
@@ -6,7 +7,7 @@ use futures::TryStreamExt;
 use futures::{io::Lines, AsyncBufReadExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
-use k8s_openapi::api::core::v1::{Container, Pod};
+use k8s_openapi::api::core::v1::{ConfigMap, Container, Pod};
 use kube::{
     api::{AttachParams, AttachedProcess},
     client::ConfigExt,
@@ -356,6 +357,29 @@ pub async fn print_cfs_session_logs(client: kube::Client, cfs_session_name: &str
     while let Some(line) = logs_stream.try_next().await.unwrap() {
         println!("{}", line);
     }
+}
+
+pub async fn get_configmap(
+    client: kube::Client,
+    configmap_name: &str,
+) -> Option<BTreeMap<String, String>> {
+    let configmap_api: kube::Api<ConfigMap> = kube::Api::namespaced(client, "services");
+
+    let params =
+        kube::api::ListParams::default().fields(&("metadata.name=".to_owned() + configmap_name));
+
+    let configmap_rslt = configmap_api.list(&params).await;
+
+    if let Err(error) = configmap_rslt {
+        println!("{:#?}", error);
+        std::process::exit(1);
+    }
+
+    let configmap = configmap_rslt.unwrap();
+
+    let configmap_data = &configmap.items.first().unwrap().data;
+
+    configmap_data.clone()
 }
 
 pub async fn get_cfs_session_container_git_clone_logs_stream(

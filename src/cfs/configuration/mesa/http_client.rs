@@ -88,10 +88,6 @@ pub async fn put(
 
     if cfs_configuration_rslt.is_ok_and(|cfs_configuration_vec| !cfs_configuration_vec.is_empty()) {
         return Err(ApiError::MesaError(format!("CFS configuration '{}' already exists.", configuration_name)));
-        // return Err(serde_json::json!(format!(
-        //     "ERROR: CFS configuration '{}' already exists",
-        //     configuration_name
-        // )));
     }
 
     let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::put_raw(
@@ -101,15 +97,19 @@ pub async fn put(
         configuration,
         configuration_name,
     )
-    .await
-    .unwrap();
+    .await;
 
-    if cfs_configuration_response.status().is_success() {
+    let cfs_configuration_payload = match cfs_configuration_response {
+        Ok(data) => data,
+        Err(error) => return Err(ApiError::CsmError(error.to_string()))
+    };
+
+    if cfs_configuration_payload.status().is_success() {
         let cfs_configuration: CfsConfigurationResponse =
-            cfs_configuration_response.json().await.unwrap();
+            cfs_configuration_payload.json().await.unwrap();
         Ok(cfs_configuration)
     } else {
-        let error_detail = cfs_configuration_response.json::<serde_json::Value>().await.unwrap()["detail"]
+        let error_detail = cfs_configuration_payload.json::<serde_json::Value>().await.unwrap()["detail"]
             .as_str()
             .unwrap()
             .to_string();
