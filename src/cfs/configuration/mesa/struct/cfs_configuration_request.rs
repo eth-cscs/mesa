@@ -10,8 +10,6 @@ use substring::Substring;
 
 use crate::common::{gitea, local_git_repo};
 
-use super::cfs_configuration_response::ApiError;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Layer {
     #[serde(rename = "cloneUrl")]
