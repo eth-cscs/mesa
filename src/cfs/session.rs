@@ -346,6 +346,7 @@ pub mod shasta {
 
 pub mod mesa {
     use crate::cfs;
+    use std::io::{self, Write};
 
     pub mod r#struct {
 
@@ -680,6 +681,7 @@ pub mod mesa {
                     .unwrap()
                     .trim()
                     .to_string();
+                log::error!("{}", error_detail);
                 Err(ApiError::CsmError(error_detail))
             }
         }
@@ -690,7 +692,7 @@ pub mod mesa {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<CfsSessionGetResponse, ApiError> {
-            let cfs_session_response = crate::cfs::session::shasta::http_client::post(
+            let cfs_session: CfsSessionGetResponse = crate::cfs::session::mesa::http_client::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -698,11 +700,6 @@ pub mod mesa {
             )
             .await
             .unwrap();
-
-            let cfs_session: CfsSessionGetResponse = cfs_session_response
-                .json::<CfsSessionGetResponse>()
-                .await
-                .unwrap();
 
             let cfs_session_name: String = cfs_session.name.unwrap();
 
@@ -1135,10 +1132,13 @@ pub mod mesa {
             let cfs_session_status = cfs_session.status.unwrap().session.unwrap().status.unwrap();
 
             if cfs_session_status != "complete" && i < max {
-                println!(
-                "Waiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}",
+                print!("\x1B[2K"); // Clear current line
+                io::stdout().flush().unwrap();
+                print!(
+                "\rWaiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}",
                 cfs_session_id, cfs_session_status, i, max
             );
+                io::stdout().flush().unwrap();
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 

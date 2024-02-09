@@ -1,3 +1,5 @@
+use std::io::{self, Write};
+
 use serde_json::Value;
 
 use crate::ims::{self};
@@ -29,10 +31,13 @@ pub async fn wait_ims_job_to_finish(
         let ims_job_status = ims_job["status"].as_str().unwrap();
 
         if (ims_job_status != "error" && ims_job_status != "success") && i < max {
-            println!(
-                "Waiting IMS job '{}' with job status '{}'. Checking again in 2 secs. Attempt {} of {}",
+            print!("\x1B[2K"); // Clear current line
+            io::stdout().flush().unwrap();
+            print!(
+                "\rWaiting IMS job '{}' with job status '{}'. Checking again in 2 secs. Attempt {} of {}",
                 ims_job_id, ims_job_status, i, max
             );
+            io::stdout().flush().unwrap();
 
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
