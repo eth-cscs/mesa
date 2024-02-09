@@ -1145,7 +1145,7 @@ pub mod mesa {
                 i += 1;
             } else {
                 println!(
-                    "CFS session '{}' finished with status '{}'.\nExit",
+                    "\nCFS session '{}' finished with status '{}'",
                     cfs_session_id, cfs_session_status
                 );
                 break;
