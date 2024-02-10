@@ -83,7 +83,6 @@ pub mod shasta {
 
             let response_rslt = client
                 .post(api_url)
-                // .post(format!("{}{}", shasta_base_url, "/cfs/v2/sessions"))
                 .bearer_auth(shasta_token)
                 .json(&session)
                 .send()
@@ -762,22 +761,6 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    /* cfs_session.target.clone().is_some_and(|target| {
-                        target.groups.is_some_and(|groups| {
-                            !groups.is_empty()
-                                && groups
-                                    .iter()
-                                    .any(|group| hsm_group_name_vec.contains(&group.name))
-                        })
-                    }) || cfs_session.ansible.clone().is_some_and(|ansible| {
-                        ansible.limit.is_some_and(|limit| {
-                            limit
-                                .split(',')
-                                .map(|node| node.trim().to_string())
-                                .collect::<HashSet<String>>()
-                                .is_subset(&HashSet::from_iter(xname_vec.clone()))
-                        })
-                    }) */
                     cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                         target_hsm_vec
                             .iter()
@@ -821,22 +804,6 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    /* cfs_session.target.clone().is_some_and(|target| {
-                        target.groups.is_some_and(|groups| {
-                            !groups.is_empty()
-                                && groups
-                                    .iter()
-                                    .any(|group| hsm_group_name_vec.contains(&group.name))
-                        })
-                    }) || cfs_session.ansible.clone().is_some_and(|ansible| {
-                        ansible.limit.is_some_and(|limit| {
-                            limit
-                                .split(',')
-                                .map(|node| node.trim().to_string())
-                                .collect::<HashSet<String>>()
-                                .is_subset(&HashSet::from_iter(xname_vec.to_vec()))
-                        })
-                    }) */
                     cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                         target_hsm_vec
                             .iter()
@@ -867,18 +834,6 @@ pub mod mesa {
             cfs_session_vec: &[CfsSessionGetResponse],
             image_id: &str,
         ) -> Option<CfsSessionGetResponse> {
-            /* cfs_session_vec
-            .iter()
-            .find(|cfs_session_value| {
-                cfs_session_value.status.as_ref().is_some_and(|status| {
-                    status.artifacts.as_ref().is_some_and(|artifact| {
-                        artifact.first().as_ref().is_some_and(|first_artifact| {
-                            first_artifact.result_id.as_ref().unwrap().eq(image_id)
-                        })
-                    })
-                })
-            })
-            .cloned() */
             cfs_session_vec
                 .iter()
                 .find(|cfs_session| {
@@ -911,38 +866,7 @@ pub mod mesa {
             )> = Vec::new();
 
             cfs_session_vec.iter().for_each(|cfs_session| {
-                /* let result_id: String = cfs_session
-                .status
-                .as_ref()
-                .and_then(|status| {
-                    status.artifacts.as_ref().and_then(|artifacts| {
-                        artifacts
-                            .first()
-                            .and_then(|artifact| artifact.result_id.as_ref())
-                    })
-                })
-                .unwrap_or(&"".to_string())
-                .to_string(); */
-
                 let result_id: String = cfs_session.get_result_id().unwrap_or("".to_string());
-
-                /* let target: Vec<String> = if let Some(target_groups) =
-                    cfs_session.target.as_ref().unwrap().groups.as_ref()
-                {
-                    target_groups
-                        .iter()
-                        .map(|group| group.name.clone())
-                        .collect()
-                } else if let Some(ansible_limit) =
-                    cfs_session.ansible.as_ref().unwrap().limit.as_ref()
-                {
-                    ansible_limit
-                        .split(',')
-                        .map(|xname| xname.trim().to_string())
-                        .collect()
-                } else {
-                    vec![]
-                }; */
 
                 let target: Vec<String> = cfs_session
                     .get_target_hsm()
@@ -953,14 +877,6 @@ pub mod mesa {
 
                 image_id_cfs_configuration_target_from_cfs_session.push((
                     result_id,
-                    /* cfs_session
-                    .configuration
-                    .as_ref()
-                    .unwrap()
-                    .name
-                    .as_ref()
-                    .unwrap()
-                    .to_string(), */
                     cfs_configuration,
                     target,
                 ));
@@ -983,53 +899,17 @@ pub mod mesa {
 
             cfs_session_vec.iter().for_each(|cfs_session| {
                 if let Some(result_id) = cfs_session.get_result_id()
-                /* .status
-                .as_ref()
-                .unwrap()
-                .artifacts
-                .as_ref()
-                .and_then(|artifact_vec| {
-                    artifact_vec
-                        .first()
-                        .and_then(|artifact| artifact.result_id.as_ref())
-                }) */
                 {
                     let target: Vec<String> = cfs_session
                         .get_target_hsm()
                         .or_else(|| cfs_session.get_target_xname())
                         .unwrap_or(Vec::new());
 
-                    /* let target: Vec<String> = if let Some(target_groups) =
-                        cfs_session.target.as_ref().unwrap().groups.as_ref()
-                    {
-                        target_groups
-                            .iter()
-                            .map(|group| group.name.clone())
-                            .collect()
-                    } else if let Some(ansible_limit) =
-                        cfs_session.ansible.as_ref().unwrap().limit.as_ref()
-                    {
-                        ansible_limit
-                            .split(',')
-                            .map(|xname| xname.trim().to_string())
-                            .collect()
-                    } else {
-                        vec![]
-                    }; */
-
                     let cfs_configuration = cfs_session.get_configuration_name().unwrap();
 
                     image_id_cfs_configuration_target_from_cfs_session.push((
                         result_id.to_string(),
                         cfs_configuration,
-                        /* cfs_session
-                        .configuration
-                        .as_ref()
-                        .unwrap()
-                        .name
-                        .as_ref()
-                        .unwrap()
-                        .to_string(), */
                         target,
                     ));
                 } else {
@@ -1054,50 +934,11 @@ pub mod mesa {
                 .iter()
                 .filter(|cfs_session| {
                     cfs_session.is_target_def_image()
-                        /* .target
-                        .as_ref()
-                        .unwrap()
-                        .definition
-                        .as_ref()
-                        .unwrap()
-                        .eq("image") */
                         && cfs_session.is_success()
-                            /* .status
-                            .as_ref()
-                            .unwrap()
-                            .session
-                            .as_ref()
-                            .unwrap()
-                            .succeeded
-                            .as_ref()
-                            .unwrap_or(&"false".to_string())
-                            .eq("true") */
                         && cfs_session.get_result_id().is_some()
-                    /* .status
-                    .as_ref()
-                    .unwrap()
-                    .artifacts
-                    .as_ref()
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .result_id
-                    .is_some() */
                 })
                 .map(|cfs_session| {
                     cfs_session.get_result_id().unwrap()
-                    /* .status
-                    .as_ref()
-                    .unwrap()
-                    .artifacts
-                    .as_ref()
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .result_id
-                    .as_ref()
-                    .unwrap()
-                    .to_string() */
                 })
                 .collect::<Vec<String>>()
         }
