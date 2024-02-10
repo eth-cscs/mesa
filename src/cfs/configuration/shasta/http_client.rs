@@ -62,7 +62,7 @@ pub async fn put_raw(
     let api_url = shasta_base_url.to_owned() + "/cfs/v2/configurations/" + configuration_name;
 
     let request_payload = serde_json::json!({"layers": configuration.layers});
-    log::info!(
+    log::debug!(
         "CFS configuration request payload:\n{}",
         serde_json::to_string_pretty(&request_payload).unwrap()
     );

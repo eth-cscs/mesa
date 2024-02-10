@@ -161,7 +161,7 @@ impl CfsConfigurationRequest {
                     std::process::exit(1);
                 }
 
-                log::info!(
+                log::debug!(
                     "CRAY product catalog details (filtered):\n{:#?}",
                     product_details.unwrap()
                 );

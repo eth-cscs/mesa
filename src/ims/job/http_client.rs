@@ -137,10 +137,19 @@ pub async fn post_sync(
     wait_ims_job_to_finish(shasta_token, shasta_base_url, shasta_root_cert, ims_job_id).await;
 
     // Get most recent IMS job status
-    let ims_job_details_value: Value =
-        get(shasta_token, shasta_base_url, shasta_root_cert, Some(ims_job_id))
-            .await
-            .unwrap();
+    let ims_job_details_value: Value = get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        Some(ims_job_id),
+    )
+    .await
+    .unwrap();
+
+    log::debug!(
+        "IMS job response:\n{}",
+        serde_json::to_string_pretty(&ims_job_details_value).unwrap()
+    );
 
     Ok(ims_job_details_value)
 }

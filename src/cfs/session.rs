@@ -62,7 +62,7 @@ pub mod shasta {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<reqwest::Response, reqwest::Error> {
-            log::info!("Session:\n{:#?}", session);
+            log::debug!("Session:\n{:#?}", session);
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);

@@ -31,7 +31,7 @@ pub async fn create(
 
     match cfs_configuration_rslt {
         Ok(cfs_configuration) => {
-            log::info!(
+            println!(
                 "CFS configuration '{}' successfully created",
                 cfs_configuration.name
             );

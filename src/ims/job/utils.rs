@@ -44,7 +44,7 @@ pub async fn wait_ims_job_to_finish(
             i += 1;
         } else {
             println!(
-                "\nIMS job '{}' finished with job status '{}'.\nExit",
+                "\nIMS job '{}' finished with job status '{}'",
                 ims_job_id, ims_job_status
             );
             break;
