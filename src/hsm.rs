@@ -285,8 +285,8 @@ pub mod group {
                     .collect()
             }
 
-            /// Get the list of xnames which are members of a list of HSM groups. 
-            /// eg: 
+            /// Get the list of xnames which are members of a list of HSM groups.
+            /// eg:
             /// given following HSM groups:
             /// tenant_a: [x1003c1s7b0n0, x1003c1s7b0n1]
             /// tenant_b: [x1003c1s7b1n0]
@@ -952,6 +952,197 @@ pub mod hw_inventory {
                             })
                             .collect::<Vec<u64>>()
                     })
+            }
+        }
+    }
+
+    pub mod ethernet_interfaces {
+        pub mod shasta {
+            use self::r#struct::{ComponentEthernetInterface, IpAddressMapping};
+
+            pub mod r#struct {
+                use serde::{Deserialize, Serialize};
+
+                #[derive(Debug, Default, Serialize, Deserialize)]
+                pub struct IpAddressMapping {
+                    pub ip_address: String,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    pub network: Option<String>,
+                }
+
+                #[derive(Debug, Default, Serialize, Deserialize)]
+                pub struct ComponentEthernetInterface {
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    pub description: Option<String>,
+                    pub ip_addresses: Vec<IpAddressMapping>,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    pub component_id: Option<String>,
+                }
+
+                #[derive(Debug, Serialize, Deserialize)]
+                pub enum ComponentType {
+                    CDU,
+                    CabinetCDU,
+                    CabinetPDU,
+                    CabinetPDUOutlet,
+                    CabinetPDUPowerConnector,
+                    CabinetPDUController,
+                    r#Cabinet,
+                    Chassis,
+                    ChassisBMC,
+                    CMMRectifier,
+                    CMMFpga,
+                    CEC,
+                    ComputeModule,
+                    RouterModule,
+                    NodeBMC,
+                    NodeEnclosure,
+                    NodeEnclosurePowerSupply,
+                    HSNBoard,
+                    Node,
+                    Processor,
+                    Drive,
+                    StorageGroup,
+                    NodeNIC,
+                    Memory,
+                    NodeAccel,
+                    NodeAccelRiser,
+                    NodeFpga,
+                    HSNAsic,
+                    RouterFpga,
+                    RouterBMC,
+                    HSNLink,
+                    HSNConnector,
+                    INVALID,
+                }
+
+                #[derive(Debug, Default, Serialize, Deserialize)]
+                pub struct EthernetInterface {
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    id: Option<String>,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    description: Option<String>,
+                    mac_address: String,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    ip_address: Option<String>,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    last_update: Option<String>,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    component_id: Option<String>,
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    r#type: Option<ComponentType>,
+                }
+            }
+
+            pub mod http_client {
+
+                // Get list of network interfaces
+                // ref --> https://csm12-apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doCompEthInterfacesGetV2/
+                pub async fn get(
+                    shasta_token: &str,
+                    shasta_base_url: &str,
+                    shasta_root_cert: &[u8],
+                    mac_address: &str,
+                    ip_address: &str,
+                    network: &str,
+                    component_id: &str, // Node's xname
+                    r#type: &str,
+                    olther_than: &str,
+                    newer_than: &str,
+                ) -> Result<reqwest::Response, reqwest::Error> {
+                    let client_builder = reqwest::Client::builder()
+                        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                    // Build client
+                    let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                        // socks5 proxy
+                        log::debug!("SOCKS5 enabled");
+                        let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                        // rest client to authenticate
+                        client_builder.proxy(socks5proxy).build()?
+                    } else {
+                        client_builder.build()?
+                    };
+
+                    let api_url: String =
+                        shasta_base_url.to_owned() + "/smd/hsm/v2/Inventory/EthernetInterfaces";
+
+                    let response_rslt = client
+                        .get(api_url)
+                        .query(&[
+                            ("MACAddress", mac_address),
+                            ("IPAddress", ip_address),
+                            ("Network", network),
+                            ("ComponentID", component_id),
+                            ("Type", r#type),
+                            ("OlderThan", olther_than),
+                            ("NewerThan", newer_than),
+                        ])
+                        .bearer_auth(shasta_token)
+                        .send()
+                        .await;
+
+                    match response_rslt {
+                        Ok(response) => response.error_for_status(),
+                        Err(error) => Err(error),
+                    }
+                }
+            }
+
+            pub async fn patch(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                eth_interface_id: &str,
+                description: Option<&str>,
+                component_id: &str,
+                ip_address_mapping: (&str, &str), // [(<ip address>, <network>), ...], examle
+                                                  // [("192.168.1.10", "HMN"), ...]
+            ) -> Result<reqwest::Response, reqwest::Error> {
+                let ip_address = ip_address_mapping.0;
+                let network = ip_address_mapping.1;
+                let cei = ComponentEthernetInterface {
+                    description: description.map(|value| value.to_string()),
+                    ip_addresses: vec![IpAddressMapping {
+                        ip_address: ip_address.to_string(),
+                        network: Some(network.to_string()),
+                    }],
+                    component_id: Some(component_id.to_string()),
+                };
+
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                    // rest client to authenticate
+                    client_builder.proxy(socks5proxy).build()?
+                } else {
+                    client_builder.build()?
+                };
+
+                let api_url: String = format!(
+                    "{}/smd/hsm/v2/Inventory/EthernetInterfaces/{}",
+                    shasta_base_url, eth_interface_id
+                );
+
+                let response_rslt = client
+                    .patch(api_url)
+                    .query(&[("ethInterfaceID", ip_address), ("ipAddress", ip_address)])
+                    .bearer_auth(shasta_token)
+                    .json(&cei)
+                    .send()
+                    .await;
+
+                match response_rslt {
+                    Ok(response) => response.error_for_status(),
+                    Err(error) => Err(error),
+                }
             }
         }
     }
