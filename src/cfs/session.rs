@@ -663,6 +663,8 @@ pub mod mesa {
             shasta_root_cert: &[u8],
             session: &CfsSessionPostRequest,
         ) -> Result<CfsSessionGetResponse, ApiError> {
+            log::debug!("CFS session creation request payload:\n{:#?}", session);
+
             let response = crate::cfs::session::shasta::http_client::post(
                 shasta_token,
                 shasta_base_url,
@@ -673,7 +675,14 @@ pub mod mesa {
             .unwrap();
 
             if response.status().is_success() {
-                Ok(response.json::<CfsSessionGetResponse>().await.unwrap())
+                let response_payload = response.json::<CfsSessionGetResponse>().await.unwrap();
+
+                log::debug!(
+                    "CFS session creation response payload:\n{:#?}",
+                    response_payload
+                );
+
+                Ok(response_payload)
             } else {
                 let error_detail = response.json::<serde_json::Value>().await.unwrap()["detail"]
                     .as_str()
@@ -898,8 +907,7 @@ pub mod mesa {
             )> = Vec::new();
 
             cfs_session_vec.iter().for_each(|cfs_session| {
-                if let Some(result_id) = cfs_session.get_result_id()
-                {
+                if let Some(result_id) = cfs_session.get_result_id() {
                     let target: Vec<String> = cfs_session
                         .get_target_hsm()
                         .or_else(|| cfs_session.get_target_xname())
@@ -937,9 +945,7 @@ pub mod mesa {
                         && cfs_session.is_success()
                         && cfs_session.get_result_id().is_some()
                 })
-                .map(|cfs_session| {
-                    cfs_session.get_result_id().unwrap()
-                })
+                .map(|cfs_session| cfs_session.get_result_id().unwrap())
                 .collect::<Vec<String>>()
         }
     }

@@ -88,14 +88,14 @@ impl CfsConfigurationRequest {
 
                 let repo_url = layer_yaml["git"]["url"].as_str().unwrap().to_string();
 
-                let commit_id_value_opt = layer_yaml["git"].get("commit_id");
+                let commit_id_value_opt = layer_yaml["git"].get("commit");
                 let tag_value_opt = layer_yaml["git"].get("tag");
                 let branch_value_opt = layer_yaml["git"].get("branch");
 
                 let commit_id: Option<String> = if commit_id_value_opt.is_some() {
                     // Git commit id
                     layer_yaml["git"]
-                        .get("commit_id")
+                        .get("commit")
                         .map(|commit_id| commit_id.as_str().unwrap().to_string())
                 } else if let Some(git_tag_value) = tag_value_opt {
                     // Git tag
@@ -162,7 +162,9 @@ impl CfsConfigurationRequest {
                 }
 
                 log::debug!(
-                    "CRAY product catalog details (filtered):\n{:#?}",
+                    "CRAY product catalog details for product: {}, version: {}:\n{:#?}",
+                    product_name,
+                    product_version,
                     product_details.unwrap()
                 );
 

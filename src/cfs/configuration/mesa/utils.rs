@@ -18,7 +18,10 @@ pub async fn create(
     shasta_root_cert: &[u8],
     cfs_configuration: &mut CfsConfigurationRequest,
 ) -> Result<CfsConfigurationResponse, ApiError> {
-    log::debug!("CFS configuration:\n{:#?}", cfs_configuration);
+    log::debug!(
+        "CFS configuration creation request payload:\n{:#?}",
+        cfs_configuration
+    );
 
     let cfs_configuration_rslt = cfs::configuration::mesa::http_client::put(
         shasta_token,
@@ -31,10 +34,11 @@ pub async fn create(
 
     match cfs_configuration_rslt {
         Ok(cfs_configuration) => {
-            println!(
-                "CFS configuration '{}' successfully created",
-                cfs_configuration.name
+            log::debug!(
+                "CFS configuration creation response payload:\n{:#?}",
+                cfs_configuration
             );
+
             Ok(cfs_configuration)
         }
         Err(error) => Err(ApiError::CsmError(error.to_string())),

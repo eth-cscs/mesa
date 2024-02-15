@@ -44,7 +44,10 @@ pub async fn post(
     shasta_root_cert: &[u8],
     bos_template: &BosSessionTemplate,
 ) -> Result<Value, Box<dyn std::error::Error>> {
-    log::debug!("Bos template:\n{:#?}", bos_template);
+    log::debug!(
+        "BOS sessiontemplate creation request payload:\n{:#?}",
+        bos_template
+    );
 
     let client;
 
@@ -74,7 +77,10 @@ pub async fn post(
 
     if resp.status().is_success() {
         let response = resp.json().await?;
-        log::debug!("Response:\n{:#?}", response);
+        log::debug!(
+            "BOS sessiontemplate creation response payload:\n{:#?}",
+            response
+        );
         Ok(response)
     } else {
         let response: String = resp.text().await?;
