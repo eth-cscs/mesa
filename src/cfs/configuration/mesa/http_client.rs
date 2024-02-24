@@ -59,15 +59,21 @@ pub async fn get_and_filter(
         .await
         .unwrap_or_default();
 
-    crate::cfs::configuration::mesa::utils::filter(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        &mut cfs_configuration_value_vec,
-        hsm_group_name_vec,
-        limit_number_opt,
-    )
-    .await
+    if configuration_name.is_none() {
+        // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
+        // CFS configuration name or the image name built would include the HSM name
+        crate::cfs::configuration::mesa::utils::filter(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &mut cfs_configuration_value_vec,
+            hsm_group_name_vec,
+            limit_number_opt,
+        )
+        .await;
+    }
+
+    cfs_configuration_value_vec
 }
 
 pub async fn put(
@@ -87,7 +93,10 @@ pub async fn put(
     .await;
 
     if cfs_configuration_rslt.is_ok_and(|cfs_configuration_vec| !cfs_configuration_vec.is_empty()) {
-        return Err(ApiError::MesaError(format!("CFS configuration '{}' already exists.", configuration_name)));
+        return Err(ApiError::MesaError(format!(
+            "CFS configuration '{}' already exists.",
+            configuration_name
+        )));
     }
 
     let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::put_raw(
@@ -101,7 +110,7 @@ pub async fn put(
 
     let cfs_configuration_payload = match cfs_configuration_response {
         Ok(data) => data,
-        Err(error) => return Err(ApiError::CsmError(error.to_string()))
+        Err(error) => return Err(ApiError::CsmError(error.to_string())),
     };
 
     if cfs_configuration_payload.status().is_success() {
@@ -109,7 +118,10 @@ pub async fn put(
             cfs_configuration_payload.json().await.unwrap();
         Ok(cfs_configuration)
     } else {
-        let error_detail = cfs_configuration_payload.json::<serde_json::Value>().await.unwrap()["detail"]
+        let error_detail = cfs_configuration_payload
+            .json::<serde_json::Value>()
+            .await
+            .unwrap()["detail"]
             .as_str()
             .unwrap()
             .to_string();

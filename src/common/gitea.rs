@@ -4,9 +4,79 @@ pub mod http_client {
 
     use std::error::Error;
 
-    use crate::config;
+    use crate::{cfs::configuration::mesa::r#struct::cfs_configuration_response::ApiError, config};
     use serde_json::Value;
 
+    /// Get all refs for a repository
+    /// Used when getting repo details
+    pub async fn get_all_refs(
+        repo_url: &str,
+        gitea_token: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Vec<Value>, ApiError> {
+        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
+        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+
+        let gitea_api_base_url = gitea_external_base_url.to_owned() + "api/v1";
+
+        let repo_name = repo_url
+            .trim_start_matches(gitea_internal_base_url)
+            .trim_end_matches(".git");
+        let repo_name = repo_name
+            .trim_start_matches(gitea_external_base_url)
+            .trim_end_matches(".git");
+
+        log::info!("repo_url: {}", repo_url);
+        log::info!("gitea_base_url: {}", gitea_internal_base_url);
+        log::info!("repo_name: {}", repo_name);
+
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert).unwrap());
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap()).unwrap();
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build().unwrap();
+        } else {
+            client = client_builder.build().unwrap();
+        }
+
+        let api_url = format!("{}/repos/{}/git/refs", gitea_api_base_url, repo_name);
+
+        log::info!("Get refs in gitea using through API call: {}", api_url);
+
+        let resp = client
+            .get(api_url)
+            .header("Authorization", format!("token {}", gitea_token))
+            .send()
+            .await
+            .unwrap();
+
+        if resp.status().is_success() {
+            let json_response: Vec<Value> = resp.json().await.unwrap();
+
+            log::debug!(
+                "Gitea response refs for repo '{}':\n{:#?}",
+                repo_name,
+                json_response
+            );
+
+            Ok(json_response)
+        } else {
+            let response_payload = resp.text().await.unwrap();
+
+            Err(ApiError::MesaError(response_payload))
+        }
+    }
+
+    /// Returns the commit id (sha) related to a tag name
+    /// Used to translate CFS configuration layer tag name into commit id values when processing
+    /// SAT files
     pub async fn get_tag_details(
         repo_url: &str,
         tag: &str,
@@ -118,9 +188,15 @@ pub mod http_client {
             .await?;
 
         if resp.status().is_success() {
-            let json_response = &resp.text().await?;
+            let json_response: Value = resp.json().await?;
 
-            Ok(serde_json::from_str(json_response)?)
+            log::debug!(
+                "Gitea commit id '{}' details:\n{:#?}",
+                commitid,
+                json_response
+            );
+
+            Ok(json_response)
         } else {
             let error_msg = format!("ERROR: commit {} not found in Shasta CVS. Please check gitea admin or wait sync to finish.", commitid);
 

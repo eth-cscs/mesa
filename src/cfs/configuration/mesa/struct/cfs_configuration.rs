@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 pub struct Configuration {
     pub name: String,
@@ -38,6 +38,9 @@ pub struct Layer {
     pub commit_id: String,
     pub author: String,
     pub commit_date: String,
+    pub branch: Option<String>,
+    pub tag: Option<String>,
+    pub most_recent_commit: Option<bool>,
 }
 
 impl Layer {
@@ -47,6 +50,9 @@ impl Layer {
         commit_id: &str,
         author: &str,
         commit_date: &str,
+        branch: Option<&str>,
+        tag: Option<&str>,
+        most_recent_commit: Option<bool>,
     ) -> Self {
         Self {
             name: String::from(name),
@@ -54,6 +60,9 @@ impl Layer {
             commit_id: String::from(commit_id),
             author: String::from(author),
             commit_date: String::from(commit_date),
+            branch: branch.map(|branch| branch.to_string()),
+            tag: tag.map(|tag| tag.to_string()),
+            most_recent_commit,
         }
     }
 }
@@ -62,8 +71,8 @@ impl fmt::Display for Layer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "\n - name: {}\n - repo name: {}\n - commit id: {}\n - commit date: {}\n - author: {}",
-            self.name, self.repo_name, self.commit_id, self.commit_date, self.author
+            "\n - name: {}\n - repo name: {}\n - commit id: {}\n - commit date: {}\n - author: {}\n - branch: {}\n - tag: {}",
+            self.name, self.repo_name, self.commit_id, self.commit_date, self.author, self.branch.as_ref().unwrap_or(&"Not provided".to_string()), self.tag.as_ref().unwrap_or(&"Not provided".to_string())
         )
     }
 }
