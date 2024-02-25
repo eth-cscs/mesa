@@ -679,7 +679,12 @@ pub mod group {
         }
 
         pub mod utils {
-            use crate::cfs::session::mesa::r#struct::CfsSessionGetResponse;
+            use std::collections::HashMap;
+
+            use crate::{
+                cfs::session::mesa::r#struct::CfsSessionGetResponse,
+                hsm::hw_components::NodeSummary,
+            };
 
             /// This method will verify the HSM group in user config file and the HSM group the user is
             /// trying to access and it will verify if this access is granted.
@@ -952,6 +957,61 @@ pub mod hw_inventory {
                             })
                             .collect::<Vec<u64>>()
                     })
+            }
+        }
+    }
+
+    pub mod mesa {
+        pub mod utils {
+            use std::collections::HashMap;
+
+            use crate::hsm::hw_components::NodeSummary;
+
+            pub fn calculate_hsm_hw_component_summary(
+                node_summary_vec: &Vec<NodeSummary>,
+            ) -> HashMap<String, usize> {
+                let mut node_hw_component_summary: HashMap<String, usize> = HashMap::new();
+
+                for node_summary in node_summary_vec {
+                    for artifact_summary in &node_summary.processors {
+                        node_hw_component_summary
+                            .entry(artifact_summary.info.as_ref().unwrap().to_string())
+                            .and_modify(|summary_quantity| *summary_quantity += 1)
+                            .or_insert(1);
+                    }
+                    for artifact_summary in &node_summary.node_accels {
+                        node_hw_component_summary
+                            .entry(artifact_summary.info.as_ref().unwrap().to_string())
+                            .and_modify(|summary_quantity| *summary_quantity += 1)
+                            .or_insert(1);
+                    }
+                    for artifact_summary in &node_summary.memory {
+                        let memory_capacity = artifact_summary
+                            .info
+                            .as_ref()
+                            .unwrap()
+                            .split(" ")
+                            .collect::<Vec<_>>()
+                            .first()
+                            .unwrap()
+                            .parse::<usize>()
+                            .unwrap();
+                        node_hw_component_summary
+                            .entry(artifact_summary.r#type.to_string() + " (GiB)")
+                            .and_modify(|summary_quantity| {
+                                *summary_quantity += memory_capacity / 1024;
+                            })
+                            .or_insert(memory_capacity / 1024);
+                    }
+                    for artifact_summary in &node_summary.node_hsn_nics {
+                        node_hw_component_summary
+                            .entry(artifact_summary.info.as_ref().unwrap().to_string())
+                            .and_modify(|summary_quantity| *summary_quantity += 1)
+                            .or_insert(1);
+                    }
+                }
+
+                node_hw_component_summary
             }
         }
     }
