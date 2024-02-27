@@ -112,7 +112,7 @@ impl CfsConfigurationRequest {
                     .await
                     .unwrap();
 
-                    log::info!("tag details:\n{:#?}", tag_details);
+                    log::debug!("tag details:\n{:#?}", tag_details);
 
                     tag_details["id"].as_str().map(|commit| commit.to_string())
                 } else if branch_value_opt.is_some() {
