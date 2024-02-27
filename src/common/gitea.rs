@@ -26,9 +26,9 @@ pub mod http_client {
             .trim_start_matches(gitea_external_base_url)
             .trim_end_matches(".git");
 
-        log::info!("repo_url: {}", repo_url);
+        /* log::info!("repo_url: {}", repo_url);
         log::info!("gitea_base_url: {}", gitea_internal_base_url);
-        log::info!("repo_name: {}", repo_name);
+        log::info!("repo_name: {}", repo_name); */
 
         let client;
 
@@ -95,9 +95,9 @@ pub mod http_client {
             .trim_start_matches(gitea_external_base_url)
             .trim_end_matches(".git");
 
-        log::info!("repo_url: {}", repo_url);
+        /* log::info!("repo_url: {}", repo_url);
         log::info!("gitea_base_url: {}", gitea_internal_base_url);
-        log::info!("repo_name: {}", repo_name);
+        log::info!("repo_name: {}", repo_name); */
 
         let client;
 
@@ -154,9 +154,9 @@ pub mod http_client {
             .trim_start_matches(gitea_external_base_url)
             .trim_end_matches(".git");
 
-        log::info!("repo_url: {}", repo_url);
+        /* log::info!("repo_url: {}", repo_url);
         log::info!("gitea_base_url: {}", gitea_internal_base_url);
-        log::info!("repo_name: {}", repo_name);
+        log::info!("repo_name: {}", repo_name); */
 
         let client;
 
