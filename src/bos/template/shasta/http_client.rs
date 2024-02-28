@@ -45,8 +45,8 @@ pub async fn post(
     bos_template: &BosSessionTemplate,
 ) -> Result<Value, Box<dyn std::error::Error>> {
     log::debug!(
-        "BOS sessiontemplate creation request payload:\n{:#?}",
-        bos_template
+        "BOS sessiontemplate creation request payload:\n{}",
+        serde_json::to_string_pretty(bos_template).unwrap()
     );
 
     let client;
@@ -77,6 +77,7 @@ pub async fn post(
 
     if resp.status().is_success() {
         let response = resp.json().await?;
+
         log::debug!(
             "BOS sessiontemplate creation response payload:\n{:#?}",
             response
