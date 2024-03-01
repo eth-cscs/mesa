@@ -262,88 +262,21 @@ pub mod group {
             }
 
             pub async fn post_member(
-                shasta_token: &str,
-                shasta_base_url: &str,
-                shasta_root_cert: &[u8],
                 hsm_group_name: &str,
                 member_id: &str,
             ) -> Result<(), reqwest::Error> {
                 log::info!("DEBUG - ADD member {}/{}", hsm_group_name, member_id);
 
                 Ok(())
-
-                /* let client_builder = reqwest::Client::builder()
-                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-                // Build client
-                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-                    // socks5 proxy
-                    log::debug!("SOCKS5 enabled");
-                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
-
-                    // rest client to authenticate
-                    client_builder.proxy(socks5proxy).build()?
-                } else {
-                    client_builder.build()?
-                };
-
-                let api_url = format!(
-                    "{}/smd/hsm/v2/groups/{}/members",
-                    shasta_base_url, hsm_group_name
-                );
-
-                let _ = client
-                    .post(api_url)
-                    .bearer_auth(shasta_token)
-                    .json(&serde_json::json!({
-                    "id": member_id
-                    }))
-                    .send()
-                    .await?
-                    .error_for_status();
-
-                Ok(()) */
             }
 
             pub async fn delete_member(
-                shasta_token: &str,
-                shasta_base_url: &str,
-                shasta_root_cert: &[u8],
                 hsm_group_name: &str,
                 member_id: &str,
             ) -> Result<(), reqwest::Error> {
                 log::info!("DEBUG - DELETE member {}/{}", hsm_group_name, member_id);
 
                 Ok(())
-
-                /* let client_builder = reqwest::Client::builder()
-                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-                // Build client
-                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-                    // socks5 proxy
-                    log::debug!("SOCKS5 enabled");
-                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
-
-                    // rest client to authenticate
-                    client_builder.proxy(socks5proxy).build()?
-                } else {
-                    client_builder.build()?
-                };
-
-                let api_url = format!(
-                    "{}/smd/hsm/v2/groups/{}/members/{}",
-                    shasta_base_url, hsm_group_name, member_id
-                );
-
-                let _ = client
-                    .delete(api_url)
-                    .bearer_auth(shasta_token)
-                    .send()
-                    .await?
-                    .error_for_status();
-
-                Ok(()) */
             }
         }
 
@@ -361,9 +294,6 @@ pub mod group {
             use super::http_client::{self, delete_member};
 
             pub async fn update_hsm_group_members(
-                shasta_token: &str,
-                shasta_base_url: &str,
-                shasta_root_cert: &[u8],
                 hsm_group_name: &str,
                 old_target_hsm_group_members: &Vec<String>,
                 new_target_hsm_group_members: &Vec<String>,
@@ -375,13 +305,10 @@ pub mod group {
 
                 // Delete members
                 for old_member in old_target_hsm_group_members {
-                    if !new_target_hsm_group_members.contains(&old_member) {
+                    if !new_target_hsm_group_members.contains(old_member) {
                         let _ = delete_member(
-                            shasta_token,
-                            shasta_base_url,
-                            shasta_root_cert,
                             hsm_group_name,
-                            &old_member,
+                            old_member,
                         )
                         .await;
                     }
@@ -389,13 +316,10 @@ pub mod group {
 
                 // Add members
                 for new_member in new_target_hsm_group_members {
-                    if !old_target_hsm_group_members.contains(&new_member) {
+                    if !old_target_hsm_group_members.contains(new_member) {
                         let _ = post_member(
-                            shasta_token,
-                            shasta_base_url,
-                            shasta_root_cert,
                             hsm_group_name,
-                            &new_member,
+                            new_member,
                         )
                         .await;
                     }
@@ -751,17 +675,11 @@ pub mod group {
                     .send()
                     .await?;
 
-                let json_response: Value;
-
-                if resp.status().is_success() {
-                    json_response = serde_json::from_str(&resp.text().await?)?;
+                let json_response: Value = if resp.status().is_success() {
+                    serde_json::from_str(&resp.text().await?)?
                 } else {
                     println!("Return code: {}\n", resp.status());
-                    if resp.status().to_string().to_lowercase().contains("409") {
-                        return Err(resp.text().await?.into());
-                    } else {
-                        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-                    }
+                    return Err(resp.text().await?.into());
                 };
 
                 Ok(json_response.as_array().unwrap().to_owned())
@@ -1115,7 +1033,7 @@ pub mod hw_inventory {
                             .info
                             .as_ref()
                             .unwrap()
-                            .split(" ")
+                            .split(' ')
                             .collect::<Vec<_>>()
                             .first()
                             .unwrap()

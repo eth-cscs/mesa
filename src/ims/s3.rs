@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use anyhow::Result;
 use aws_sdk_s3::{primitives::ByteStream, Client};
-use indicatif::{ProgressBar,ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 
 pub const BAR_FORMAT: &str = "[{elapsed_precise}] {bar:40.cyan/blue} ({bytes_per_sec}) {bytes:>7}/{total_bytes:7} {msg} [ETA {eta}]";
 // Get a token for S3 and return the result
@@ -139,14 +139,10 @@ pub async fn s3_get_object_size(
     bucket: &str,
 ) -> Result<i64, Box<dyn Error>> {
     let client = setup_client(sts_value).await;
-    let _object = match client.get_object()
-        .bucket(bucket)
-        .key(key)
-        .send()
-        .await {
-        Ok(object) => return Ok(object.content_length().clone().unwrap()),
-        Err(e) => panic!("Error, unable to get object size from s3. Error msg: {}", e)
-    };
+    match client.get_object().bucket(bucket).key(key).send().await {
+        Ok(object) => Ok(object.content_length().unwrap()),
+        Err(e) => panic!("Error, unable to get object size from s3. Error msg: {}", e),
+    }
 }
 
 /// Gets an object from S3
@@ -168,7 +164,6 @@ pub async fn s3_download_object(
     destination_path: &str,
 ) -> Result<String, Box<dyn Error>> {
     let client = setup_client(sts_value).await;
-
 
     let filename = Path::new(object_path).file_name().unwrap();
     let file_path = Path::new(destination_path).join(filename);
@@ -200,7 +195,7 @@ pub async fn s3_download_object(
         .send()
         .await?;
 
-    let bar_size = object.content_length().clone().unwrap();
+    let bar_size = object.content_length().unwrap();
     let bar = ProgressBar::new(bar_size as u64);
     bar.set_style(ProgressStyle::with_template(BAR_FORMAT).unwrap());
 
@@ -232,7 +227,7 @@ pub async fn s3_upload_object(
 
     let body = ByteStream::from_path(Path::new(&file_path)).await;
 
-    let put_object_output = match client
+    match client
         .put_object()
         .bucket(bucket)
         .key(object_path)
@@ -242,11 +237,10 @@ pub async fn s3_upload_object(
     {
         Ok(put_object_output) => {
             log::debug!("Uploaded file '{}' successfully", &file_path);
-            return Ok(put_object_output.e_tag.clone().unwrap())
+            Ok(put_object_output.e_tag.unwrap())
         }
         Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
-        //
-    };
+    }
 }
 
 /// Removes an object from S3
@@ -321,9 +315,7 @@ pub async fn s3_multipart_upload_object(
     // Get details of the upload, this is needed because multipart uploads
     // are tricky and have a minimum chunk size of 5MB
     let path = Path::new(&file_path);
-    let file_size = std::fs::metadata(path)
-        .expect("it exists I swear")
-        .len();
+    let file_size = std::fs::metadata(path).expect("it exists I swear").len();
 
     let mut chunk_count = (file_size / CHUNK_SIZE) + 1;
     let mut size_of_last_chunk = file_size % CHUNK_SIZE;

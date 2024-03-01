@@ -27,7 +27,7 @@ pub async fn create(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        &cfs_configuration,
+        cfs_configuration,
         &cfs_configuration.name,
     )
     .await;
@@ -50,7 +50,7 @@ pub async fn filter(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     cfs_configuration_vec: &mut Vec<CfsConfigurationResponse>,
-    hsm_group_name_vec: &Vec<String>,
+    hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
     let cfs_components: Vec<Value> = if !hsm_group_name_vec.is_empty() {

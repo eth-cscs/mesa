@@ -46,7 +46,7 @@ pub async fn get_and_filter(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_name: Option<&str>,
-    hsm_group_name_vec: &Vec<String>,
+    hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
     let mut cfs_configuration_value_vec: Vec<CfsConfigurationResponse> =

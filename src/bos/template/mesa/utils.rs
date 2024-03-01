@@ -160,8 +160,7 @@ pub fn find_bos_sessiontemplate_related_to_image_id(
         .find(|bos_sessiontemplate| {
             bos_sessiontemplate
                 .get_path()
-                .iter()
-                .next()
+                .first()
                 .unwrap()
                 .contains(image_id)
             /* bos_sessiontemplate

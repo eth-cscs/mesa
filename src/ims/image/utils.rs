@@ -176,19 +176,13 @@ pub async fn filter(
             // Image details in BOS session template
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
-        } else if image_id_from_boot_params.contains(image_id) {
+        } else if image_id_from_boot_params.contains(image_id)
+            || hsm_group_name_vec
+                .iter()
+                .any(|hsm_group_name| image.name.contains(hsm_group_name))
+        {
             // Image details where image is found in a node boot param related to HSM we are
             // working with
-            cfs_configuration = "Not found".to_string();
-            target_group_name_vec = vec![];
-        } else if hsm_group_name_vec
-            .iter()
-            .any(|hsm_group_name| image.name.contains(hsm_group_name))
-        {
-            // Image details where the image name contains the HSM group name we are filtering (This
-            // is a bad practice hence image name is a free text and user may make mistakes typing
-            // it but CSCS staff deletes the CFS sessions therefore we should do this to fetch as
-            // much related images as we can)
             cfs_configuration = "Not found".to_string();
             target_group_name_vec = vec![];
         } else {

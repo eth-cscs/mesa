@@ -75,14 +75,14 @@ pub async fn filter(
                 let boot_set_node_groups_vec = bos_sessiontemplate.get_target_hsm();
                 let boot_set_node_list_vec = bos_sessiontemplate.get_target_xname();
 
-                boot_set_node_groups_vec.len() > 0
+                !boot_set_node_groups_vec.is_empty()
                     && boot_set_node_groups_vec
                         .iter()
-                        .all(|node_group| hsm_group_name_vec.contains(&node_group))
-                    || boot_set_node_list_vec.len() > 0
+                        .all(|node_group| hsm_group_name_vec.contains(node_group))
+                    || !boot_set_node_list_vec.is_empty()
                         && boot_set_node_list_vec
                             .iter()
-                            .all(|xname| hsm_group_member_vec.contains(&xname))
+                            .all(|xname| hsm_group_member_vec.contains(xname))
             })
             .collect::<Vec<_>>();
 

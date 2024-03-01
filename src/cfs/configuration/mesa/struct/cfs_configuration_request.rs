@@ -105,7 +105,7 @@ impl CfsConfigurationRequest {
 
                     let tag_details = gitea::http_client::get_tag_details(
                         &repo_url,
-                        &git_tag,
+                        git_tag,
                         gitea_token,
                         shasta_root_cert,
                     )

@@ -103,7 +103,7 @@ pub async fn get_node_details(
     .unwrap();
 
     // Get BOS session template
-    let bos_sessiontemplate_vec = crate::bos::template::mesa::http_client::get_all(
+    let _ = crate::bos::template::mesa::http_client::get_all(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,

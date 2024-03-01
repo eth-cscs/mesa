@@ -57,7 +57,7 @@ pub mod http_client {
         shasta_base_url: &str,
         shasta_token: &str,
         shasta_root_cert: &[u8],
-        xnames: &Vec<String>,
+        xnames: &[String],
         params: Option<&String>,
         kernel: Option<&String>,
         initrd: Option<&String>,

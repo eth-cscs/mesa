@@ -148,7 +148,10 @@ pub mod http_client {
         shasta_root_cert: &[u8],
     ) -> Result<Value, Box<dyn Error>> {
         let repo_name: &str = gitea_api_tag_url
-            .trim_start_matches("https://vcs.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/").split("/").next().unwrap();
+            .trim_start_matches("https://vcs.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/")
+            .split('/')
+            .next()
+            .unwrap();
 
         let api_url = format!(
             "https://api.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/{}/tags/{}",

@@ -773,7 +773,7 @@ pub mod mesa {
                     cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                         target_hsm_vec
                             .iter()
-                            .any(|target_hsm| hsm_group_name_vec.contains(&target_hsm))
+                            .any(|target_hsm| hsm_group_name_vec.contains(target_hsm))
                     }) || cfs_session
                         .get_target_xname()
                         .is_some_and(|target_xname_vec| {
@@ -816,7 +816,7 @@ pub mod mesa {
                     cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                         target_hsm_vec
                             .iter()
-                            .any(|target_hsm| hsm_group_name_vec.contains(&target_hsm))
+                            .any(|target_hsm| hsm_group_name_vec.contains(target_hsm))
                     }) || cfs_session
                         .get_target_xname()
                         .is_some_and(|target_xname_vec| {
@@ -880,7 +880,7 @@ pub mod mesa {
                 let target: Vec<String> = cfs_session
                     .get_target_hsm()
                     .or_else(|| cfs_session.get_target_xname())
-                    .unwrap_or(Vec::new());
+                    .unwrap_or_default();
 
                 let cfs_configuration = cfs_session.get_configuration_name().unwrap();
 
@@ -911,7 +911,7 @@ pub mod mesa {
                     let target: Vec<String> = cfs_session
                         .get_target_hsm()
                         .or_else(|| cfs_session.get_target_xname())
-                        .unwrap_or(Vec::new());
+                        .unwrap_or_default();
 
                     let cfs_configuration = cfs_session.get_configuration_name().unwrap();
 

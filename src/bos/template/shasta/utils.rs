@@ -5,7 +5,7 @@ use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
 pub async fn filter(
     bos_sessiontemplate_value_vec: &mut Vec<Value>,
-    hsm_group_name_vec: &Vec<String>,
+    hsm_group_name_vec: &[String],
     bos_sessiontemplate_name_opt: Option<&String>,
     cfs_configuration_name_vec_opt: Option<Vec<&str>>,
     limit_number_opt: Option<&u8>,
