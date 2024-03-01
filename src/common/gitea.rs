@@ -126,11 +126,67 @@ pub mod http_client {
             .await?;
 
         if resp.status().is_success() {
-            let json_response = &resp.text().await?;
+            let json_response: Value = resp.json().await?;
 
-            Ok(serde_json::from_str(json_response)?)
+            log::debug!("{}", serde_json::to_string_pretty(&json_response)?);
+
+            Ok(json_response)
         } else {
             let error_msg = format!("ERROR: tag {} not found in Shasta CVS. Please check gitea admin or wait sync to finish.", tag);
+
+            Err(error_msg.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        }
+    }
+
+    /// Returns the commit id (sha) related to a tag name
+    /// Used to translate CFS configuration layer tag name into commit id values when processing
+    /// SAT files
+    pub async fn get_commit_from_tag(
+        gitea_api_tag_url: &str,
+        tag: &str,
+        gitea_token: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Value, Box<dyn Error>> {
+        let repo_name: &str = gitea_api_tag_url
+            .trim_start_matches("https://vcs.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/").split("/").next().unwrap();
+
+        let api_url = format!(
+            "https://api.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/{}/tags/{}",
+            repo_name, tag
+        );
+
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        log::info!("Request to {}", api_url);
+
+        let resp = client
+            .get(api_url.clone())
+            .header("Authorization", format!("token {}", gitea_token))
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            let json_response: Value = resp.json().await?;
+
+            log::debug!("{}", serde_json::to_string_pretty(&json_response)?);
+
+            Ok(json_response)
+        } else {
+            let error_msg = format!("ERROR: tag related to run '{}' not found in Shasta CVS. Please check gitea admin or wait sync to finish.", api_url);
 
             Err(error_msg.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
         }

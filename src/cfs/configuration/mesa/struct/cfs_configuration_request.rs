@@ -114,6 +114,17 @@ impl CfsConfigurationRequest {
 
                     log::debug!("tag details:\n{:#?}", tag_details);
 
+                    // Assumming user sets an existing tag name. It could be an annotated tag
+                    // (different object than the commit id with its own sha value) or a
+                    // lightweight tag (pointer to commit id, therefore the tag will have the
+                    // same sha as the commit id it points to), either way CFS session will
+                    // do a `git checkout` to the sha we found here, if an annotated tag, then,
+                    // git is clever enough to take us to the final commit id, if it is a
+                    // lighweight tag, then there is no problem because the sha is the same
+                    // as the commit id
+                    // NOTE: the `id` field is the tag's sha, note we are not taking the commit id
+                    // the tag points to and we should not use sha because otherwise we won't be
+                    // able to fetch the annotated tag using a commit sha through the Gitea APIs
                     tag_details["id"].as_str().map(|commit| commit.to_string())
                 } else if branch_value_opt.is_some() {
                     // Branch name
