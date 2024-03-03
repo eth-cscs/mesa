@@ -120,17 +120,13 @@ pub async fn get_node_details(
         // find component details
         let component_details = components_status
             .iter()
-            .find(|component_status| component_status["id"].as_str().unwrap().eq(node))
+            .find(|component_status| component_status.id.eq(node))
             .unwrap();
 
-        let desired_configuration = component_details["desiredConfig"]
-            .as_str()
-            .unwrap_or_default();
-        let configuration_status = component_details["configurationStatus"]
-            .as_str()
-            .unwrap_or_default();
-        let enabled = component_details["enabled"].as_bool().unwrap_or_default();
-        let error_count = component_details["errorCount"].as_i64().unwrap_or_default();
+        let desired_configuration = &component_details.desired_config;
+        let configuration_status = &component_details.configuration_status;
+        let enabled = component_details.enabled;
+        let error_count = component_details.error_count;
 
         // get power status
         let node_hsm_info = node_hsm_info_resp["Components"]
@@ -157,7 +153,7 @@ pub async fn get_node_details(
         let node_boot_params =
             bss::utils::find_boot_params_related_to_node(&node_boot_params_vec, node);
 
-        let kernel_image_path_in_boot_params = bss::utils::get_image_id(&node_boot_params.unwrap());
+        let kernel_image_path_in_boot_params = node_boot_params.unwrap().get_boot_image();
 
         // Get CFS configuration related to image id
         let cfs_session_related_to_image_id_opt =

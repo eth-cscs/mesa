@@ -33,6 +33,7 @@ pub async fn get_single_component(
     }
 }
 
+#[deprecated(since="0.31.2", note="Please use `get_multiple_components` in module `cfs::component::mesa::http_clent` instead")]
 pub async fn get_multiple_components(
     shasta_token: &str,
     shasta_base_url: &str,

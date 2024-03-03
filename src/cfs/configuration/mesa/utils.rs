@@ -1,9 +1,8 @@
-use serde_json::Value;
-
 use crate::{
     bos,
     cfs::{
-        self, configuration::mesa::r#struct::cfs_configuration_response::CfsConfigurationResponse,
+        self, component::mesa::r#struct::CfsComponent,
+        configuration::mesa::r#struct::cfs_configuration_response::CfsConfigurationResponse,
     },
     hsm,
 };
@@ -53,7 +52,7 @@ pub async fn filter(
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
-    let cfs_components: Vec<Value> = if !hsm_group_name_vec.is_empty() {
+    let cfs_components: Vec<CfsComponent> = if !hsm_group_name_vec.is_empty() {
         let hsm_group_members = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
             shasta_token,
             shasta_base_url,
@@ -76,9 +75,9 @@ pub async fn filter(
         Vec::new()
     };
 
-    let desired_config: Vec<&str> = cfs_components
-        .iter()
-        .map(|cfs_component| cfs_component["desiredConfig"].as_str().unwrap())
+    let desired_config: Vec<String> = cfs_components
+        .into_iter()
+        .map(|cfs_component| cfs_component.desired_config)
         .collect();
 
     // We need BOS session templates to find an image created by SAT
@@ -128,14 +127,14 @@ pub async fn filter(
     let image_id_cfs_configuration_target_from_cfs_session: Vec<(String, String, Vec<String>)> =
         cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(cfs_session_vec);
 
-    let image_id_cfs_configuration_target: Vec<&str> = [
+    let image_id_cfs_configuration_target: Vec<String> = [
         image_id_cfs_configuration_target_from_bos_sessiontemplate
-            .iter()
-            .map(|(_, config, _)| config.as_str())
+            .into_iter()
+            .map(|(_, config, _)| config)
             .collect(),
         image_id_cfs_configuration_target_from_cfs_session
-            .iter()
-            .map(|(_, config, _)| config.as_str())
+            .into_iter()
+            .map(|(_, config, _)| config)
             .collect(),
         desired_config,
     ]
@@ -145,7 +144,7 @@ pub async fn filter(
         hsm_group_name_vec
             .iter()
             .any(|hsm_group| cfs_configuration.name.contains(hsm_group))
-            || image_id_cfs_configuration_target.contains(&cfs_configuration.name.as_str())
+            || image_id_cfs_configuration_target.contains(&cfs_configuration.name)
     });
 
     cfs_configuration_vec.sort_by(|cfs_configuration_1, cfs_configuration_2| {

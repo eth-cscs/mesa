@@ -141,16 +141,7 @@ pub async fn filter(
 
     let image_id_from_boot_params: Vec<String> = boot_param_value_vec
         .iter()
-        .map(|boot_param_value| {
-            boot_param_value["kernel"]
-                .as_str()
-                .unwrap()
-                .strip_prefix("s3://boot-images/")
-                .unwrap()
-                .strip_suffix("/kernel")
-                .unwrap()
-                .to_string()
-        })
+        .map(|boot_param| boot_param.get_boot_image())
         .collect();
 
     // Get Image details from IMS images API endpoint

@@ -120,23 +120,12 @@ impl VCluster {
         let mut node_image_map: HashMap<String, String> = HashMap::new();
 
         for boot_param in hsm_group_node_boot_param_vec {
-            let image_id = boot_param["kernel"]
-                .as_str()
-                .unwrap()
-                .strip_prefix("s3://boot-images/")
-                .unwrap()
-                .strip_suffix("/kernel")
-                .unwrap();
+            let image_id: String = boot_param.get_boot_image();
 
-            let node_vec: Vec<String> = boot_param["hosts"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|host_value| host_value.as_str().unwrap().to_string())
-                .collect();
-
-            for node in node_vec {
-                node_image_map.entry(node).or_insert(image_id.to_string());
+            for node in &boot_param.hosts {
+                node_image_map
+                    .entry(node.to_string())
+                    .or_insert(image_id.clone());
             }
         }
 

@@ -1,4 +1,41 @@
-use serde_json::Value;
+use super::r#struct::CfsComponent;
+
+pub async fn get_multiple_components(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    components_ids: Option<&str>,
+    status: Option<&str>,
+) -> Result<Vec<CfsComponent>, reqwest::Error> {
+    let client_builder = reqwest::Client::builder()
+        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+    // Build client
+    let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+        // socks5 proxy
+        log::debug!("SOCKS5 enabled");
+        let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+        // rest client to authenticate
+        client_builder.proxy(socks5proxy).build()?
+    } else {
+        client_builder.build()?
+    };
+
+    let api_url = shasta_base_url.to_owned() + "/cfs/v2/components";
+
+    let response_rslt = client
+        .get(api_url)
+        .query(&[("ids", components_ids), ("status", status)])
+        .bearer_auth(shasta_token)
+        .send()
+        .await;
+
+    match response_rslt {
+        Ok(response) => response.json::<Vec<CfsComponent>>().await,
+        Err(error) => Err(error),
+    }
+}
 
 /// Get components data.
 /// Currently, CSM will throw an error if many xnames are sent in the request, therefore, this
@@ -8,7 +45,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_groups_node_list: &[String],
-) -> Result<Vec<Value>, reqwest::Error> {
+) -> Result<Vec<CfsComponent>, reqwest::Error> {
     let chunk_size = 30;
 
     let mut component_vec = Vec::new();
@@ -23,7 +60,7 @@ pub async fn get(
         let hsm_subgroup_nodes_string: String = sub_node_list.join(",");
 
         tasks.spawn(async move {
-            crate::cfs::component::shasta::http_client::get_multiple_components(
+            get_multiple_components(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -36,8 +73,8 @@ pub async fn get(
     }
 
     while let Some(message) = tasks.join_next().await {
-        if let Ok(node_status_vec) = message {
-            component_vec = [component_vec, node_status_vec].concat();
+        if let Ok(mut node_status_vec) = message {
+            component_vec.append(&mut node_status_vec);
         }
     }
 
