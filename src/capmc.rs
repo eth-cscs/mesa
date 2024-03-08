@@ -290,7 +290,7 @@ pub mod http_client {
                     .collect();
 
                 println!(
-                    "Node(s) in power state ON: {:?}. Waiting nodes to shutdown. Trying again in {} seconds. Attempt {} of {}",
+                    "Node(s) in power state ON: {:?}. Waiting nodes to power on. Trying again in {} seconds. Attempt {} of {}",
                     node_on_vec,
                     delay_secs,
                     i + 1,

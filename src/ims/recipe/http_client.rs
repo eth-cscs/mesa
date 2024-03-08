@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use super::r#struct::RecipeGetResponse;
 
 /// Create IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
@@ -8,7 +6,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     recipe_id_opt: Option<&str>,
-) -> Result<Vec<RecipeGetResponse>, Box<dyn Error>> {
+) -> Result<Vec<RecipeGetResponse>, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -32,14 +30,16 @@ pub async fn get(
         shasta_base_url.to_owned() + "/ims/v2/recipes"
     };
 
-    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
+    let response = client
+        .get(api_url)
+        .bearer_auth(shasta_token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<Vec<RecipeGetResponse>>()
+        .await?;
 
-    if resp.status().is_success() {
-        Ok(resp.json::<Vec<RecipeGetResponse>>().await?)
-    } else {
-        eprintln!("FAIL request: {:#?}", resp);
-        let response: String = resp.text().await?;
-        eprintln!("FAIL response: {:#?}", response);
-        Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+    log::debug!("Get IMS recipe response:\n{:#?}", response);
+
+    Ok(response)
 }
