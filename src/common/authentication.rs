@@ -17,8 +17,28 @@ pub async fn get_api_token(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     keycloak_base_url: &str,
+    site_name: &str,
 ) -> Result<String, Box<dyn Error>> {
     let mut shasta_token: String;
+
+    // Look for authentication token in environment variable
+    for (env, value) in std::env::vars() {
+        if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
+            log::info!(
+                "Looking for CSM authentication token in envonment variable 'MANTA_CSM_TOKEN'"
+            );
+
+            shasta_token = value;
+
+            match is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert).await {
+                Ok(_) => return Ok(shasta_token),
+                Err(_) => return Err("Authentication unsucessful".into()),
+            }
+        }
+    }
+
+    // Look for authentication token in fielsystem
+    log::info!("Looking for CSM authentication token in filesystem file");
 
     let mut file;
 
@@ -30,28 +50,12 @@ pub async fn get_api_token(
 
     let mut path = PathBuf::from(project_dirs.unwrap().cache_dir());
 
-    for (env, value) in std::env::vars() {
-        if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
-            log::info!("Reading CSM authentication token from env 'MANTA_CSM_TOKEN'");
-
-            shasta_token = value;
-
-            if is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert).await? {
-                return Ok(shasta_token);
-            } else {
-                return Err("Authentication unsucessful".into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-            }
-        }
-    }
-
-    log::info!("Reading CSM authentication token from configuration file");
-
     let mut attempts = 0;
 
     create_dir_all(&path)?;
 
-    path.push("http"); // ~/.cache/manta/http is the file containing the Shasta authentication
-                       // token
+    path.push(site_name.to_string() + "_auth"); // ~/.cache/manta/<site name>_http is the file containing the Shasta authentication
+                                                // token
     log::debug!("Cache file: {:?}", path);
 
     shasta_token = if path.exists() {
