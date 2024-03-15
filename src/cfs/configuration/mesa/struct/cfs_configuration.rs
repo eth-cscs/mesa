@@ -40,7 +40,7 @@ pub struct Layer {
     pub commit_date: String,
     pub branch: String,
     pub tag: String,
-    // pub most_recent_commit: bool,
+    pub playbook: String, // pub most_recent_commit: bool,
 }
 
 impl Layer {
@@ -52,6 +52,7 @@ impl Layer {
         commit_date: &str,
         branch: &str,
         tag: &str,
+        playbook: &str,
         // most_recent_commit: bool,
     ) -> Self {
         Self {
@@ -62,6 +63,7 @@ impl Layer {
             commit_date: String::from(commit_date),
             branch: branch.to_string(),
             tag: tag.to_string(),
+            playbook: playbook.to_string(),
             // most_recent_commit,
         }
     }
@@ -71,8 +73,8 @@ impl fmt::Display for Layer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "\n - name: {}\n - repo name: {}\n - commit id: {}\n - commit date: {}\n - author: {}\n - branch: {}\n - tag: {}",
-            self.name, self.repo_name, self.commit_id, self.commit_date, self.author, self.branch, self.tag
+            "\n - name: {}\n - repo name: {}\n - commit id: {}\n - commit date: {}\n - author: {}\n - branch: {}\n - tag: {}\n - playbook: {}",
+            self.name, self.repo_name, self.commit_id, self.commit_date, self.author, self.branch, self.tag, self.playbook
         )
     }
 }
