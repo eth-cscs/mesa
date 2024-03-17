@@ -1,7 +1,7 @@
-use crate::ims::s3::{
+use directories::ProjectDirs;
+use mesa::ims::s3::{
     s3_auth, s3_download_object, s3_multipart_upload_object, s3_remove_object, s3_upload_object,
 };
-use directories::ProjectDirs;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_json::Value;

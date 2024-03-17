@@ -1,3 +1,5 @@
+use mesa::cfs::session::mesa::r#struct::CfsSessionGetResponse;
+
 #[tokio::test]
 async fn test_bos_sessiontemplate_serde_json_to_struct_conversion() {
     let bos_sessiontemplate_value = serde_json::json!({
@@ -21,9 +23,8 @@ async fn test_bos_sessiontemplate_serde_json_to_struct_conversion() {
       "name": "muttler-cos-template-20221012100753"
     });
 
-    let bos_sessiontemplate = serde_json::from_value::<
-        crate::cfs::session::mesa::r#struct::CfsSessionGetResponse,
-    >(bos_sessiontemplate_value);
+    let bos_sessiontemplate =
+        serde_json::from_value::<CfsSessionGetResponse>(bos_sessiontemplate_value);
 
     println!("{:#?}", bos_sessiontemplate);
 }
