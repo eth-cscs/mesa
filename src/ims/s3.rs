@@ -18,7 +18,7 @@ pub async fn s3_auth(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
     // STS
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -41,37 +41,30 @@ pub async fn s3_auth(
         .put(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await
-        .unwrap();
+        .await?
+        .error_for_status()?;
 
-    if resp.status().is_success() {
-        let sts_value = resp.json::<serde_json::Value>().await.unwrap();
+    let sts_value = resp.json::<serde_json::Value>().await.unwrap();
 
-        log::debug!("-- STS Token retrieved --");
-        log::debug!("Debug - STS token:\n{:#?}", sts_value);
-        // SET AUTH ENVS
-        std::env::set_var(
-            "AWS_SESSION_TOKEN",
-            sts_value["Credentials"]["SessionToken"].as_str().unwrap(),
-        );
-        std::env::set_var(
-            "AWS_ACCESS_KEY_ID",
-            sts_value["Credentials"]["AccessKeyId"].as_str().unwrap(),
-        );
-        std::env::set_var(
-            "AWS_SECRET_ACCESS_KEY",
-            sts_value["Credentials"]["SecretAccessKey"]
-                .as_str()
-                .unwrap(),
-        );
+    log::debug!("-- STS Token retrieved --");
+    log::debug!("Debug - STS token:\n{:#?}", sts_value);
+    // SET AUTH ENVS
+    std::env::set_var(
+        "AWS_SESSION_TOKEN",
+        sts_value["Credentials"]["SessionToken"].as_str().unwrap(),
+    );
+    std::env::set_var(
+        "AWS_ACCESS_KEY_ID",
+        sts_value["Credentials"]["AccessKeyId"].as_str().unwrap(),
+    );
+    std::env::set_var(
+        "AWS_SECRET_ACCESS_KEY",
+        sts_value["Credentials"]["SecretAccessKey"]
+            .as_str()
+            .unwrap(),
+    );
 
-        Ok(sts_value)
-    } else {
-        eprintln!("FAIL request: {:#?}", resp);
-        let response: String = resp.text().await.unwrap();
-        eprintln!("FAIL response: {:#?}", response);
-        Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+    Ok(sts_value)
 }
 
 async fn setup_client(sts_value: &Value) -> Client {
@@ -271,7 +264,6 @@ pub async fn s3_remove_object(
             Ok(String::from("client"))
         }
         Err(error) => panic!("Error cleaning file {}: {}", &object_path, error),
-        //
     }
 }
 

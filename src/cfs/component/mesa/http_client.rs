@@ -31,6 +31,8 @@ pub async fn get_multiple_components(
         .send()
         .await;
 
+    log::debug!("GET CFS components result:\n{:#?}", response_rslt);
+
     match response_rslt {
         Ok(response) => response.json::<Vec<CfsComponent>>().await,
         Err(error) => Err(error),

@@ -1,89 +1,40 @@
-use crate::cfs::configuration::mesa::r#struct::{
-    cfs_configuration_request::CfsConfigurationRequest,
-    cfs_configuration_response::CfsConfigurationResponse,
+use crate::{
+    cfs::{
+        self, configuration::mesa::r#struct::cfs_configuration_request::v2::CfsConfigurationRequest,
+    },
+    error::Error,
 };
 
-use super::r#struct::cfs_configuration_response::ApiError;
+use super::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse;
 
 pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_name_opt: Option<&str>,
-) -> Result<Vec<CfsConfigurationResponse>, reqwest::Error> {
-    let response_rslt = crate::cfs::configuration::shasta::http_client::get(
+) -> Result<Vec<CfsConfigurationResponse>, Error> {
+    cfs::configuration::shasta::http_client::v2::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         configuration_name_opt,
     )
-    .await;
-
-    let mut cfs_configuration_vec: Vec<CfsConfigurationResponse> = match response_rslt {
-        Ok(response) => {
-            if configuration_name_opt.is_none() {
-                response
-                    .json::<Vec<CfsConfigurationResponse>>()
-                    .await
-                    .unwrap()
-            } else {
-                vec![response.json::<CfsConfigurationResponse>().await.unwrap()]
-            }
-        }
-        Err(error) => return Err(error),
-    };
-
-    cfs_configuration_vec.sort_by(|a, b| a.last_updated.cmp(&b.last_updated));
-
-    Ok(cfs_configuration_vec)
+    .await
 }
 
-/// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
-/// is built for a specific cluster based on ansible vars used by the CFS session). The reason
-/// for this is because CSCS staff deletes all CFS sessions every now and then...
-pub async fn get_and_filter(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    configuration_name: Option<&str>,
-    hsm_group_name_vec: &[String],
-    limit_number_opt: Option<&u8>,
-) -> Vec<CfsConfigurationResponse> {
-    let mut cfs_configuration_value_vec: Vec<CfsConfigurationResponse> =
-        crate::cfs::configuration::mesa::http_client::get(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            configuration_name,
-        )
-        .await
-        .unwrap_or_default();
-
-    if configuration_name.is_none() {
-        // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
-        // CFS configuration name or the image name built would include the HSM name
-        crate::cfs::configuration::mesa::utils::filter(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            &mut cfs_configuration_value_vec,
-            hsm_group_name_vec,
-            limit_number_opt,
-        )
-        .await;
-    }
-
-    cfs_configuration_value_vec
-}
-
+// This function enforces a new CFS configuration to be created. First, checks if CFS configuration
+// with same name already exists in CSM, if that is the case, it will return an error, otherwise
+// creates a new CFS configuration
 pub async fn put(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration: &CfsConfigurationRequest,
     configuration_name: &str,
-) -> Result<CfsConfigurationResponse, ApiError> {
+) -> Result<CfsConfigurationResponse, Error> {
     // Check if CFS configuration already exists
+    log::info!("Check CFS configuration '{}' exists", configuration_name);
+
     let cfs_configuration_rslt = get(
         shasta_token,
         shasta_base_url,
@@ -92,39 +43,25 @@ pub async fn put(
     )
     .await;
 
+    // Check if CFS configuration already exists and throw an error is that is the case
     if cfs_configuration_rslt.is_ok_and(|cfs_configuration_vec| !cfs_configuration_vec.is_empty()) {
-        return Err(ApiError::MesaError(format!(
+        return Err(Error::Message(format!(
             "CFS configuration '{}' already exists.",
             configuration_name
         )));
     }
 
-    let cfs_configuration_response = crate::cfs::configuration::shasta::http_client::put_raw(
+    log::info!(
+        "CFS configuration '{}' does not exists, creating new CFS configuration",
+        configuration_name
+    );
+
+    cfs::configuration::shasta::http_client::v2::put(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         configuration,
         configuration_name,
     )
-    .await;
-
-    let cfs_configuration_payload = match cfs_configuration_response {
-        Ok(data) => data,
-        Err(error) => return Err(ApiError::CsmError(error.to_string())),
-    };
-
-    if cfs_configuration_payload.status().is_success() {
-        let cfs_configuration: CfsConfigurationResponse =
-            cfs_configuration_payload.json().await.unwrap();
-        Ok(cfs_configuration)
-    } else {
-        let error_detail = cfs_configuration_payload
-            .json::<serde_json::Value>()
-            .await
-            .unwrap()["detail"]
-            .as_str()
-            .unwrap()
-            .to_string();
-        Err(ApiError::CsmError(error_detail))
-    }
+    .await
 }

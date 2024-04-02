@@ -39,7 +39,5 @@ pub async fn get(
         .json::<Vec<RecipeGetResponse>>()
         .await?;
 
-    log::debug!("Get IMS recipe response:\n{:#?}", response);
-
     Ok(response)
 }

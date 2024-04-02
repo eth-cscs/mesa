@@ -40,7 +40,7 @@ impl BootParameters {
         initrd: &str,
         cloud_init_opt: Option<&str>,
     ) -> Self {
-        return BootParameters {
+        BootParameters {
             hosts: hosts.iter().map(|value| value.to_string()).collect(),
             macs: macs.map(|mac_vec| mac_vec.iter().map(|value| value.to_string()).collect()),
             nids: nids.map(|nid_vec| {
@@ -53,7 +53,7 @@ impl BootParameters {
             kernel: kernel.to_string(),
             initrd: initrd.to_string(),
             cloud_init: cloud_init_opt.map(|cloud_init| serde_json::to_value(cloud_init).unwrap()),
-        };
+        }
     }
 
     /// Returns the image id. This function may fail since it assumes kernel path has the following
@@ -74,37 +74,55 @@ impl BootParameters {
         image_id
     }
 
-    pub fn set_boot_image(&mut self, new_image: &str) {
+    pub fn set_boot_image(&mut self, new_image_id: &str) {
         self.params = self
             .params
             .split_whitespace()
-            .map(|boot_param| {
-                if boot_param.contains("root=") {
-                    let aux = boot_param
-                        .trim_start_matches("root=craycps-s3:s3://boot-images/")
+            .map(|kernel_param| {
+                if kernel_param.contains("metal.server=s3://boot-images/") {
+                    // NCN node
+                    let aux = kernel_param
+                        .trim_start_matches("metal.server=s3://boot-images/")
                         .split_once('/')
                         .unwrap()
                         .1;
 
-                    format!("root=craycps-s3:s3://boot-images/{}/{}", new_image, aux)
+                    format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
+                } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
+                    // CN node
+                    println!("DEBUG - kernel param root= ==> {}", kernel_param);
+                    let aux = kernel_param
+                        .trim_start_matches("root=craycps-s3:s3://boot-images/")
+                        .split_once('/')
+                        .unwrap_or_default() // NCN has root=live:LABEL=SQFSRAID
+                        .1;
+
+                    format!("root=craycps-s3:s3://boot-images/{}/{}", new_image_id, aux)
+                } else if kernel_param.contains("nmd_data=") {
+                    // CN node
+                    let aux = kernel_param
+                        .trim_start_matches("nmd_data=url=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
+
+                    format!("nmd_data=url=s3://boot-images/{}/{}", new_image_id, aux)
                 } else {
-                    boot_param.to_string()
+                    kernel_param.to_string()
                 }
             })
             .collect::<Vec<String>>()
             .join(" ");
 
-        self.kernel = format!("s3://boot-images/{}/kernel", new_image);
+        self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
 
-        self.kernel = format!("s3://boot-images/{}/kernel", new_image);
+        self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
     }
 }
 
 pub mod http_client {
 
     use serde_json::Value;
-
-    use std::error::Error;
 
     use core::result::Result;
 
@@ -116,7 +134,7 @@ pub mod http_client {
         shasta_token: &str,
         shasta_root_cert: &[u8],
         boot_parameters: BootParameters,
-    ) -> Result<Vec<Value>, Box<dyn Error>> {
+    ) -> Result<Vec<Value>, reqwest::Error> {
         let client;
 
         let client_builder = reqwest::Client::builder()
@@ -141,23 +159,15 @@ pub mod http_client {
             serde_json::to_string_pretty(&boot_parameters).unwrap()
         );
 
-        let resp = client
+        client
             .put(api_url)
             .json(&boot_parameters)
-            // .json(&serde_json::json!({"hosts": xnames, "params": params, "kernel": kernel, "initrd": initrd})) // Encapsulating configuration.layers
             .bearer_auth(shasta_token)
             .send()
-            .await?;
-
-        if resp.status().is_success() {
-            let response = &resp.text().await?;
-            Ok(serde_json::from_str(response)?)
-        } else {
-            eprintln!("FAIL request: {:#?}", resp);
-            let response: String = resp.text().await?;
-            eprintln!("FAIL response: {:#?}", response);
-            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-        }
+            .await?
+            .error_for_status()?
+            .json()
+            .await
     }
 
     pub async fn patch(

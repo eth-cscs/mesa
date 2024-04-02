@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
 use crate::hsm;
 
@@ -15,7 +15,7 @@ impl VCluster {
         hsm_group_name: &str,
         reason: Option<String>,
         force: bool,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), reqwest::Error> {
         let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
@@ -43,7 +43,7 @@ impl VCluster {
         shasta_root_cert: &[u8],
         hsm_group_name: &str,
         reason: Option<String>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), reqwest::Error> {
         let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
@@ -71,7 +71,7 @@ impl VCluster {
         hsm_group_name: &str,
         reason: Option<String>,
         force: bool,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), reqwest::Error> {
         let hsm_group_node_list = hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,

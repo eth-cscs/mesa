@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use serde_json::Value;
 
 use super::{
@@ -16,7 +14,7 @@ pub async fn post_customize(
     image_root_archive_name: &str,
     artifact_id: &str,
     public_key_id: &str,
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
     let ssh_container = SshContainer {
         name: "jail".to_string(),
         jail: true,
@@ -56,22 +54,15 @@ pub async fn post_customize(
 
     let api_url = shasta_base_url.to_owned() + "/ims/v3/jobs";
 
-    let resp = client
+    client
         .post(api_url)
         .bearer_auth(shasta_token)
         .json(&ims_job)
         .send()
-        .await?;
-
-    if resp.status().is_success() {
-        let response = &resp.text().await?;
-        Ok(serde_json::from_str(response)?)
-    } else {
-        eprintln!("FAIL request: {:#?}", resp);
-        let response: String = resp.text().await?;
-        eprintln!("FAIL response: {:#?}", response);
-        Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+        .await?
+        .error_for_status()?
+        .json()
+        .await
 }
 
 /// Creates an IMS job, this method is asynchronous, meaning, it will returns when the server
@@ -81,7 +72,7 @@ pub async fn post(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     ims_job: &JobPostRequest,
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -101,22 +92,15 @@ pub async fn post(
 
     let api_url = shasta_base_url.to_owned() + "/ims/v3/jobs";
 
-    let resp = client
+    client
         .post(api_url)
         .bearer_auth(shasta_token)
         .json(&ims_job)
         .send()
-        .await?;
-
-    if resp.status().is_success() {
-        let response = &resp.text().await?;
-        Ok(serde_json::from_str(response)?)
-    } else {
-        eprintln!("FAIL request: {:#?}", resp);
-        let response: String = resp.text().await?;
-        eprintln!("FAIL response: {:#?}", response);
-        Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+        .await?
+        .error_for_status()?
+        .json()
+        .await
 }
 
 /// Synchronous version of the post method, used if want to wait till the IMS job is finished
@@ -125,7 +109,10 @@ pub async fn post_sync(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     ims_job: &JobPostRequest,
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
+    log::info!("Create IMS job");
+    log::debug!("Create IMS job request payload:\n{:#?}", ims_job);
+
     let ims_job_details_value: Value =
         post(shasta_token, shasta_base_url, shasta_root_cert, ims_job)
             .await
@@ -137,21 +124,13 @@ pub async fn post_sync(
     wait_ims_job_to_finish(shasta_token, shasta_base_url, shasta_root_cert, ims_job_id).await;
 
     // Get most recent IMS job status
-    let ims_job_details_value: Value = get(
+    get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         Some(ims_job_id),
     )
     .await
-    .unwrap();
-
-    log::debug!(
-        "IMS job response:\n{}",
-        serde_json::to_string_pretty(&ims_job_details_value).unwrap()
-    );
-
-    Ok(ims_job_details_value)
 }
 
 /// Create IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
@@ -160,7 +139,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     job_id_opt: Option<&str>,
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -184,15 +163,12 @@ pub async fn get(
         shasta_base_url.to_owned() + "/ims/v3/jobs"
     };
 
-    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
-
-    if resp.status().is_success() {
-        let response = &resp.text().await?;
-        Ok(serde_json::from_str(response)?)
-    } else {
-        eprintln!("FAIL request: {:#?}", resp);
-        let response: String = resp.text().await?;
-        eprintln!("FAIL response: {:#?}", response);
-        Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+    client
+        .get(api_url)
+        .bearer_auth(shasta_token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await
 }

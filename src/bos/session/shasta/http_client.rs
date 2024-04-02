@@ -1,78 +1,37 @@
-use std::error::Error;
+pub mod v1 {
+    use serde_json::{json, Value};
 
-use serde_json::{json, Value};
+    use crate::error::Error;
 
-pub async fn get(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    id_opt: Option<&str>,
-) -> Result<Vec<Value>, Box<dyn Error>> {
-    let client;
+    pub async fn post(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_template_name: &String,
+        operation: &str,
+        limit: Option<&String>,
+    ) -> core::result::Result<Value, Error> {
+        let client;
 
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            log::debug!("SOCKS5 enabled");
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
 
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
 
-    let mut api_url = shasta_base_url.to_string() + "/bos/v1/session";
+        let api_url = format!("{}{}", shasta_base_url, "/bos/v1/session");
 
-    if let Some(id) = id_opt {
-        api_url = api_url + "/" + id
-    }
-
-    let resp = client.get(api_url).bearer_auth(shasta_token).send().await?;
-
-    let json_response: Value = if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-        serde_json::from_str(&resp.text().await?)?
-    } else {
-        log::debug!("{:#?}", resp);
-        // let resp_body = resp.text().await?;
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    };
-
-    // println!("\nBOS SESSIONS:\n{:#?}", json_response);
-
-    Ok(json_response.as_array().unwrap_or(&Vec::new()).to_vec())
-}
-
-pub async fn post(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    bos_template_name: &String,
-    operation: &str,
-    limit: Option<&String>,
-) -> core::result::Result<Value, Box<dyn std::error::Error>> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    let resp = client
-        .post(format!("{}{}", shasta_base_url, "/bos/v1/session"))
+        /* client
+        .post(api_url)
         .bearer_auth(shasta_token)
         .json(&json!({
             "operation": operation,
@@ -80,55 +39,276 @@ pub async fn post(
             "limit": limit
         }))
         .send()
-        .await?;
+        .await?
+        .error_for_status()?
+        .json()
+        .await */
 
-    if resp.status().is_success() {
-        Ok(serde_json::from_str(&resp.text().await?)?)
-    } else {
-        Err(resp.json::<Value>().await?["detail"]
-            .as_str()
-            .unwrap()
-            .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        let response = client
+            .post(api_url)
+            .json(&json!({
+                "operation": operation,
+                "templateName": bos_template_name,
+                "limit": limit
+            }))
+            .bearer_auth(shasta_token)
+            .send()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+
+        if response.status().is_success() {
+            Ok(response
+                .json()
+                .await
+                .map_err(|error| Error::NetError(error))?)
+        } else {
+            let payload = response
+                .json::<Value>()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+
+            Err(Error::CsmError(payload))
+        }
     }
 }
 
-pub async fn delete(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    bos_session_id: &str,
-) -> Result<Value, Box<dyn std::error::Error>> {
-    let client;
+pub mod v2 {
+    use serde::{Deserialize, Serialize};
+    use serde_json::Value;
 
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+    use crate::error::Error;
 
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct BosSession {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub tenant: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub operation: Option<Operation>,
+        pub template_name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub limit: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub stage: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub components: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub include_disabled: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub status: Option<Status>,
     }
 
-    let api_url = shasta_base_url.to_string() + "/bos/v1/session/" + bos_session_id;
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum Operation {
+        #[serde(rename = "boot")]
+        Boot,
+        #[serde(rename = "reboot")]
+        Reboot,
+        #[serde(rename = "shutdown")]
+        Shutdown,
+    }
 
-    let resp = client
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Status {
+        pub start_time: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub end_time: Option<String>,
+        pub status: StatusLabel,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub error: Option<String>,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum StatusLabel {
+        #[serde(rename = "pending")]
+        Pending,
+        #[serde(rename = "running")]
+        Running,
+        #[serde(rename = "complete")]
+        Complete,
+    }
+
+    pub async fn post(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_session: BosSession,
+    ) -> Result<Value, Error> {
+        log::info!("Create BOS session");
+        log::debug!("Create BOS session request:\n{:#?}", bos_session);
+
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_string() + "/bos/v2/sessions";
+
+        /* client
+        .post(api_url)
+        .bearer_auth(shasta_token)
+        .json(&bos_session)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await */
+
+        let response = client
+            .post(api_url)
+            .json(&bos_session)
+            .bearer_auth(shasta_token)
+            .send()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+
+        if response.status().is_success() {
+            Ok(response
+                .json()
+                .await
+                .map_err(|error| Error::NetError(error))?)
+        } else {
+            let payload = response
+                .json::<Value>()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+
+            Err(Error::CsmError(payload))
+        }
+    }
+
+    pub async fn get(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        id_opt: Option<&str>,
+    ) -> Result<Vec<BosSession>, Error> {
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let mut api_url = shasta_base_url.to_string() + "/bos/v2/sessions";
+
+        if let Some(id) = id_opt {
+            api_url = api_url + "/" + id
+        }
+
+        /* client
+        .get(api_url)
+        .bearer_auth(shasta_token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await */
+
+        let response = client
+            .get(api_url)
+            .bearer_auth(shasta_token)
+            .send()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+
+        if response.status().is_success() {
+            // Make sure we return a vec if user requesting a single value
+            if id_opt.is_some() {
+                let payload = response
+                    .json::<BosSession>()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+
+                Ok(vec![payload])
+            } else {
+                response
+                    .json()
+                    .await
+                    .map_err(|error| Error::NetError(error))
+            }
+        } else {
+            let payload = response
+                .json::<Value>()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+
+            Err(Error::CsmError(payload))
+        }
+    }
+
+    pub async fn delete(
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_session_id: &str,
+    ) -> Result<(), Error> {
+        let client;
+
+        let client_builder = reqwest::Client::builder()
+            .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+        // Build client
+        if std::env::var("SOCKS5").is_ok() {
+            // socks5 proxy
+            let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+            // rest client to authenticate
+            client = client_builder.proxy(socks5proxy).build()?;
+        } else {
+            client = client_builder.build()?;
+        }
+
+        let api_url = shasta_base_url.to_string() + "/bos/v2/sessions/" + bos_session_id;
+
+        /* client
         .delete(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?;
+        .await?
+        .error_for_status()?
+        .json()
+        .await */
 
-    let json_response: Value = if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-        serde_json::from_str(&resp.text().await?)?
-    } else {
-        log::debug!("{:#?}", resp);
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    };
+        let response = client
+            .delete(api_url)
+            .bearer_auth(shasta_token)
+            .send()
+            .await
+            .map_err(|error| Error::NetError(error))?;
 
-    Ok(json_response)
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            let payload = response
+                .json::<Value>()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+
+            Err(Error::CsmError(payload))
+        }
+    }
 }

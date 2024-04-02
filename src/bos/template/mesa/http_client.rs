@@ -1,37 +1,27 @@
-use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
+use crate::error::Error;
+
+use super::r#struct::v1::BosSessionTemplate;
 
 pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     bos_session_template_id_opt: Option<&String>,
-) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
-    let response_rslt = crate::bos::template::shasta::http_client::get_raw(
+) -> Result<Vec<BosSessionTemplate>, Error> {
+    crate::bos::template::shasta::http_client::v1::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         bos_session_template_id_opt,
     )
-    .await;
-
-    let bos_sessiontemplate_vec: Vec<BosSessionTemplate> = match response_rslt {
-        Ok(response) => {
-            if bos_session_template_id_opt.is_none() {
-                response.json::<Vec<BosSessionTemplate>>().await.unwrap()
-            } else {
-                vec![response.json::<BosSessionTemplate>().await.unwrap()]
-            }
-        }
-        Err(error) => return Err(error),
-    };
-
-    Ok(bos_sessiontemplate_vec)
+    .await
+    .map_err(|error| Error::NetError(error))
 }
 
 pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
+) -> Result<Vec<BosSessionTemplate>, Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }

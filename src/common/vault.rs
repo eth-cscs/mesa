@@ -1,13 +1,8 @@
 pub mod http_client {
 
-    use std::error::Error;
-
     use serde_json::{json, Value};
 
-    pub async fn auth(
-        vault_base_url: &str,
-        vault_role_id: &str,
-    ) -> Result<String, Box<dyn Error + Sync + Send>> {
+    pub async fn auth(vault_base_url: &str, vault_role_id: &str) -> Result<String, reqwest::Error> {
         // rest client create new cfs sessions
         let client = reqwest::Client::builder().build()?;
 
@@ -15,33 +10,27 @@ pub mod http_client {
 
         log::debug!("Accessing/login to {}", api_url);
 
-        let resp = client
+        Ok(client
             .post(api_url.clone())
             // .post(format!("{}{}", vault_base_url, "/v1/auth/approle/login"))
             .json(&json!({ "role_id": vault_role_id }))
             .send()
-            .await?;
-
-        if resp.status().is_success() {
-            log::debug!("Login to {} successful", api_url);
-            let resp_text: Value = serde_json::from_str(&resp.text().await?)?;
-            Ok(String::from(
-                resp_text["auth"]["client_token"].as_str().unwrap(),
-            ))
-        } else {
-            eprintln!("{:?}", resp);
-            Err(resp.json::<Value>().await?["errors"][0]
-                .as_str()
-                .unwrap()
-                .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-        }
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?
+            .pointer("/auth/client_token")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string())
     }
 
     pub async fn fetch_secret(
         auth_token: &str,
         vault_base_url: &str,
         vault_secret_path: &str,
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<Value, reqwest::Error> {
         // rest client create new cfs sessions
         let client = reqwest::Client::builder().build()?;
 
@@ -49,27 +38,22 @@ pub mod http_client {
 
         log::debug!("Vault url to fetch VCS secrets is '{}'", api_url);
 
-        let resp = client
+        Ok(client
             .get(api_url)
-            // .get(format!("{}{}", vault_base_url, secret_path))
             .header("X-Vault-Token", auth_token)
             .send()
-            .await?;
-
-        if resp.status().is_success() {
-            let resp_text: Value = serde_json::from_str(&resp.text().await?)?;
-            Ok(resp_text["data"].clone()) // TODO: investigate why this ugly clone in here
-        } else {
-            let resp_text: Value = serde_json::from_str(&resp.text().await?)?;
-            Err(resp_text["errors"][0].as_str().unwrap().into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-        }
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?["data"]
+            .clone())
     }
 
     pub async fn fetch_shasta_vcs_token(
         vault_base_url: &str,
         vault_secrets_path: &str,
         vault_role_id: &str,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, reqwest::Error> {
         let vault_token_resp = auth(vault_base_url, vault_role_id).await;
 
         match vault_token_resp {

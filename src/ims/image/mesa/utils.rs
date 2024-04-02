@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use serde_json::Value;
 
 use crate::ims::image::r#struct::{Image, ImsImageRecord2Update};
@@ -16,7 +14,7 @@ pub async fn update_image(
     shasta_root_cert: &[u8],
     ims_image_id: &String,
     ims_link: &ImsImageRecord2Update,
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -36,21 +34,13 @@ pub async fn update_image(
 
     let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + &ims_image_id;
 
-    let resp = client
+    client
         .patch(api_url)
         .header("Authorization", format!("Bearer {}", shasta_token))
         .json(&ims_link)
         .send()
-        .await?;
-
-    let json_response: Value;
-
-    if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-        json_response = serde_json::from_str(&resp.text().await?)?;
-        Ok(json_response)
-    } else {
-        log::debug!("{:#?}", resp);
-        Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await
 }

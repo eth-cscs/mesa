@@ -6,7 +6,6 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_json::Value;
 use std::env::temp_dir;
-use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -39,7 +38,7 @@ const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
 ///
 /// ref -> https://cray-hpe.github.io/docs-csm/en-13/operations/artifact_management/generate_temporary_s3_credentials/
 
-async fn authenticate_with_s3() -> anyhow::Result<Value, Box<dyn Error>> {
+async fn authenticate_with_s3() -> anyhow::Result<Value, reqwest::Error> {
     let shasta_token = std::env::var(TOKEN_VAR_NAME).unwrap();
     let shasta_base_url = std::env::var(API_URL_VAR_NAME).unwrap();
 

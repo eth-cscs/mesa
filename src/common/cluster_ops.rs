@@ -1,8 +1,8 @@
 use serde_json::Value;
 
 use crate::cfs::{
-    configuration::mesa::r#struct::cfs_configuration_response::CfsConfigurationResponse,
-    session::mesa::r#struct::CfsSessionGetResponse,
+    configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
+    session::mesa::r#struct::v2::CfsSessionGetResponse,
 };
 
 #[derive(Debug)]

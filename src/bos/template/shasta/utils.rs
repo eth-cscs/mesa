@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::bos::template::mesa::r#struct::response_payload::BosSessionTemplate;
+use crate::bos::template::mesa::r#struct::v1::BosSessionTemplate;
 
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
 pub async fn filter(
@@ -105,7 +105,7 @@ pub fn check_hsms_or_xnames_belongs_to_bos_sessiontemplate(
 }
 
 pub fn get_image_id_from_bos_sessiontemplate_vec(
-    bos_sessiontemplate_value_vec: &[BosSessionTemplate],
+    bos_sessiontemplate_value_vec: &Vec<BosSessionTemplate>,
 ) -> Vec<String> {
     bos_sessiontemplate_value_vec
         .iter()

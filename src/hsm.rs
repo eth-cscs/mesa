@@ -162,8 +162,6 @@ pub mod group {
     pub mod shasta {
         pub mod http_client {
 
-            use std::error::Error;
-
             use serde_json::Value;
 
             /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
@@ -240,7 +238,7 @@ pub mod group {
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
                 hsm_group_name_opt: Option<&String>,
-            ) -> Result<Vec<Value>, Box<dyn Error>> {
+            ) -> Result<Vec<Value>, reqwest::Error> {
                 let json_response =
                     get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
 
@@ -286,10 +284,7 @@ pub mod group {
 
             use serde_json::Value;
 
-            use crate::{
-                cfs::configuration::mesa::r#struct::cfs_configuration_response::ApiError,
-                hsm::group::shasta::http_client::post_member,
-            };
+            use crate::{error::Error, hsm::group::shasta::http_client::post_member};
 
             use super::http_client::{self, delete_member};
 
@@ -297,7 +292,7 @@ pub mod group {
                 hsm_group_name: &str,
                 old_target_hsm_group_members: &Vec<String>,
                 new_target_hsm_group_members: &Vec<String>,
-            ) -> Result<(), ApiError> {
+            ) -> Result<(), Error> {
                 println!(
                     "DEBUG - Updating HSM group members from {:?} to {:?}",
                     old_target_hsm_group_members, new_target_hsm_group_members
@@ -306,22 +301,14 @@ pub mod group {
                 // Delete members
                 for old_member in old_target_hsm_group_members {
                     if !new_target_hsm_group_members.contains(old_member) {
-                        let _ = delete_member(
-                            hsm_group_name,
-                            old_member,
-                        )
-                        .await;
+                        let _ = delete_member(hsm_group_name, old_member).await;
                     }
                 }
 
                 // Add members
                 for new_member in new_target_hsm_group_members {
                     if !old_target_hsm_group_members.contains(new_member) {
-                        let _ = post_member(
-                            hsm_group_name,
-                            new_member,
-                        )
-                        .await;
+                        let _ = post_member(hsm_group_name, new_member).await;
                     }
                 }
 
@@ -563,8 +550,6 @@ pub mod group {
 
     pub mod mesa {
         pub mod http_client {
-            use std::error::Error;
-
             use serde_json::Value;
 
             use crate::hsm::{
@@ -610,7 +595,7 @@ pub mod group {
                 exclusive: &str,
                 description: &str,
                 tags: &[String],
-            ) -> Result<Vec<Value>, Box<dyn Error>> {
+            ) -> Result<Vec<Value>, reqwest::Error> {
                 let client;
 
                 let client_builder = reqwest::Client::builder()
@@ -659,30 +644,25 @@ pub mod group {
                     exclusive_group: Option::from(exclusive.to_string().clone()),
                     members: Some(myxnames),
                 };
+
                 let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
-            Ok(m) => m,
-            Err(_) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
-        };
+                    Ok(m) => m,
+                    Err(_) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
+                };
 
                 println!("{:#?}", &hsm_group_json_body);
 
                 let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
-                let resp = client
+                client
                     .post(url_api)
                     .header("Authorization", format!("Bearer {}", shasta_token))
                     .json(&hsm_group_json) // make sure this is not a string!
                     .send()
-                    .await?;
-
-                let json_response: Value = if resp.status().is_success() {
-                    serde_json::from_str(&resp.text().await?)?
-                } else {
-                    println!("Return code: {}\n", resp.status());
-                    return Err(resp.text().await?.into());
-                };
-
-                Ok(json_response.as_array().unwrap().to_owned())
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await
             }
 
             pub async fn delete_hsm_group(
@@ -690,7 +670,7 @@ pub mod group {
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
                 hsm_group_name_opt: &String, // label in HSM
-            ) -> Result<String, Box<dyn Error>> {
+            ) -> Result<String, reqwest::Error> {
                 let client;
 
                 let client_builder = reqwest::Client::builder()
@@ -710,24 +690,20 @@ pub mod group {
                 let url_api =
                     shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name_opt;
 
-                let resp = client
+                client
                     .delete(url_api)
                     .header("Authorization", format!("Bearer {}", shasta_token))
                     .send()
-                    .await?;
-
-                if resp.status().is_success() {
-                    Ok(resp.text().await?)
-                } else {
-                    log::debug!("delete return code: {}\n", resp.status().to_string());
-                    Err(resp.text().await?.into())
-                }
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await
             }
         }
 
         pub mod utils {
 
-            use crate::cfs::session::mesa::r#struct::CfsSessionGetResponse;
+            use crate::cfs::session::mesa::r#struct::v2::CfsSessionGetResponse;
 
             /// This method will verify the HSM group in user config file and the HSM group the user is
             /// trying to access and it will verify if this access is granted.
@@ -870,7 +846,6 @@ pub mod component_status {
 pub mod hw_inventory {
     pub mod shasta {
         pub mod http_client {
-            use std::error::Error;
 
             use serde_json::Value;
             pub async fn get_hw_inventory(
@@ -878,7 +853,7 @@ pub mod hw_inventory {
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
                 xname: &str,
-            ) -> Result<Value, Box<dyn Error>> {
+            ) -> Result<Value, reqwest::Error> {
                 let client;
 
                 let client_builder = reqwest::Client::builder()
@@ -901,22 +876,14 @@ pub mod hw_inventory {
                     shasta_base_url, xname
                 );
 
-                let resp = client
+                client
                     .get(api_url)
                     .header("Authorization", format!("Bearer {}", shasta_token))
                     .send()
-                    .await?;
-
-                if resp.status().is_success() {
-                    let response = serde_json::from_str(&resp.text().await?);
-                    log::debug!("response: {:?}", response);
-                    Ok(response?)
-                } else {
-                    Err(resp.json::<Value>().await?["detail"]
-                        .as_str()
-                        .unwrap()
-                        .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-                }
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await
             }
         }
 

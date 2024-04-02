@@ -4,12 +4,14 @@ use serde_json::Value;
 use dialoguer::{Input, Password};
 use std::{
     collections::HashMap,
-    error::Error,
     fs::{create_dir_all, File},
     io::{Read, Write},
     path::PathBuf,
 };
+
 use termion::color;
+
+use crate::error::Error;
 
 /// docs --> https://cray-hpe.github.io/docs-csm/en-12/operations/security_and_authentication/api_authorization/
 ///      --> https://cray-hpe.github.io/docs-csm/en-12/operations/security_and_authentication/retrieve_an_authentication_token/
@@ -18,7 +20,7 @@ pub async fn get_api_token(
     shasta_root_cert: &[u8],
     keycloak_base_url: &str,
     site_name: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Error> {
     let mut shasta_token: String;
 
     // Look for authentication token in environment variable
@@ -32,7 +34,7 @@ pub async fn get_api_token(
 
             match is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert).await {
                 Ok(_) => return Ok(shasta_token),
-                Err(_) => return Err("Authentication unsucessful".into()),
+                Err(_) => return Err(Error::Message("Authentication unsucessful".to_string())),
             }
         }
     }
@@ -104,11 +106,11 @@ pub async fn get_api_token(
         shasta_token = get_token_from_local_file(path.as_os_str()).unwrap();
         Ok(shasta_token)
     } else {
-        Err("Authentication unsucessful".into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        Err(Error::Message("Authentication unsucessful".to_string())) // Black magic conversion from Err(Box::new("my error msg")) which does not
     }
 }
 
-pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, Box<dyn Error>> {
+pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, reqwest::Error> {
     let mut shasta_token = String::new();
     File::open(path)
         .unwrap()
@@ -121,7 +123,7 @@ pub async fn is_token_valid(
     shasta_base_url: &str,
     shasta_token: &str,
     shasta_root_cert: &[u8],
-) -> Result<bool, Box<dyn Error>> {
+) -> Result<bool, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -170,9 +172,7 @@ pub async fn get_token_from_shasta_endpoint(
     shasta_root_cert: &[u8],
     username: &str,
     password: &str,
-) -> Result<String, Box<dyn Error>> {
-    let json_response: Value;
-
+) -> Result<String, reqwest::Error> {
     let mut params = HashMap::new();
     params.insert("grant_type", "password");
     params.insert("client_id", "shasta");
@@ -195,22 +195,18 @@ pub async fn get_token_from_shasta_endpoint(
         client = client_builder.build()?;
     }
 
-    let resp = client
+    Ok(client
         .post(format!(
             "{}/realms/shasta/protocol/openid-connect/token",
             keycloak_base_url
         ))
         .form(&params)
         .send()
-        .await?;
-
-    if resp.status().is_success() {
-        json_response = serde_json::from_str(&resp.text().await?)?;
-        Ok(json_response["access_token"].as_str().unwrap().to_string())
-    } else {
-        Err(resp.json::<Value>().await?["error_description"]
-            .as_str()
-            .unwrap()
-            .into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+        .await?
+        .error_for_status()?
+        .json::<Value>()
+        .await?["access_token"]
+        .as_str()
+        .unwrap()
+        .to_string())
 }

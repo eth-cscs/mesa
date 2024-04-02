@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use serde_json::Value;
 
 pub async fn get_raw(
@@ -43,28 +41,20 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     image_id_opt: Option<&str>,
-) -> Result<Vec<Value>, Box<dyn Error>> {
+) -> Result<Vec<Value>, reqwest::Error> {
     let resp = get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         image_id_opt,
     )
-    .await
-    .unwrap();
-
-    let json_response: Value = if resp.status().is_success() {
-        resp.json().await?
-    } else {
-        let response = resp.text().await;
-        log::error!("{:#?}", response);
-        return Err(response?.into());
-    };
+    .await?
+    .error_for_status()?;
 
     let mut image_value_vec: Vec<Value> = if image_id_opt.is_some() {
-        [json_response].to_vec()
+        [resp.json::<Value>().await?].to_vec()
     } else {
-        serde_json::from_value::<Vec<Value>>(json_response)?
+        resp.json().await?
     };
 
     // Sort images by creation time order ASC
@@ -82,7 +72,7 @@ pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Vec<Value>, Box<dyn Error>> {
+) -> Result<Vec<Value>, reqwest::Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }
 
@@ -94,7 +84,7 @@ pub async fn delete(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     image_id: &str,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -115,34 +105,21 @@ pub async fn delete(
     // SOFT DELETION
     let api_url = shasta_base_url.to_owned() + "/ims/v3/images/" + image_id;
 
-    let resp = client
+    client
         .delete(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?;
-
-    if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-    } else {
-        log::debug!("{:#?}", resp);
-        return Err(resp.text().await?.into()); // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+        .await?
+        .error_for_status()?;
 
     // PERMANENT DELETION
     let api_url = shasta_base_url.to_owned() + "/ims/v3/deleted/images/" + image_id;
 
-    let resp = client
+    client
         .delete(api_url)
-        // .get(format!("{}{}", shasta_base_url, "/cfs/v2/configurations"))
         .bearer_auth(shasta_token)
         .send()
-        .await?;
-
-    if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-        Ok(())
-    } else {
-        log::debug!("{:#?}", resp);
-        Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-    }
+        .await?
+        .error_for_status()
+        .map(|_| ())
 }

@@ -2,46 +2,27 @@ use crate::{
     bos,
     cfs::{
         self, component::mesa::r#struct::CfsComponent,
-        configuration::mesa::r#struct::cfs_configuration_response::CfsConfigurationResponse,
+        configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
     },
     hsm,
 };
 
-use super::r#struct::{
-    cfs_configuration_request::CfsConfigurationRequest, cfs_configuration_response::ApiError,
-};
+use super::r#struct::cfs_configuration_request::v2::CfsConfigurationRequest;
 
 pub async fn create(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    cfs_configuration: &mut CfsConfigurationRequest,
-) -> Result<CfsConfigurationResponse, ApiError> {
-    log::debug!(
-        "CFS configuration creation request payload:\n{:#?}",
-        cfs_configuration
-    );
-
-    let cfs_configuration_rslt = cfs::configuration::mesa::http_client::put(
+    cfs_configuration: &CfsConfigurationRequest,
+) -> Result<CfsConfigurationResponse, crate::error::Error> {
+    cfs::configuration::mesa::http_client::put(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         cfs_configuration,
         &cfs_configuration.name,
     )
-    .await;
-
-    match cfs_configuration_rslt {
-        Ok(cfs_configuration) => {
-            log::debug!(
-                "CFS configuration creation response payload:\n{:#?}",
-                cfs_configuration
-            );
-
-            Ok(cfs_configuration)
-        }
-        Err(error) => Err(ApiError::CsmError(error.to_string())),
-    }
+    .await
 }
 
 pub async fn filter(
@@ -147,6 +128,7 @@ pub async fn filter(
             || image_id_cfs_configuration_target.contains(&cfs_configuration.name)
     });
 
+    // Sort by last updated date in ASC order
     cfs_configuration_vec.sort_by(|cfs_configuration_1, cfs_configuration_2| {
         cfs_configuration_1
             .last_updated
@@ -163,4 +145,42 @@ pub async fn filter(
     }
 
     cfs_configuration_vec.to_vec()
+}
+
+/// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
+/// is built for a specific cluster based on ansible vars used by the CFS session). The reason
+/// for this is because CSCS staff deletes all CFS sessions every now and then...
+pub async fn get_and_filter(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    configuration_name: Option<&str>,
+    hsm_group_name_vec: &[String],
+    limit_number_opt: Option<&u8>,
+) -> Vec<CfsConfigurationResponse> {
+    let mut cfs_configuration_value_vec: Vec<CfsConfigurationResponse> =
+        crate::cfs::configuration::mesa::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            configuration_name,
+        )
+        .await
+        .unwrap_or_default();
+
+    if configuration_name.is_none() {
+        // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
+        // CFS configuration name or the image name built would include the HSM name
+        crate::cfs::configuration::mesa::utils::filter(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &mut cfs_configuration_value_vec,
+            hsm_group_name_vec,
+            limit_number_opt,
+        )
+        .await;
+    }
+
+    cfs_configuration_value_vec
 }

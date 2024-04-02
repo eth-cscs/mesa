@@ -2,9 +2,7 @@
 
 pub mod http_client {
 
-    use std::error::Error;
-
-    use crate::{cfs::configuration::mesa::r#struct::cfs_configuration_response::ApiError, config};
+    use crate::{config, error::Error};
     use serde_json::Value;
 
     /// Get all refs for a repository
@@ -13,7 +11,7 @@ pub mod http_client {
         repo_url: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Vec<Value>, ApiError> {
+    ) -> Result<Vec<Value>, crate::error::Error> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
@@ -50,27 +48,18 @@ pub mod http_client {
 
         log::info!("Get refs in gitea using through API call: {}", api_url);
 
-        let resp = client
+        let resp_rslt = client
             .get(api_url)
             .header("Authorization", format!("token {}", gitea_token))
             .send()
-            .await
-            .unwrap();
+            .await?
+            .error_for_status()?
+            .json::<Vec<Value>>()
+            .await;
 
-        if resp.status().is_success() {
-            let json_response: Vec<Value> = resp.json().await.unwrap();
-
-            log::debug!(
-                "Gitea response refs for repo '{}':\n{:#?}",
-                repo_name,
-                json_response
-            );
-
-            Ok(json_response)
-        } else {
-            let response_payload = resp.text().await.unwrap();
-
-            Err(ApiError::MesaError(response_payload))
+        match resp_rslt {
+            Ok(resp) => Ok(resp),
+            Err(error) => Err(Error::NetError(error)),
         }
     }
 
@@ -82,7 +71,7 @@ pub mod http_client {
         tag: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<Value, reqwest::Error> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
@@ -119,23 +108,13 @@ pub mod http_client {
 
         log::info!("Request to {}", api_url);
 
-        let resp = client
+        client
             .get(api_url)
             .header("Authorization", format!("token {}", gitea_token))
             .send()
-            .await?;
-
-        if resp.status().is_success() {
-            let json_response: Value = resp.json().await?;
-
-            log::debug!("{}", serde_json::to_string_pretty(&json_response)?);
-
-            Ok(json_response)
-        } else {
-            let error_msg = format!("ERROR: tag {} not found in Shasta CVS. Please check gitea admin or wait sync to finish.", tag);
-
-            Err(error_msg.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-        }
+            .await?
+            .json()
+            .await
     }
 
     /// Returns the commit id (sha) related to a tag name
@@ -146,7 +125,7 @@ pub mod http_client {
         tag: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<Value, Error> {
         let repo_name: &str = gitea_api_tag_url
             .trim_start_matches("https://vcs.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/")
             .split('/')
@@ -176,22 +155,15 @@ pub mod http_client {
 
         log::info!("Request to {}", api_url);
 
-        let resp = client
+        let response_rslt = client
             .get(api_url.clone())
             .header("Authorization", format!("token {}", gitea_token))
             .send()
-            .await?;
+            .await;
 
-        if resp.status().is_success() {
-            let json_response: Value = resp.json().await?;
-
-            log::debug!("{}", serde_json::to_string_pretty(&json_response)?);
-
-            Ok(json_response)
-        } else {
-            let error_msg = format!("ERROR: tag related to run '{}' not found in Shasta CVS. Please check gitea admin or wait sync to finish.", api_url);
-
-            Err(error_msg.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+        match response_rslt {
+            Ok(response) => Ok(response.json::<Value>().await?),
+            Err(error) => Err(Error::NetError(error)),
         }
     }
 
@@ -200,7 +172,7 @@ pub mod http_client {
         commitid: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Value, Box<dyn Error>> {
+    ) -> Result<Value, reqwest::Error> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
@@ -240,27 +212,14 @@ pub mod http_client {
 
         log::info!("Request to {}", api_url);
 
-        let resp = client
+        client
             .get(api_url)
             .header("Authorization", format!("token {}", gitea_token))
             .send()
-            .await?;
-
-        if resp.status().is_success() {
-            let json_response: Value = resp.json().await?;
-
-            log::debug!(
-                "Gitea commit id '{}' details:\n{:#?}",
-                commitid,
-                json_response
-            );
-
-            Ok(json_response)
-        } else {
-            let error_msg = format!("ERROR: commit {} not found in Shasta CVS. Please check gitea admin or wait sync to finish.", commitid);
-
-            Err(error_msg.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-        }
+            .await?
+            .error_for_status()?
+            .json()
+            .await
     }
 
     pub async fn get_last_commit_from_repo_name(
@@ -268,7 +227,7 @@ pub mod http_client {
         repo_name: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> core::result::Result<Value, Box<dyn std::error::Error>> {
+    ) -> core::result::Result<Value, reqwest::Error> {
         let repo_url = gitea_api_base_url.to_owned() + "/api/v1/repos" + repo_name + "/commits";
 
         let client;
@@ -287,29 +246,22 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        let resp = client
+        let mut resp: Vec<Value> = client
             .get(repo_url)
             .header("Authorization", format!("token {}", gitea_token))
             .send()
+            .await?
+            .error_for_status()?
+            .json()
             .await?;
 
-        if resp.status().is_success() {
-            let mut json_response: Vec<Value> = serde_json::from_str(&resp.text().await?)?;
-            json_response.sort_by(|a, b| {
-                a["commit"]["committer"]["date"]
-                    .to_string()
-                    .cmp(&b["commit"]["committer"]["date"].to_string())
-            });
+        resp.sort_by(|a, b| {
+            a["commit"]["committer"]["date"]
+                .to_string()
+                .cmp(&b["commit"]["committer"]["date"].to_string())
+        });
 
-            println!("last commit: {:#?}", json_response.last().unwrap().clone());
-
-            Ok(json_response.last().unwrap().clone())
-        } else {
-            eprintln!("FAIL request: {:#?}", resp);
-            let response: String = resp.text().await?;
-            eprintln!("FAIL response: {:#?}", response);
-            Err(response.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
-        }
+        Ok(resp.last().unwrap().clone())
     }
 
     pub async fn get_last_commit_from_url(
@@ -317,7 +269,7 @@ pub mod http_client {
         repo_url: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> core::result::Result<Value, Box<dyn std::error::Error>> {
+    ) -> core::result::Result<Value, reqwest::Error> {
         let repo_name = repo_url
             .trim_start_matches("https://api-gw-service-nmn.local/vcs/")
             .trim_end_matches(".git");

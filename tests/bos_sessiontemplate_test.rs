@@ -1,4 +1,4 @@
-use mesa::cfs::session::mesa::r#struct::CfsSessionGetResponse;
+use mesa::cfs::session::mesa::r#struct::v2::CfsSessionGetResponse;
 
 #[tokio::test]
 async fn test_bos_sessiontemplate_serde_json_to_struct_conversion() {

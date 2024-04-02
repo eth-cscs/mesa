@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod test {
-    use mesa::cfs::session::mesa::r#struct::CfsSessionGetResponse;
+    use mesa::cfs::session::mesa::r#struct::v2::CfsSessionGetResponse;
 
     #[tokio::test]
     async fn test_cfs_session_serde_json_to_struct_conversion() {

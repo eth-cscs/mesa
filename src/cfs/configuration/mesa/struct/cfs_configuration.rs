@@ -1,13 +1,15 @@
 use std::fmt;
 
-pub struct Configuration {
+/// Struct used by get_configuration when only one CFS configuration is fetched. This means we will
+/// CFS confiugration layers will have extra information from the VCS/Gitea1
+pub struct ConfigurationDetails {
     pub name: String,
     pub last_updated: String,
-    pub config_layers: Vec<Layer>,
+    pub config_layers: Vec<LayerDetails>,
 }
 
-impl Configuration {
-    pub fn new(name: &str, last_updated: &str, config_layers: Vec<Layer>) -> Self {
+impl ConfigurationDetails {
+    pub fn new(name: &str, last_updated: &str, config_layers: Vec<LayerDetails>) -> Self {
         Self {
             name: String::from(name),
             last_updated: String::from(last_updated),
@@ -16,7 +18,7 @@ impl Configuration {
     }
 }
 
-impl fmt::Display for Configuration {
+impl fmt::Display for ConfigurationDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -32,7 +34,7 @@ impl fmt::Display for Configuration {
     }
 }
 
-pub struct Layer {
+pub struct LayerDetails {
     pub name: String,
     pub repo_name: String,
     pub commit_id: String,
@@ -43,7 +45,7 @@ pub struct Layer {
     pub playbook: String, // pub most_recent_commit: bool,
 }
 
-impl Layer {
+impl LayerDetails {
     pub fn new(
         name: &str,
         repo_name: &str,
@@ -69,7 +71,7 @@ impl Layer {
     }
 }
 
-impl fmt::Display for Layer {
+impl fmt::Display for LayerDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

@@ -1,10 +1,10 @@
-use std::error::Error;
-
 use serde_json::Value;
 
 use crate::{
-    bos, bss::http_client::get_boot_params,
-    hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec, ims::image::r#struct::Image,
+    bos,
+    bss::http_client::get_boot_params,
+    hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec,
+    ims::{image::r#struct::Image, public_keys::http_client::v3::get},
 };
 
 // Get Image using fuzzy finder, meaning returns any image which name contains a specific
@@ -19,7 +19,7 @@ pub async fn get_fuzzy(
     hsm_group_name_vec: &[String],
     image_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
-) -> Result<Vec<(Image, String, String)>, Box<dyn Error>> {
+) -> Result<Vec<(Image, String, String)>, reqwest::Error> {
     let mut image_configuration_hsm_group_tuple_vec: Vec<(Image, String, String)> =
         get_image_cfsconfiguration_targetgroups_tuple(
             shasta_token,
@@ -320,7 +320,7 @@ pub async fn register_new_image(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     ims_image: &Image,
-) -> Result<Value, Box<dyn Error>> {
+) -> Result<Value, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -340,21 +340,35 @@ pub async fn register_new_image(
 
     let api_url = shasta_base_url.to_owned() + "/ims/v3/images";
 
-    let resp = client
+    client
         .post(api_url)
         .header("Authorization", format!("Bearer {}", shasta_token))
         .json(&ims_image)
         .send()
-        .await?;
+        .await?
+        .error_for_status()?
+        .json()
+        .await
+}
 
-    let json_response: Value;
-
-    if resp.status().is_success() {
-        log::debug!("{:#?}", resp);
-        json_response = serde_json::from_str(&resp.text().await?)?;
-        Ok(json_response)
-    } else {
-        log::debug!("{:#?}", resp);
-        Err(resp.text().await?.into()) // Black magic conversion from Err(Box::new("my error msg")) which does not
+pub async fn get_single(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    username_opt: Option<&str>,
+) -> Option<Value> {
+    if let Ok(public_key_value_list) = get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        username_opt,
+    )
+    .await
+    {
+        if public_key_value_list.len() == 1 {
+            return public_key_value_list.first().cloned();
+        };
     }
+
+    None
 }
