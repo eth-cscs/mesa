@@ -83,8 +83,6 @@ mod tests {
         pass = pass && boot_parameters.kernel.contains(new_image_id);
         pass = pass && boot_parameters.initrd.contains(new_image_id);
 
-        println!("DEBUG - pass? {}", pass);
-
         assert!(pass)
     }
 }

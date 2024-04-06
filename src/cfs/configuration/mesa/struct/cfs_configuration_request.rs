@@ -23,6 +23,16 @@ pub mod v2 {
         pub branch: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub tag: Option<String>,
+        #[serde(rename = "specialParameters")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub special_parameters: Option<Vec<SpecialParameter>>,
+    }
+
+    #[derive(Debug, Serialize, Deserialize, Clone)]
+    pub struct SpecialParameter {
+        #[serde(rename = "imsRequiredDkms")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ims_required_dkms: Option<bool>,
     }
 
     #[derive(Debug, Deserialize, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
@@ -39,6 +49,7 @@ pub mod v2 {
             playbook: String,
             branch: Option<String>,
             tag: Option<String>,
+            special_parameters: Option<Vec<SpecialParameter>>,
         ) -> Self {
             Self {
                 clone_url,
@@ -47,6 +58,7 @@ pub mod v2 {
                 playbook,
                 branch,
                 tag,
+                special_parameters,
             }
         }
     }
@@ -145,6 +157,7 @@ pub mod v2 {
                             .to_string(),
                         branch_value_opt.map(|branch| branch.as_str().unwrap().to_string()),
                         None,
+                        None,
                     );
                     cfs_configuration.add_layer(layer);
                 } else if layer_yaml.get("product").is_some() {
@@ -212,6 +225,7 @@ pub mod v2 {
                         layer_yaml["playbook"].as_str().unwrap().to_string(),
                         product_branch_value_opt
                             .map(|branch_value| branch_value.as_str().unwrap().to_string()),
+                        None,
                         None,
                     );
                     cfs_configuration.add_layer(layer);
@@ -305,6 +319,7 @@ pub mod v2 {
                             .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
                     ),
                     String::from("site.yml"),
+                    None,
                     None,
                     None,
                 );
