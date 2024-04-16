@@ -44,6 +44,7 @@ pub async fn get_details(
             shasta_base_url,
             shasta_root_cert,
             None,
+            None,
             Some(true),
         )
         .await

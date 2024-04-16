@@ -14,6 +14,7 @@ pub mod shasta {
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
+                status_opt: Option<&String>,
                 session_name_opt: Option<&String>,
                 is_succeded_opt: Option<bool>,
             ) -> Result<Vec<CfsSessionGetResponse>, Error> {
@@ -42,7 +43,11 @@ pub mod shasta {
                 let mut request_payload = Vec::new();
 
                 if let Some(is_succeded) = is_succeded_opt {
-                    request_payload.push(("succeced", is_succeded));
+                    request_payload.push(("succeced", is_succeded.to_string()));
+                }
+
+                if let Some(status) = status_opt {
+                    request_payload.push(("status", status.to_string()));
                 }
 
                 let response = client
@@ -942,6 +947,7 @@ pub mod mesa {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
+            status_opt: Option<&String>,
             session_name_opt: Option<&String>,
             is_succeded_opt: Option<bool>,
         ) -> Result<Vec<CfsSessionGetResponse>, Error> {
@@ -949,6 +955,7 @@ pub mod mesa {
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
+                status_opt,
                 session_name_opt,
                 is_succeded_opt,
             )
@@ -1029,6 +1036,7 @@ pub mod mesa {
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
+                None,
                 Some(&cfs_session_name),
                 None,
             )
@@ -1316,6 +1324,7 @@ pub mod mesa {
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
+                    None,
                     Some(&cfs_session_id.to_string()),
                     None,
                 )

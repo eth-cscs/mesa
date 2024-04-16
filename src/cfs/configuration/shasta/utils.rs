@@ -28,6 +28,7 @@ pub async fn filter(
                 shasta_root_cert,
                 None,
                 None,
+                None,
             )
             .await
             .unwrap();

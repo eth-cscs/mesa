@@ -396,8 +396,14 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
 
     let mut pods = pods_api.list(&params).await?;
 
+    log::debug!(
+        "Pods related to CFS session '{}' found are:\n'{:#?}'",
+        cfs_session_name,
+        pods,
+    );
+
     let mut i = 0;
-    let max = 300;
+    let max = 4;
     let delay_secs = 2;
 
     // Waiting for pod to start
