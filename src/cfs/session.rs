@@ -1051,6 +1051,8 @@ pub mod mesa {
                 shasta_base_url,
                 shasta_root_cert,
                 None,
+                None,
+                None,
                 Some(&cfs_session_name),
                 None,
             )
@@ -1338,6 +1340,8 @@ pub mod mesa {
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,
+                    None,
+                    None,
                     None,
                     Some(&cfs_session_id.to_string()),
                     None,

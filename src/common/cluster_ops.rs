@@ -45,6 +45,8 @@ pub async fn get_details(
             shasta_root_cert,
             None,
             None,
+            None,
+            None,
             Some(true),
         )
         .await

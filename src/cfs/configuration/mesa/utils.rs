@@ -83,6 +83,8 @@ pub async fn filter(
         shasta_root_cert,
         None,
         None,
+        None,
+        None,
         Some(true),
     )
     .await

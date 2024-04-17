@@ -89,6 +89,8 @@ pub async fn filter(
         shasta_root_cert,
         None,
         None,
+        None,
+        None,
         Some(true),
     )
     .await
@@ -238,6 +240,8 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
+        None,
+        None,
         None,
         None,
         Some(true),
