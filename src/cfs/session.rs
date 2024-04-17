@@ -14,6 +14,8 @@ pub mod shasta {
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
+                min_age_opt: Option<&String>,
+                max_age_opt: Option<&String>,
                 status_opt: Option<&String>,
                 session_name_opt: Option<&String>,
                 is_succeded_opt: Option<bool>,
@@ -44,6 +46,14 @@ pub mod shasta {
 
                 if let Some(is_succeded) = is_succeded_opt {
                     request_payload.push(("succeced", is_succeded.to_string()));
+                }
+
+                if let Some(min_age) = min_age_opt {
+                    request_payload.push(("min_age", min_age.to_string()));
+                }
+
+                if let Some(max_age) = max_age_opt {
+                    request_payload.push(("max_age", max_age.to_string()));
                 }
 
                 if let Some(status) = status_opt {
@@ -947,6 +957,8 @@ pub mod mesa {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
+            min_age_opt: Option<&String>,
+            max_age_opt: Option<&String>,
             status_opt: Option<&String>,
             session_name_opt: Option<&String>,
             is_succeded_opt: Option<bool>,
@@ -955,6 +967,8 @@ pub mod mesa {
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
+                min_age_opt,
+                max_age_opt,
                 status_opt,
                 session_name_opt,
                 is_succeded_opt,
