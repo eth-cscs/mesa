@@ -50,8 +50,8 @@ pub mod v1 {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         bos_template: &BosSessionTemplate,
-    ) -> Result<BosSessionTemplate, Error> {
-        log::info!("Create BOS sessiontemplte '{}'", bos_template.name);
+    ) -> Result<String, Error> {
+        log::info!("Create BOS sessiontemplate '{}'", bos_template.name);
         log::debug!(
             "Create BOS sessiontemplate request payload:\n{}",
             serde_json::to_string_pretty(bos_template).unwrap()
@@ -76,8 +76,10 @@ pub mod v1 {
 
         let api_url = shasta_base_url.to_string() + "/bos/v1/sessiontemplate";
 
+        log::debug!("API URL request: {}", api_url);
+
         let response = client
-            .put(api_url)
+            .post(api_url)
             .json(&bos_template)
             .bearer_auth(shasta_token)
             .send()
@@ -91,7 +93,7 @@ pub mod v1 {
                 .map_err(|error| Error::NetError(error))?)
         } else {
             let payload = response
-                .json::<Value>()
+                .json()
                 .await
                 .map_err(|error| Error::NetError(error))?;
             Err(Error::CsmError(payload))

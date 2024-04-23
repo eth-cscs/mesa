@@ -451,7 +451,7 @@ pub mod v2 {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub node_groups: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub arch: Option<String>,
+        pub arch: Option<String>, // TODO: use Arch enum instead
         #[serde(skip_serializing_if = "Option::is_none")]
         pub rootfs_provider: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -464,6 +464,14 @@ pub mod v2 {
         // pub network: Option<String>,
         // #[serde(skip_serializing_if = "Option::is_none")]
         // pub property: Option<String>,
+    }
+
+    // TODO: use strum crate to implement functions to convert to/from String
+    #[derive(Debug, Serialize, Deserialize, Clone)]
+    pub enum Arch {
+        X86,
+        ARM,
+        Other,
     }
 
     #[derive(Debug, Serialize, Deserialize, Clone)]

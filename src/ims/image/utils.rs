@@ -4,7 +4,7 @@ use crate::{
     bos,
     bss::http_client::get_boot_params,
     hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec,
-    ims::{image::r#struct::Image, public_keys::http_client::v3::get},
+    ims::{self, image::r#struct::Image, public_keys::http_client::v3::get},
 };
 
 // Get Image using fuzzy finder, meaning returns any image which name contains a specific
@@ -26,13 +26,23 @@ pub async fn get_fuzzy(
             shasta_base_url,
             shasta_root_cert,
             hsm_group_name_vec,
-            limit_number_opt,
+            None, // NOTE: don't put any limit here since we may be looking in a large number of
+                  // HSM groups and we will filter the results by image name below
         )
         .await;
 
     if let Some(image_name) = image_name_opt {
         image_configuration_hsm_group_tuple_vec
             .retain(|(image, _, _)| image.name.contains(image_name));
+    }
+
+    if let Some(limit_number) = limit_number_opt {
+        // Limiting the number of results to return to client
+        image_configuration_hsm_group_tuple_vec = image_configuration_hsm_group_tuple_vec
+            [image_configuration_hsm_group_tuple_vec
+                .len()
+                .saturating_sub(*limit_number as usize)..]
+            .to_vec();
     }
 
     Ok(image_configuration_hsm_group_tuple_vec.to_vec())
@@ -209,12 +219,7 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
             .await
             .unwrap();
 
-    super::mesa::utils::filter(&mut image_vec).await;
-
-    if let Some(limit_number) = limit_number_opt {
-        // Limiting the number of results to return to client
-        image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
-    }
+    ims::image::mesa::utils::filter(&mut image_vec).await;
 
     // We need BOS session templates to find an image created by SAT
     let mut bos_sessiontemplate_vec = bos::template::mesa::http_client::get(
@@ -230,7 +235,6 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
         &mut bos_sessiontemplate_vec,
         hsm_group_name_vec,
         &Vec::new(),
-        // None,
         None,
     )
     .await;
@@ -315,6 +319,14 @@ pub async fn get_image_cfsconfiguration_targetgroups_tuple(
             cfs_configuration.to_string(),
             target_groups.clone(),
         ));
+    }
+
+    if let Some(limit_number) = limit_number_opt {
+        // Limiting the number of results to return to client
+        image_detail_vec = image_detail_vec[image_detail_vec
+            .len()
+            .saturating_sub(*limit_number as usize)..]
+            .to_vec();
     }
 
     image_detail_vec

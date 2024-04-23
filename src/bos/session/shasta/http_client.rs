@@ -11,6 +11,15 @@ pub mod v1 {
         operation: &str,
         limit: Option<&String>,
     ) -> core::result::Result<Value, Error> {
+        let payload = json!({
+            "operation": operation,
+            "templateName": bos_template_name,
+            // "limit": limit
+        });
+
+        log::info!("Create BOS session v1");
+        log::debug!("Create BOS session v1 payload:\n{:#?}", payload);
+
         let client;
 
         let client_builder = reqwest::Client::builder()
@@ -46,21 +55,17 @@ pub mod v1 {
 
         let response = client
             .post(api_url)
-            .json(&json!({
-                "operation": operation,
-                "templateName": bos_template_name,
-                "limit": limit
-            }))
+            .json(&payload)
             .bearer_auth(shasta_token)
             .send()
             .await
             .map_err(|error| Error::NetError(error))?;
 
         if response.status().is_success() {
-            Ok(response
+            response
                 .json()
                 .await
-                .map_err(|error| Error::NetError(error))?)
+                .map_err(|error| Error::NetError(error))
         } else {
             let payload = response
                 .json::<Value>()
