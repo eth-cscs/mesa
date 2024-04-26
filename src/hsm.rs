@@ -156,6 +156,11 @@ pub mod r#struct {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub ids: Option<Vec<String>>,
     }
+    #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+    pub struct XnameId {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub id: Option<String>
+    }
 }
 
 pub mod group {
@@ -163,6 +168,7 @@ pub mod group {
         pub mod http_client {
 
             use serde_json::Value;
+            use crate::hsm::r#struct::{Member, XnameId};
 
             /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
             pub async fn get_raw(
@@ -259,21 +265,92 @@ pub mod group {
                 Ok(hsm_groups)
             }
 
+
             pub async fn post_member(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
                 hsm_group_name: &str,
                 member_id: &str,
             ) -> Result<(), reqwest::Error> {
                 log::info!("DEBUG - ADD member {}/{}", hsm_group_name, member_id);
+                let client;
+
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                if std::env::var("SOCKS5").is_ok() {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                    // rest client to authenticate
+                    client = client_builder.proxy(socks5proxy).build()?;
+                } else {
+                    client = client_builder.build()?;
+                }
+
+                let api_url: String = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name + "/members";
+
+                let xname = XnameId {
+                    id: Some(member_id.to_owned())
+                };
+
+
+                client
+                    .post(api_url)
+                    .header("Authorization", format!("Bearer {}", shasta_token))
+                    .json(&xname) // make sure this is not a string!
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await?;
+                // TODO Parse the output!!!
+                // TODO add some debugging output
 
                 Ok(())
             }
 
             pub async fn delete_member(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
                 hsm_group_name: &str,
                 member_id: &str,
             ) -> Result<(), reqwest::Error> {
                 log::info!("DEBUG - DELETE member {}/{}", hsm_group_name, member_id);
+                let client;
 
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                if std::env::var("SOCKS5").is_ok() {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                    // rest client to authenticate
+                    client = client_builder.proxy(socks5proxy).build()?;
+                } else {
+                    client = client_builder.build()?;
+                }
+
+                let api_url: String = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name + "/members/" + member_id;
+
+                client
+                    .delete(api_url)
+                    .header("Authorization", format!("Bearer {}", shasta_token))
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await?;
+
+                // TODO Parse the output!!!
+                // TODO add some debugging output
                 Ok(())
             }
         }
@@ -289,6 +366,9 @@ pub mod group {
             use super::http_client::{self, delete_member};
 
             pub async fn update_hsm_group_members(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
                 hsm_group_name: &str,
                 old_target_hsm_group_members: &Vec<String>,
                 new_target_hsm_group_members: &Vec<String>,
@@ -301,14 +381,14 @@ pub mod group {
                 // Delete members
                 for old_member in old_target_hsm_group_members {
                     if !new_target_hsm_group_members.contains(old_member) {
-                        let _ = delete_member(hsm_group_name, old_member).await;
+                        let _ = delete_member(shasta_token, shasta_base_url, shasta_root_cert, hsm_group_name, old_member).await;
                     }
                 }
 
                 // Add members
                 for new_member in new_target_hsm_group_members {
                     if !old_target_hsm_group_members.contains(new_member) {
-                        let _ = post_member(hsm_group_name, new_member).await;
+                        let _ = post_member(shasta_token, shasta_base_url, shasta_root_cert, hsm_group_name, new_member).await;
                     }
                 }
 
