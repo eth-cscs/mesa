@@ -1,6 +1,4 @@
 pub mod v1 {
-    use serde_json::Value;
-
     use crate::{bos::template::mesa::r#struct::v1::BosSessionTemplate, error::Error};
 
     /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/

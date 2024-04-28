@@ -15,7 +15,10 @@ pub mod v2 {
         shasta_root_cert: &[u8],
         configuration_name_opt: Option<&str>,
     ) -> Result<Vec<CfsConfigurationResponse>, Error> {
-        log::info!("Get CFS configuration {:?}", configuration_name_opt);
+        log::info!(
+            "Get CFS configuration '{}'",
+            configuration_name_opt.unwrap_or("all available")
+        );
 
         let stupid_limit = 100000;
 
