@@ -435,7 +435,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
     let mut pods = pods_api.list(&params).await?;
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
     let delay_secs = 2;
 
     // Waiting for pod to start
@@ -604,7 +604,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
     let mut pods = pods_api.list(&params).await?;
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
     let delay_secs = 2;
 
     // Waiting for pod to start
@@ -717,7 +717,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     let mut pods = pods_fabric.list(&params).await.unwrap();
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
@@ -789,7 +789,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     let mut pods = pods_fabric.list(&params).await.unwrap();
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {

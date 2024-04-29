@@ -113,7 +113,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
     let mut pods = pods_fabric.list(&params).await.unwrap();
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
@@ -186,7 +186,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
     let mut pods = pods_fabric.list(&params).await.unwrap();
 
     let mut i = 0;
-    let max = 300;
+    let max = 30;
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {

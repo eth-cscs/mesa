@@ -116,16 +116,21 @@ pub mod v2 {
 
                         log::info!("git tag: {}", git_tag_value.as_str().unwrap());
 
-                        let tag_details = gitea::http_client::get_tag_details(
+                        let tag_details_rslt = gitea::http_client::get_tag_details(
                             &repo_url,
                             git_tag,
                             gitea_token,
                             shasta_root_cert,
                         )
-                        .await
-                        .unwrap();
+                        .await;
 
-                        log::debug!("tag details:\n{:#?}", tag_details);
+                        let tag_details = if let Ok(tag_details) = tag_details_rslt {
+                            log::debug!("tag details:\n{:#?}", tag_details);
+                            tag_details
+                        } else {
+                            eprintln!("ERROR - Could not get details for git tag '{}' in CFS configuration '{}'. Reason:\n{:#?}", git_tag, cfs_configuration.name, tag_details_rslt);
+                            std::process::exit(1);
+                        };
 
                         // Assumming user sets an existing tag name. It could be an annotated tag
                         // (different object than the commit id with its own sha value) or a

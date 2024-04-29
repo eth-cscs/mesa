@@ -75,7 +75,7 @@ pub mod http_client {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
-        let gitea_api_base_url = gitea_external_base_url.to_owned() + "api/v1";
+        let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
 
         let repo_name = repo_url
             .trim_start_matches(gitea_internal_base_url)
