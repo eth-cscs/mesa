@@ -15,29 +15,14 @@ pub mod http_client {
         repo_url: &str,
         shasta_root_cert: &[u8],
     ) -> Result<Vec<Value>, crate::error::Error> {
-        println!("DEBUG - #### repo url {}", repo_url);
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/cray/";
         // let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
-
-        // let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
 
         let repo_name = repo_url
             .trim_start_matches(gitea_internal_base_url)
             .trim_end_matches(".git");
-        // let repo_name = repo_name
-        //     .trim_start_matches(gitea_external_base_url)
-        //     .trim_end_matches(".git");
 
-        println!("DEBUG - #### repo name {}", repo_name);
-        println!("DEBUG - #### gitea internal base url {}", gitea_internal_base_url);
-
-        get_all_refs(
-            gitea_base_url,
-            gitea_token,
-            repo_name,
-            shasta_root_cert,
-        )
-        .await
+        get_all_refs(gitea_base_url, gitea_token, repo_name, shasta_root_cert).await
     }
 
     /// Get all refs for a repository
@@ -69,7 +54,7 @@ pub mod http_client {
             gitea_base_url, repo_name
         );
 
-        log::info!("Get refs in gitea using through API call: {}", api_url);
+        log::debug!("Get refs in gitea using through API call: {}", api_url);
 
         let resp_rslt = client
             .get(api_url)
@@ -129,7 +114,7 @@ pub mod http_client {
 
         let api_url = format!("{}/repos/{}/tags/{}", gitea_api_base_url, repo_name, tag);
 
-        log::info!("Request to {}", api_url);
+        log::debug!("Request to {}", api_url);
 
         client
             .get(api_url)
@@ -176,7 +161,7 @@ pub mod http_client {
             client = client_builder.build()?;
         }
 
-        log::info!("Request to {}", api_url);
+        log::debug!("Request to {}", api_url);
 
         let response_rslt = client
             .get(api_url.clone())
@@ -277,7 +262,7 @@ pub mod http_client {
             gitea_base_url, repo_name, commitid
         );
 
-        log::info!("Request to {}", api_url);
+        log::debug!("Request to {}", api_url);
 
         let response = client
             .get(api_url)
