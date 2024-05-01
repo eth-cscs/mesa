@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     bos,
-    bss::http_client::get_boot_params,
+    bss::bootparameters::http_client::get_boot_params,
     hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::r#struct::Image, public_keys::http_client::v3::get},
 };

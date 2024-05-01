@@ -1,3 +1,7 @@
+use serde_json::Value;
+
+use crate::error::Error;
+
 use super::r#struct::CfsComponent;
 
 pub async fn get_multiple_components(
@@ -6,7 +10,7 @@ pub async fn get_multiple_components(
     shasta_root_cert: &[u8],
     components_ids: Option<&str>,
     status: Option<&str>,
-) -> Result<Vec<CfsComponent>, reqwest::Error> {
+) -> Result<Vec<CfsComponent>, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -24,18 +28,25 @@ pub async fn get_multiple_components(
 
     let api_url = shasta_base_url.to_owned() + "/cfs/v2/components";
 
-    let response_rslt = client
+    let response = client
         .get(api_url)
         .query(&[("ids", components_ids), ("status", status)])
         .bearer_auth(shasta_token)
         .send()
-        .await;
+        .await
+        .map_err(|error| Error::NetError(error))?;
 
-    log::debug!("GET CFS components result:\n{:#?}", response_rslt);
-
-    match response_rslt {
-        Ok(response) => response.json::<Vec<CfsComponent>>().await,
-        Err(error) => Err(error),
+    if response.status().is_success() {
+        response
+            .json::<Vec<CfsComponent>>()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .json::<Value>()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::CsmError(payload))
     }
 }
 
@@ -47,7 +58,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_groups_node_list: &[String],
-) -> Result<Vec<CfsComponent>, reqwest::Error> {
+) -> Result<Vec<CfsComponent>, Error> {
     let chunk_size = 30;
 
     let mut component_vec = Vec::new();

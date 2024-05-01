@@ -72,7 +72,7 @@ pub async fn get_node_details(
     .unwrap();
 
     // Get boot params to get the boot image id for each node
-    let node_boot_params_vec = crate::bss::http_client::get_boot_params(
+    let node_boot_params_vec = crate::bss::bootparameters::http_client::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -153,8 +153,10 @@ pub async fn get_node_details(
         // get node boot params (these are the boot params of the nodes with the image the node
         // boot with). the image in the bos sessiontemplate may be different i don't know why. need
         // to investigate
-        let node_boot_params =
-            bss::utils::find_boot_params_related_to_node(&node_boot_params_vec, node);
+        let node_boot_params = bss::bootparameters::utils::find_boot_params_related_to_node(
+            &node_boot_params_vec,
+            node,
+        );
 
         let kernel_image_path_in_boot_params = node_boot_params.unwrap().get_boot_image();
 

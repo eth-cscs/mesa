@@ -1,7 +1,7 @@
 // tests for BSS
 #[cfg(test)]
 mod tests {
-    use mesa::bss::BootParameters;
+    use mesa::bss::bootparameters::BootParameters;
 
     #[test]
     fn test_update_boot_image_ncn() {
