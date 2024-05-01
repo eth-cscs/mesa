@@ -212,14 +212,15 @@ pub mod v2 {
                 let api_url = "cray/".to_owned() + repo_name;
 
                 // Check if repo and local commit id exists in Shasta cvs
-                let shasta_commitid_details_resp = gitea::http_client::get_commit_details(
-                    &api_url,
-                    // &format!("/cray/{}", repo_name),
-                    &local_last_commit.id().to_string(),
-                    gitea_token,
-                    shasta_root_cert,
-                )
-                .await;
+                let shasta_commitid_details_resp =
+                    gitea::http_client::get_commit_details_from_internal_url(
+                        &api_url,
+                        // &format!("/cray/{}", repo_name),
+                        &local_last_commit.id().to_string(),
+                        gitea_token,
+                        shasta_root_cert,
+                    )
+                    .await;
 
                 // Check sync status between user face and shasta VCS
                 let shasta_commitid_details: serde_json::Value = match shasta_commitid_details_resp
@@ -475,14 +476,15 @@ pub mod v3 {
                 let api_url = "cray/".to_owned() + repo_name;
 
                 // Check if repo and local commit id exists in Shasta cvs
-                let shasta_commitid_details_resp = gitea::http_client::get_commit_details(
-                    &api_url,
-                    // &format!("/cray/{}", repo_name),
-                    &local_last_commit.id().to_string(),
-                    gitea_token,
-                    shasta_root_cert,
-                )
-                .await;
+                let shasta_commitid_details_resp =
+                    gitea::http_client::get_commit_details_from_internal_url(
+                        &api_url,
+                        // &format!("/cray/{}", repo_name),
+                        &local_last_commit.id().to_string(),
+                        gitea_token,
+                        shasta_root_cert,
+                    )
+                    .await;
 
                 // Check sync status between user face and shasta VCS
                 let shasta_commitid_details: serde_json::Value = match shasta_commitid_details_resp

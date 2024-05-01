@@ -2,32 +2,52 @@
 
 pub mod http_client {
 
+    use std::str::FromStr;
+
     use crate::{config, error::Error};
     use serde_json::Value;
 
     /// Get all refs for a repository
     /// Used when getting repo details
-    pub async fn get_all_refs(
-        repo_url: &str,
+    pub async fn get_all_refs_from_repo_url(
+        gitea_base_url: &str,
         gitea_token: &str,
+        repo_url: &str,
         shasta_root_cert: &[u8],
     ) -> Result<Vec<Value>, crate::error::Error> {
-        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
-        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        println!("DEBUG - #### repo url {}", repo_url);
+        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/cray/";
+        // let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
-        let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
+        // let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
 
         let repo_name = repo_url
             .trim_start_matches(gitea_internal_base_url)
             .trim_end_matches(".git");
-        let repo_name = repo_name
-            .trim_start_matches(gitea_external_base_url)
-            .trim_end_matches(".git");
+        // let repo_name = repo_name
+        //     .trim_start_matches(gitea_external_base_url)
+        //     .trim_end_matches(".git");
 
-        /* log::info!("repo_url: {}", repo_url);
-        log::info!("gitea_base_url: {}", gitea_internal_base_url);
-        log::info!("repo_name: {}", repo_name); */
+        println!("DEBUG - #### repo name {}", repo_name);
+        println!("DEBUG - #### gitea internal base url {}", gitea_internal_base_url);
 
+        get_all_refs(
+            gitea_base_url,
+            gitea_token,
+            repo_name,
+            shasta_root_cert,
+        )
+        .await
+    }
+
+    /// Get all refs for a repository
+    /// Used when getting repo details
+    pub async fn get_all_refs(
+        gitea_base_url: &str,
+        gitea_token: &str,
+        repo_name: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Vec<Value>, crate::error::Error> {
         let client;
 
         let client_builder = reqwest::Client::builder()
@@ -44,7 +64,10 @@ pub mod http_client {
             client = client_builder.build().unwrap();
         }
 
-        let api_url = format!("{}/repos/{}/git/refs", gitea_api_base_url, repo_name);
+        let api_url = format!(
+            "{}/api/v1/repos/cray/{}/git/refs",
+            gitea_base_url, repo_name
+        );
 
         log::info!("Get refs in gitea using through API call: {}", api_url);
 
@@ -167,28 +190,72 @@ pub mod http_client {
         }
     }
 
-    pub async fn get_commit_details(
+    // Get commit details.
+    // NOTE: repo_name value must not contain the group (eg in CSSC gitlab we have
+    // alps/csm-config/template-management and in gitea is vcs/api/v1/repos/template-management
+    pub async fn get_commit_details_from_external_url(
         repo_url: &str,
         commitid: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Value, reqwest::Error> {
-        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
+    ) -> Result<Value, crate::error::Error> {
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
-        let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
+        let repo_name = repo_url
+            .trim_end_matches(".git")
+            .trim_start_matches(gitea_external_base_url);
+
+        if repo_name.ne(repo_url) {
+            crate::error::Error::Message(
+                "repo url provided does not match gitea internal URL".to_string(),
+            );
+        }
+
+        get_commit_details(
+            gitea_external_base_url,
+            repo_name,
+            commitid,
+            gitea_token,
+            shasta_root_cert,
+        )
+        .await
+    }
+
+    pub async fn get_commit_details_from_internal_url(
+        repo_url: &str,
+        commitid: &str,
+        gitea_token: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Value, crate::error::Error> {
+        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
 
         let repo_name = repo_url
-            .trim_start_matches(gitea_internal_base_url)
-            .trim_end_matches(".git");
-        let repo_name = repo_name
-            .trim_start_matches(gitea_external_base_url)
-            .trim_end_matches(".git");
+            .trim_end_matches(".git")
+            .trim_start_matches(gitea_internal_base_url);
 
-        /* log::info!("repo_url: {}", repo_url);
-        log::info!("gitea_base_url: {}", gitea_internal_base_url);
-        log::info!("repo_name: {}", repo_name); */
+        if repo_name.ne(repo_url) {
+            crate::error::Error::Message(
+                "repo url provided does not match gitea internal URL".to_string(),
+            );
+        }
 
+        get_commit_details(
+            gitea_internal_base_url,
+            repo_name,
+            commitid,
+            gitea_token,
+            shasta_root_cert,
+        )
+        .await
+    }
+
+    pub async fn get_commit_details(
+        gitea_base_url: &str,
+        repo_name: &str,
+        commitid: &str,
+        gitea_token: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Value, crate::error::Error> {
         let client;
 
         let client_builder = reqwest::Client::builder()
@@ -206,20 +273,31 @@ pub mod http_client {
         }
 
         let api_url = format!(
-            "{}/repos/{}/git/commits/{}",
-            gitea_api_base_url, repo_name, commitid
+            "{}/api/v1/repos/cray/{}/git/commits/{}",
+            gitea_base_url, repo_name, commitid
         );
 
         log::info!("Request to {}", api_url);
 
-        client
+        let response = client
             .get(api_url)
             .header("Authorization", format!("token {}", gitea_token))
             .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await
+            .await?;
+
+        if response.status().is_success() {
+            // Make sure we return a vec if user requesting a single value
+            response
+                .json()
+                .await
+                .map_err(|error| Error::NetError(error))
+        } else {
+            let payload = response
+                .json::<Value>()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+            Err(Error::CsmError(payload))
+        }
     }
 
     pub async fn get_last_commit_from_repo_name(
