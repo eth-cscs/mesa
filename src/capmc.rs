@@ -390,6 +390,7 @@ pub mod utils {
 
     use core::time;
     use serde_json::Value;
+    use std::io::Write;
 
     use crate::capmc::http_client::{node_power_off, node_power_on, node_power_status};
 
@@ -435,18 +436,20 @@ pub mod utils {
                 .map(|xname: &Value| xname.as_str().unwrap().to_string())
                 .collect();
 
-            println!(
-                    "Node(s) in power state ON: {:?}. Waiting nodes to power on. Trying again in {} seconds. Attempt {} of {}",
-                    node_on_vec,
-                    delay_secs,
-                    i + 1,
-                    max
-                );
+            print!(
+                "\rWaiting nodes to power on. Transitioning: {:?} ==> ON: {:?}. Trying again in {} seconds. Attempt {} of {}",
+                xname_vec.iter().filter(|xname| !node_on_vec.contains(xname)).collect::<Vec<_>>(),
+                node_on_vec,
+                delay_secs,
+                i + 1,
+                max
+            );
+            std::io::stdout().flush().unwrap();
 
             i += 1;
         }
 
-        println!("Node(s) power state ON: {:?}", node_on_vec);
+        println!("\nNode(s) power state ON: {:?}", node_on_vec);
 
         Ok(node_status_value)
     }
@@ -495,18 +498,20 @@ pub mod utils {
                 .map(|xname: &Value| xname.as_str().unwrap().to_string())
                 .collect();
 
-            println!(
-                    "Node(s) in power state OFF: {:?}. Waiting nodes to shutdown. Trying again in {} seconds. Attempt {} of {}",
+            print!(
+                    "\rWaiting nodes to power off. Transitioning: {:?} ==> OFF: {:?}. Trying again in {} seconds. Attempt {} of {}",
+                    xname_vec.iter().filter(|xname| !node_off_vec.contains(xname)).collect::<Vec<_>>(),
                     node_off_vec,
                     delay_secs,
                     i + 1,
                     max
                 );
+            std::io::stdout().flush().unwrap();
 
             i += 1;
         }
 
-        println!("Node(s) power state OFF: {:?}", node_off_vec);
+        println!("\nNode(s) power state OFF: {:?}", node_off_vec);
 
         Ok(node_status_value)
     }
