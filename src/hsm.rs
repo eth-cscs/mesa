@@ -781,12 +781,14 @@ pub mod component_status {
             use reqwest::Url;
             use serde_json::Value;
 
+            use crate::error::Error;
+
             pub async fn get_raw(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
                 xname_vec: &[String],
-            ) -> Result<reqwest::Response, reqwest::Error> {
+            ) -> Result<Vec<Value>, Error> {
                 let client_builder = reqwest::Client::builder()
                     .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -810,15 +812,28 @@ pub mod component_status {
                 )
                 .unwrap();
 
-                let response_rslt = client
+                let response = client
                     .get(api_url.clone())
                     .header("Authorization", format!("Bearer {}", shasta_token))
                     .send()
-                    .await;
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
 
-                match response_rslt {
-                    Ok(response) => response.error_for_status(),
-                    Err(error) => Err(error),
+                if response.status().is_success() {
+                    Ok(response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error))
+                        .unwrap()["Components"]
+                        .as_array()
+                        .unwrap_or(&Vec::new())
+                        .clone())
+                } else {
+                    let payload = response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+                    Err(Error::CsmError(payload))
                 }
             }
 
@@ -828,19 +843,48 @@ pub mod component_status {
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
                 xname_vec: &[String],
-            ) -> Result<Value, reqwest::Error> {
-                let response_rslt =
-                    get_raw(shasta_token, shasta_base_url, shasta_root_cert, xname_vec).await;
+            ) -> Result<Vec<Value>, Error> {
+                let chunk_size = 30;
 
-                let cfs_components_value_vec: Value = match response_rslt {
-                    Ok(response) => response.json::<Value>().await.unwrap(),
-                    Err(error) => return Err(error),
-                };
+                let mut hsm_component_status_vec: Vec<Value> = Vec::new();
 
-                Ok(cfs_components_value_vec)
+                let mut tasks = tokio::task::JoinSet::new();
+
+                for sub_node_list in xname_vec.chunks(chunk_size) {
+                    let shasta_token_string = shasta_token.to_string();
+                    let shasta_base_url_string = shasta_base_url.to_string();
+                    let shasta_root_cert_vec = shasta_root_cert.to_vec();
+
+                    // let hsm_subgroup_nodes_string: String = sub_node_list.join(",");
+
+                    let node_vec = sub_node_list.to_vec();
+
+                    tasks.spawn(async move {
+                        get_raw(
+                            &shasta_token_string,
+                            &shasta_base_url_string,
+                            &shasta_root_cert_vec,
+                            &node_vec,
+                        )
+                        .await
+                        .unwrap()
+                    });
+                }
+
+                while let Some(message) = tasks.join_next().await {
+                    if let Ok(mut node_status_vec) = message {
+                        hsm_component_status_vec.append(&mut node_status_vec);
+                    }
+                }
+
+                // println!("DEBUG - HSM components:\n{:#?}", hsm_component_status_vec);
+
+                Ok(hsm_component_status_vec)
             }
         }
     }
+
+    pub mod mesa {}
 }
 
 pub mod hw_inventory {
@@ -848,12 +892,15 @@ pub mod hw_inventory {
         pub mod http_client {
 
             use serde_json::Value;
-            pub async fn get_hw_inventory(
+
+            use crate::{error::Error, hsm::hw_components::NodeSummary};
+
+            pub async fn get(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
                 xname: &str,
-            ) -> Result<Value, reqwest::Error> {
+            ) -> Result<NodeSummary, Error> {
                 let client;
 
                 let client_builder = reqwest::Client::builder()
@@ -876,14 +923,88 @@ pub mod hw_inventory {
                     shasta_base_url, xname
                 );
 
-                client
+                let response = client
                     .get(api_url)
                     .header("Authorization", format!("Bearer {}", shasta_token))
                     .send()
-                    .await?
-                    .error_for_status()?
-                    .json()
                     .await
+                    .map_err(|error| Error::NetError(error))?;
+
+                if response.status().is_success() {
+                    let payload = response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error));
+
+                    /* Ok(NodeSummary::from_csm_value(
+                        payload.unwrap().pointer("/Nodes/0").unwrap().clone(),
+                    )) */
+
+                    match payload.unwrap().pointer("/Nodes/0") {
+                        Some(node_value) => Ok(NodeSummary::from_csm_value(node_value.clone())),
+                        None => Err(Error::Message(format!(
+                            "ERROR - json section '/Node' missing in json response API for node '{}'",
+                            xname
+                        ))),
+                    }
+                } else {
+                    let payload = response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+
+                    Err(Error::CsmError(payload))
+                }
+            }
+
+            pub async fn get_hw_inventory(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                xname: &str,
+            ) -> Result<Value, Error> {
+                let client;
+
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                if std::env::var("SOCKS5").is_ok() {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                    // rest client to authenticate
+                    client = client_builder.proxy(socks5proxy).build()?;
+                } else {
+                    client = client_builder.build()?;
+                }
+
+                let api_url = format!(
+                    "{}/smd/hsm/v2/Inventory/Hardware/Query/{}",
+                    shasta_base_url, xname
+                );
+
+                let response = client
+                    .get(api_url)
+                    .header("Authorization", format!("Bearer {}", shasta_token))
+                    .send()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+
+                if response.status().is_success() {
+                    response
+                        .json()
+                        .await
+                        .map_err(|error| Error::NetError(error))
+                } else {
+                    let payload = response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+
+                    Err(Error::CsmError(payload))
+                }
             }
         }
 
@@ -999,13 +1120,13 @@ pub mod hw_inventory {
                         let memory_capacity = artifact_summary
                             .info
                             .as_ref()
-                            .unwrap()
+                            .unwrap_or(&"ERROR NA".to_string())
                             .split(' ')
                             .collect::<Vec<_>>()
                             .first()
                             .unwrap()
                             .parse::<usize>()
-                            .unwrap();
+                            .unwrap_or(0);
                         node_hw_component_summary
                             .entry(artifact_summary.r#type.to_string() + " (GiB)")
                             .and_modify(|summary_quantity| {

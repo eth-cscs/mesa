@@ -25,17 +25,17 @@ mod tests {
 
         for kernel_param in kernel_param_iter {
             if kernel_param.contains("metal.server=s3://boot-images/") {
-                println!("DEBUG - kernel param: {}", kernel_param);
+                // println!("DEBUG - kernel param: {}", kernel_param);
                 pass = pass && kernel_param.contains(new_image_id);
             }
 
             if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
-                println!("DEBUG - kernel param: {}", kernel_param);
+                // println!("DEBUG - kernel param: {}", kernel_param);
                 pass = pass && kernel_param.contains(new_image_id);
             }
 
             if kernel_param.contains("nmd_data=url=s3://boot-images/") {
-                println!("DEBUG - kernel param: {}", kernel_param);
+                // println!("DEBUG - kernel param: {}", kernel_param);
                 pass = pass && kernel_param.contains(new_image_id);
             }
         }

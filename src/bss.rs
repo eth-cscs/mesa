@@ -92,7 +92,7 @@ pub mod bootparameters {
                         format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
                     } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
                         // CN node
-                        println!("DEBUG - kernel param root= ==> {}", kernel_param);
+                        // println!("DEBUG - kernel param root= ==> {}", kernel_param);
                         let aux = kernel_param
                             .trim_start_matches("root=craycps-s3:s3://boot-images/")
                             .split_once('/')

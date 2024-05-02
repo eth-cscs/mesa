@@ -132,9 +132,10 @@ pub async fn get_node_details(
         let error_count = component_details.error_count;
 
         // get power status
-        let node_hsm_info = node_hsm_info_resp["Components"]
-            .as_array()
-            .unwrap()
+        let node_hsm_info = node_hsm_info_resp
+            // ["Components"]
+            // .as_array()
+            // .unwrap()
             .iter()
             .find(|&component| component["ID"].as_str().unwrap().eq(node))
             .unwrap();
