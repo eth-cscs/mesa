@@ -159,7 +159,7 @@ pub mod r#struct {
     #[derive(Debug, Serialize, Deserialize, Default, Clone)]
     pub struct XnameId {
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub id: Option<String>
+        pub id: Option<String>,
     }
 }
 
@@ -167,8 +167,8 @@ pub mod group {
     pub mod shasta {
         pub mod http_client {
 
+            use crate::hsm::r#struct::XnameId;
             use serde_json::Value;
-            use crate::hsm::r#struct::{Member, XnameId};
 
             /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
             pub async fn get_raw(
@@ -265,7 +265,6 @@ pub mod group {
                 Ok(hsm_groups)
             }
 
-
             pub async fn post_member(
                 shasta_token: &str,
                 shasta_base_url: &str,
@@ -291,12 +290,14 @@ pub mod group {
                     client = client_builder.build()?;
                 }
 
-                let api_url: String = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name + "/members";
+                let api_url: String = shasta_base_url.to_owned()
+                    + "/smd/hsm/v2/groups/"
+                    + hsm_group_name
+                    + "/members";
 
                 let xname = XnameId {
-                    id: Some(member_id.to_owned())
+                    id: Some(member_id.to_owned()),
                 };
-
 
                 client
                     .post(api_url)
@@ -338,7 +339,11 @@ pub mod group {
                     client = client_builder.build()?;
                 }
 
-                let api_url: String = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name + "/members/" + member_id;
+                let api_url: String = shasta_base_url.to_owned()
+                    + "/smd/hsm/v2/groups/"
+                    + hsm_group_name
+                    + "/members/"
+                    + member_id;
 
                 client
                     .delete(api_url)
@@ -381,14 +386,28 @@ pub mod group {
                 // Delete members
                 for old_member in old_target_hsm_group_members {
                     if !new_target_hsm_group_members.contains(old_member) {
-                        let _ = delete_member(shasta_token, shasta_base_url, shasta_root_cert, hsm_group_name, old_member).await;
+                        let _ = delete_member(
+                            shasta_token,
+                            shasta_base_url,
+                            shasta_root_cert,
+                            hsm_group_name,
+                            old_member,
+                        )
+                        .await;
                     }
                 }
 
                 // Add members
                 for new_member in new_target_hsm_group_members {
                     if !old_target_hsm_group_members.contains(new_member) {
-                        let _ = post_member(shasta_token, shasta_base_url, shasta_root_cert, hsm_group_name, new_member).await;
+                        let _ = post_member(
+                            shasta_token,
+                            shasta_base_url,
+                            shasta_root_cert,
+                            hsm_group_name,
+                            new_member,
+                        )
+                        .await;
                     }
                 }
 
