@@ -107,6 +107,8 @@ installers = []
 # Whether to consider the binaries in a package for distribution (defaults true)
 dist = true
 
-#[features]
+[features]
+default = ["ochami"]
+ochami = []
 #dhat-heap = []    # if you are doing heap profiling
 #dhat-ad-hoc = []  # if you are doing ad hoc profiling

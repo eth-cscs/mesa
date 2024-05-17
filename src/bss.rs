@@ -1,3 +1,4 @@
+#[cfg(feature = "ochami")]
 pub mod bootparameters {
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
