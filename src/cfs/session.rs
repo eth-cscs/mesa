@@ -312,7 +312,7 @@ pub mod shasta {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_member_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
+            let hsm_group_member_vec = hsm::group::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -367,7 +367,7 @@ pub mod shasta {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_member_vec = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
+            let hsm_group_member_vec = hsm::group::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1084,14 +1084,13 @@ pub mod mesa {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
-            let xname_vec: Vec<String> =
-                hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    hsm_group_name_vec,
-                )
-                .await;
+            let xname_vec: Vec<String> = hsm::group::utils::get_member_vec_from_hsm_name_vec(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                hsm_group_name_vec,
+            )
+            .await;
 
             // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
             // hsm_group.members.ids
@@ -1152,7 +1151,7 @@ pub mod mesa {
             limit_number_opt: Option<&u8>,
         ) {
             let hsm_group_name_vec: Vec<String> =
-                hsm::group::shasta::utils::get_hsm_group_vec_from_xname_vec(
+                hsm::group::utils::get_hsm_group_vec_from_xname_vec(
                     shasta_token,
                     shasta_base_url,
                     shasta_root_cert,

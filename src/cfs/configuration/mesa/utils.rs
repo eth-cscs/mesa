@@ -34,7 +34,7 @@ pub async fn filter(
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
     let cfs_components: Vec<CfsComponent> = if !hsm_group_name_vec.is_empty() {
-        let hsm_group_members = hsm::group::shasta::utils::get_member_vec_from_hsm_name_vec(
+        let hsm_group_members = hsm::group::utils::get_member_vec_from_hsm_name_vec(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

@@ -20,7 +20,7 @@ pub async fn get_details(
     let mut clusters_details = vec![];
 
     // Get HSM groups matching cluster name
-    let hsm_group_value_vec = crate::hsm::group::shasta::http_client::get_hsm_group_vec(
+    let hsm_group_value_vec = crate::hsm::group::http_client::get_hsm_group_vec(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -33,7 +33,7 @@ pub async fn get_details(
         let hsm_group_name = hsm_group.label.as_str();
 
         let hsm_group_members: String =
-            crate::hsm::group::shasta::utils::get_member_vec_from_hsm_group(&hsm_group).join(",");
+            crate::hsm::group::utils::get_member_vec_from_hsm_group(&hsm_group).join(",");
 
         // Get all CFS sessions
         let mut cfs_session_vec = crate::cfs::session::mesa::http_client::get(

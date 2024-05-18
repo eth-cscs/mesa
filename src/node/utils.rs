@@ -22,7 +22,7 @@ pub async fn validate_xnames(
     hsm_group_name_opt: Option<&String>,
 ) -> bool {
     let hsm_group_members: Vec<String> = if let Some(hsm_group_name) = hsm_group_name_opt {
-        hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
+        hsm::group::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
