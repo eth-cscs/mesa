@@ -570,7 +570,7 @@ pub mod group {
                 },
             };
 
-            pub async fn get(
+            /* pub async fn get(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
@@ -596,7 +596,7 @@ pub mod group {
                 };
 
                 Ok(hsm_group_vec)
-            }
+            } */
 
             /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
             pub async fn create_new_hsm_group(
