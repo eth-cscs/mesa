@@ -1,5 +1,5 @@
 use directories::ProjectDirs;
-use mesa::hsm::group::shasta::http_client::create_new_hsm_group;
+use mesa::hsm::group::http_client::create_new_hsm_group;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;

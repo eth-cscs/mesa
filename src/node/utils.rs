@@ -73,7 +73,7 @@ pub async fn get_node_details(
     .unwrap();
 
     // Get HSM component status (needed to get NIDS)
-    let node_hsm_info_resp = hsm::component_status::shasta::http_client::get(
+    let node_hsm_info_resp = hsm::component_status::http_client::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
