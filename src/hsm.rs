@@ -983,7 +983,7 @@ pub mod hw_inventory {
         }
     }
 
-    pub mod shasta {
+    pub mod hw_component {
         pub mod http_client {
 
             use serde_json::Value;
@@ -1104,7 +1104,11 @@ pub mod hw_inventory {
         }
 
         pub mod utils {
+            use std::collections::HashMap;
+
             use serde_json::Value;
+
+            use crate::hsm::hw_inventory::r#struct::NodeSummary;
 
             pub fn get_list_processor_model_from_hw_inventory_value(
                 hw_inventory: &Value,
@@ -1184,14 +1188,6 @@ pub mod hw_inventory {
                             .collect::<Vec<u64>>()
                     })
             }
-        }
-    }
-
-    pub mod mesa {
-        pub mod utils {
-            use std::collections::HashMap;
-
-            use crate::hsm::hw_inventory::r#struct::NodeSummary;
 
             pub fn calculate_hsm_hw_component_summary(
                 node_summary_vec: &Vec<NodeSummary>,
