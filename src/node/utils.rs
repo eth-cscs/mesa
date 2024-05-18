@@ -21,23 +21,14 @@ pub async fn validate_xnames(
     xnames: &[&str],
     hsm_group_name_opt: Option<&String>,
 ) -> bool {
-    let hsm_group_members: Vec<_> = if let Some(hsm_group_name) = hsm_group_name_opt {
-        crate::hsm::group::shasta::http_client::get(
+    let hsm_group_members: Vec<String> = if let Some(hsm_group_name) = hsm_group_name_opt {
+        hsm::group::shasta::utils::get_member_vec_from_hsm_group_name(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            Some(hsm_group_name),
+            hsm_group_name,
         )
         .await
-        .unwrap()
-        .first()
-        .unwrap()["members"]["ids"]
-            .as_array()
-            .unwrap()
-            .to_vec()
-            .iter()
-            .map(|xname| xname.as_str().unwrap().to_string())
-            .collect::<Vec<_>>()
     } else {
         Vec::new()
     };

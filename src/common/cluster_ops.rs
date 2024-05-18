@@ -1,5 +1,3 @@
-use serde_json::Value;
-
 use crate::cfs::{
     configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
     session::mesa::r#struct::v2::CfsSessionGetResponse,
@@ -10,7 +8,7 @@ pub struct ClusterDetails {
     pub hsm_group_label: String,
     pub most_recent_cfs_configuration_name_created: CfsConfigurationResponse,
     pub most_recent_cfs_session_name_created: CfsSessionGetResponse,
-    pub members: Vec<Value>,
+    pub members: Vec<String>,
 }
 
 pub async fn get_details(
@@ -32,11 +30,10 @@ pub async fn get_details(
     .unwrap();
 
     for hsm_group in hsm_group_value_vec {
-        let hsm_group_name = hsm_group["label"].as_str().unwrap();
+        let hsm_group_name = hsm_group.label.as_str();
 
         let hsm_group_members: String =
-            crate::hsm::group::shasta::utils::get_member_vec_from_hsm_group_value(&hsm_group)
-                .join(",");
+            crate::hsm::group::shasta::utils::get_member_vec_from_hsm_group(&hsm_group).join(",");
 
         // Get all CFS sessions
         let mut cfs_session_vec = crate::cfs::session::mesa::http_client::get(
@@ -117,7 +114,14 @@ pub async fn get_details(
                     hsm_group_label: hsm_group_name.to_string(),
                     most_recent_cfs_configuration_name_created: cfs_configuration.clone(),
                     most_recent_cfs_session_name_created: most_recent_cfs_session,
-                    members: hsm_group["members"]["ids"].as_array().unwrap().clone(),
+                    members: hsm_group
+                        .members
+                        .as_ref()
+                        .unwrap()
+                        .ids
+                        .as_ref()
+                        .unwrap()
+                        .clone(),
                 };
 
                 clusters_details.push(cluster_details);
