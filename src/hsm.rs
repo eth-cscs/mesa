@@ -839,7 +839,7 @@ pub mod component_status {
 }
 
 pub mod hw_inventory {
-    pub mod r#hw_components {
+    pub mod r#struct {
         use serde::{Deserialize, Serialize};
         use serde_json::Value;
         use std::str::FromStr;
@@ -988,7 +988,7 @@ pub mod hw_inventory {
 
             use serde_json::Value;
 
-            use crate::{error::Error, hsm::hw_inventory::hw_components::NodeSummary};
+            use crate::{error::Error, hsm::hw_inventory::r#struct::NodeSummary};
 
             pub async fn get(
                 shasta_token: &str,
@@ -1191,7 +1191,7 @@ pub mod hw_inventory {
         pub mod utils {
             use std::collections::HashMap;
 
-            use crate::hsm::hw_inventory::hw_components::NodeSummary;
+            use crate::hsm::hw_inventory::r#struct::NodeSummary;
 
             pub fn calculate_hsm_hw_component_summary(
                 node_summary_vec: &Vec<NodeSummary>,
