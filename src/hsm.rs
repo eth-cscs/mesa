@@ -134,40 +134,41 @@ pub mod r#hw_components {
     }
 }
 
-pub mod r#struct {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Serialize, Deserialize, Clone)]
-    pub struct HsmGroup {
-        pub label: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub tags: Option<Vec<String>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub members: Option<Member>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(rename(serialize = "exclusiveGroup"))]
-        pub exclusive_group: Option<String>,
-    }
-
-    #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-    pub struct Member {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub ids: Option<Vec<String>>,
-    }
-    #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-    pub struct XnameId {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub id: Option<String>,
-    }
-}
-
 pub mod group {
+
+    pub mod r#struct {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Serialize, Deserialize, Clone)]
+        pub struct HsmGroup {
+            pub label: String,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub description: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub tags: Option<Vec<String>>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub members: Option<Member>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            #[serde(rename(serialize = "exclusiveGroup"))]
+            pub exclusive_group: Option<String>,
+        }
+
+        #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+        pub struct Member {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub ids: Option<Vec<String>>,
+        }
+        #[derive(Debug, Serialize, Deserialize, Default, Clone)]
+        pub struct XnameId {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub id: Option<String>,
+        }
+    }
+
     pub mod shasta {
         pub mod http_client {
 
-            use crate::hsm::r#struct::XnameId;
+            use crate::hsm::group::r#struct::XnameId;
             use serde_json::Value;
 
             /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
@@ -651,9 +652,9 @@ pub mod group {
         pub mod http_client {
             use serde_json::Value;
 
-            use crate::hsm::{
-                group::shasta::http_client::get_raw,
+            use crate::hsm::group::{
                 r#struct::{HsmGroup, Member},
+                shasta::http_client::get_raw,
             };
 
             pub async fn get(
