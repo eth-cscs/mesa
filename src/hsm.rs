@@ -839,156 +839,164 @@ pub mod component_status {
 }
 
 pub mod hw_inventory {
-    pub mod r#struct {
-        use serde::{Deserialize, Serialize};
-        use serde_json::Value;
-        use std::str::FromStr;
-        use std::string::ToString;
-        use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
-
-        #[derive(
-            Debug,
-            EnumIter,
-            EnumString,
-            IntoStaticStr,
-            AsRefStr,
-            Display,
-            Serialize,
-            Deserialize,
-            Clone,
-        )]
-        pub enum ArtifactType {
-            Memory,
-            Processor,
-            NodeAccel,
-            NodeHsnNic,
-            Drive,
-            CabinetPDU,
-            CabinetPDUPowerConnector,
-            CMMRectifier,
-            NodeAccelRiser,
-            NodeEnclosurePowerSupplie,
-            NodeBMC,
-            RouterBMC,
-        }
-
-        #[derive(Debug, Serialize, Deserialize, Clone)]
-        pub struct NodeSummary {
-            pub xname: String,
-            pub r#type: String,
-            pub processors: Vec<ArtifactSummary>,
-            pub memory: Vec<ArtifactSummary>,
-            pub node_accels: Vec<ArtifactSummary>,
-            pub node_hsn_nics: Vec<ArtifactSummary>,
-        }
-
-        impl NodeSummary {
-            pub fn from_csm_value(hw_artifact_value: Value) -> Self {
-                let processors = hw_artifact_value["Processors"]
-                    .as_array()
-                    .unwrap_or(&Vec::new())
-                    .iter()
-                    .map(|processor_value| {
-                        ArtifactSummary::from_processor_value(processor_value.clone())
-                    })
-                    .collect();
-
-                let memory = hw_artifact_value["Memory"]
-                    .as_array()
-                    .unwrap_or(&Vec::new())
-                    .iter()
-                    .map(|memory_value| ArtifactSummary::from_memory_value(memory_value.clone()))
-                    .collect();
-
-                let node_accels = hw_artifact_value["NodeAccels"]
-                    .as_array()
-                    .unwrap_or(&Vec::new())
-                    .iter()
-                    .map(|nodeaccel_value| {
-                        ArtifactSummary::from_nodeaccel_value(nodeaccel_value.clone())
-                    })
-                    .collect();
-
-                let node_hsn_nics = hw_artifact_value["NodeHsnNics"]
-                    .as_array()
-                    .unwrap_or(&Vec::new())
-                    .iter()
-                    .map(|nodehsnnic_value| {
-                        ArtifactSummary::from_nodehsnnics_value(nodehsnnic_value.clone())
-                    })
-                    .collect();
-
-                Self {
-                    xname: hw_artifact_value["ID"].as_str().unwrap().to_string(),
-                    r#type: hw_artifact_value["Type"].as_str().unwrap().to_string(),
-                    processors,
-                    memory,
-                    node_accels,
-                    node_hsn_nics,
-                }
-            }
-        }
-
-        #[derive(Debug, Serialize, Deserialize, Clone)]
-        pub struct ArtifactSummary {
-            pub xname: String,
-            pub r#type: ArtifactType,
-            pub info: Option<String>,
-        }
-
-        impl ArtifactSummary {
-            fn from_processor_value(processor_value: Value) -> Self {
-                Self {
-                    xname: processor_value["ID"].as_str().unwrap().to_string(),
-                    r#type: ArtifactType::from_str(processor_value["Type"].as_str().unwrap())
-                        .unwrap(),
-                    info: processor_value
-                        .pointer("/PopulatedFRU/ProcessorFRUInfo/Model")
-                        .map(|model| model.as_str().unwrap().to_string()),
-                }
-            }
-
-            fn from_memory_value(memory_value: Value) -> Self {
-                // println!("DEBUG - memory raw data: {:#?}", memory_value);
-                Self {
-                    xname: memory_value["ID"].as_str().unwrap().to_string(),
-                    r#type: ArtifactType::from_str(memory_value["Type"].as_str().unwrap()).unwrap(),
-                    info: memory_value
-                        .pointer("/PopulatedFRU/MemoryFRUInfo/CapacityMiB")
-                        .map(|capacity_mib| capacity_mib.as_number().unwrap().to_string() + " MiB"),
-                }
-            }
-
-            fn from_nodehsnnics_value(nodehsnnic_value: Value) -> Self {
-                Self {
-                    xname: nodehsnnic_value["ID"].as_str().unwrap().to_string(),
-                    r#type: ArtifactType::from_str(nodehsnnic_value["Type"].as_str().unwrap())
-                        .unwrap(),
-                    info: nodehsnnic_value
-                        .pointer("/NodeHsnNicLocationInfo/Description")
-                        .map(|description| description.as_str().unwrap().to_string()),
-                }
-            }
-
-            fn from_nodeaccel_value(nodeaccel_value: Value) -> Self {
-                Self {
-                    xname: nodeaccel_value["ID"].as_str().unwrap().to_string(),
-                    r#type: ArtifactType::from_str(nodeaccel_value["Type"].as_str().unwrap())
-                        .unwrap(),
-                    info: nodeaccel_value
-                        .pointer("/PopulatedFRU/NodeAccelFRUInfo/Model")
-                        .map(|model| model.as_str().unwrap().to_string()),
-                }
-            }
-        }
-    }
 
     pub mod hw_component {
+        pub mod r#struct {
+            use serde::{Deserialize, Serialize};
+            use serde_json::Value;
+            use std::str::FromStr;
+            use std::string::ToString;
+            use strum_macros::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
+
+            #[derive(
+                Debug,
+                EnumIter,
+                EnumString,
+                IntoStaticStr,
+                AsRefStr,
+                Display,
+                Serialize,
+                Deserialize,
+                Clone,
+            )]
+            pub enum ArtifactType {
+                Memory,
+                Processor,
+                NodeAccel,
+                NodeHsnNic,
+                Drive,
+                CabinetPDU,
+                CabinetPDUPowerConnector,
+                CMMRectifier,
+                NodeAccelRiser,
+                NodeEnclosurePowerSupplie,
+                NodeBMC,
+                RouterBMC,
+            }
+
+            #[derive(Debug, Serialize, Deserialize, Clone)]
+            pub struct NodeSummary {
+                pub xname: String,
+                pub r#type: String,
+                pub processors: Vec<ArtifactSummary>,
+                pub memory: Vec<ArtifactSummary>,
+                pub node_accels: Vec<ArtifactSummary>,
+                pub node_hsn_nics: Vec<ArtifactSummary>,
+            }
+
+            impl NodeSummary {
+                pub fn from_csm_value(hw_artifact_value: Value) -> Self {
+                    let processors = hw_artifact_value["Processors"]
+                        .as_array()
+                        .unwrap_or(&Vec::new())
+                        .iter()
+                        .map(|processor_value| {
+                            ArtifactSummary::from_processor_value(processor_value.clone())
+                        })
+                        .collect();
+
+                    let memory = hw_artifact_value["Memory"]
+                        .as_array()
+                        .unwrap_or(&Vec::new())
+                        .iter()
+                        .map(|memory_value| {
+                            ArtifactSummary::from_memory_value(memory_value.clone())
+                        })
+                        .collect();
+
+                    let node_accels = hw_artifact_value["NodeAccels"]
+                        .as_array()
+                        .unwrap_or(&Vec::new())
+                        .iter()
+                        .map(|nodeaccel_value| {
+                            ArtifactSummary::from_nodeaccel_value(nodeaccel_value.clone())
+                        })
+                        .collect();
+
+                    let node_hsn_nics = hw_artifact_value["NodeHsnNics"]
+                        .as_array()
+                        .unwrap_or(&Vec::new())
+                        .iter()
+                        .map(|nodehsnnic_value| {
+                            ArtifactSummary::from_nodehsnnics_value(nodehsnnic_value.clone())
+                        })
+                        .collect();
+
+                    Self {
+                        xname: hw_artifact_value["ID"].as_str().unwrap().to_string(),
+                        r#type: hw_artifact_value["Type"].as_str().unwrap().to_string(),
+                        processors,
+                        memory,
+                        node_accels,
+                        node_hsn_nics,
+                    }
+                }
+            }
+
+            #[derive(Debug, Serialize, Deserialize, Clone)]
+            pub struct ArtifactSummary {
+                pub xname: String,
+                pub r#type: ArtifactType,
+                pub info: Option<String>,
+            }
+
+            impl ArtifactSummary {
+                fn from_processor_value(processor_value: Value) -> Self {
+                    Self {
+                        xname: processor_value["ID"].as_str().unwrap().to_string(),
+                        r#type: ArtifactType::from_str(processor_value["Type"].as_str().unwrap())
+                            .unwrap(),
+                        info: processor_value
+                            .pointer("/PopulatedFRU/ProcessorFRUInfo/Model")
+                            .map(|model| model.as_str().unwrap().to_string()),
+                    }
+                }
+
+                fn from_memory_value(memory_value: Value) -> Self {
+                    // println!("DEBUG - memory raw data: {:#?}", memory_value);
+                    Self {
+                        xname: memory_value["ID"].as_str().unwrap().to_string(),
+                        r#type: ArtifactType::from_str(memory_value["Type"].as_str().unwrap())
+                            .unwrap(),
+                        info: memory_value
+                            .pointer("/PopulatedFRU/MemoryFRUInfo/CapacityMiB")
+                            .map(|capacity_mib| {
+                                capacity_mib.as_number().unwrap().to_string() + " MiB"
+                            }),
+                    }
+                }
+
+                fn from_nodehsnnics_value(nodehsnnic_value: Value) -> Self {
+                    Self {
+                        xname: nodehsnnic_value["ID"].as_str().unwrap().to_string(),
+                        r#type: ArtifactType::from_str(nodehsnnic_value["Type"].as_str().unwrap())
+                            .unwrap(),
+                        info: nodehsnnic_value
+                            .pointer("/NodeHsnNicLocationInfo/Description")
+                            .map(|description| description.as_str().unwrap().to_string()),
+                    }
+                }
+
+                fn from_nodeaccel_value(nodeaccel_value: Value) -> Self {
+                    Self {
+                        xname: nodeaccel_value["ID"].as_str().unwrap().to_string(),
+                        r#type: ArtifactType::from_str(nodeaccel_value["Type"].as_str().unwrap())
+                            .unwrap(),
+                        info: nodeaccel_value
+                            .pointer("/PopulatedFRU/NodeAccelFRUInfo/Model")
+                            .map(|model| model.as_str().unwrap().to_string()),
+                    }
+                }
+            }
+        }
+
         pub mod http_client {
 
             use serde_json::Value;
 
-            use crate::{error::Error, hsm::hw_inventory::r#struct::NodeSummary};
+            use crate::error::Error;
+
+            use super::r#struct::NodeSummary;
 
             pub async fn get(
                 shasta_token: &str,
@@ -1108,7 +1116,7 @@ pub mod hw_inventory {
 
             use serde_json::Value;
 
-            use crate::hsm::hw_inventory::r#struct::NodeSummary;
+            use super::r#struct::NodeSummary;
 
             pub fn get_list_processor_model_from_hw_inventory_value(
                 hw_inventory: &Value,
@@ -1239,160 +1247,98 @@ pub mod hw_inventory {
     }
 
     pub mod ethernet_interfaces {
-        pub mod shasta {
-            use self::r#struct::{ComponentEthernetInterface, IpAddressMapping};
+        use self::r#struct::{ComponentEthernetInterface, IpAddressMapping};
 
-            pub mod r#struct {
-                use serde::{Deserialize, Serialize};
+        pub mod r#struct {
+            use serde::{Deserialize, Serialize};
 
-                #[derive(Debug, Default, Serialize, Deserialize)]
-                pub struct IpAddressMapping {
-                    pub ip_address: String,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    pub network: Option<String>,
-                }
-
-                #[derive(Debug, Default, Serialize, Deserialize)]
-                pub struct ComponentEthernetInterface {
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    pub description: Option<String>,
-                    pub ip_addresses: Vec<IpAddressMapping>,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    pub component_id: Option<String>,
-                }
-
-                #[derive(Debug, Serialize, Deserialize)]
-                pub enum ComponentType {
-                    CDU,
-                    CabinetCDU,
-                    CabinetPDU,
-                    CabinetPDUOutlet,
-                    CabinetPDUPowerConnector,
-                    CabinetPDUController,
-                    r#Cabinet,
-                    Chassis,
-                    ChassisBMC,
-                    CMMRectifier,
-                    CMMFpga,
-                    CEC,
-                    ComputeModule,
-                    RouterModule,
-                    NodeBMC,
-                    NodeEnclosure,
-                    NodeEnclosurePowerSupply,
-                    HSNBoard,
-                    Node,
-                    Processor,
-                    Drive,
-                    StorageGroup,
-                    NodeNIC,
-                    Memory,
-                    NodeAccel,
-                    NodeAccelRiser,
-                    NodeFpga,
-                    HSNAsic,
-                    RouterFpga,
-                    RouterBMC,
-                    HSNLink,
-                    HSNConnector,
-                    INVALID,
-                }
-
-                #[derive(Debug, Default, Serialize, Deserialize)]
-                pub struct EthernetInterface {
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    id: Option<String>,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    description: Option<String>,
-                    mac_address: String,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    ip_address: Option<String>,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    last_update: Option<String>,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    component_id: Option<String>,
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    r#type: Option<ComponentType>,
-                }
+            #[derive(Debug, Default, Serialize, Deserialize)]
+            pub struct IpAddressMapping {
+                pub ip_address: String,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                pub network: Option<String>,
             }
 
-            pub mod http_client {
-
-                // Get list of network interfaces
-                // ref --> https://csm12-apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doCompEthInterfacesGetV2/
-                pub async fn get(
-                    shasta_token: &str,
-                    shasta_base_url: &str,
-                    shasta_root_cert: &[u8],
-                    mac_address: &str,
-                    ip_address: &str,
-                    network: &str,
-                    component_id: &str, // Node's xname
-                    r#type: &str,
-                    olther_than: &str,
-                    newer_than: &str,
-                ) -> Result<reqwest::Response, reqwest::Error> {
-                    let client_builder = reqwest::Client::builder()
-                        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-                    // Build client
-                    let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-                        // socks5 proxy
-                        log::debug!("SOCKS5 enabled");
-                        let socks5proxy = reqwest::Proxy::all(socks5_env)?;
-
-                        // rest client to authenticate
-                        client_builder.proxy(socks5proxy).build()?
-                    } else {
-                        client_builder.build()?
-                    };
-
-                    let api_url: String =
-                        shasta_base_url.to_owned() + "/smd/hsm/v2/Inventory/EthernetInterfaces";
-
-                    let response_rslt = client
-                        .get(api_url)
-                        .query(&[
-                            ("MACAddress", mac_address),
-                            ("IPAddress", ip_address),
-                            ("Network", network),
-                            ("ComponentID", component_id),
-                            ("Type", r#type),
-                            ("OlderThan", olther_than),
-                            ("NewerThan", newer_than),
-                        ])
-                        .bearer_auth(shasta_token)
-                        .send()
-                        .await;
-
-                    match response_rslt {
-                        Ok(response) => response.error_for_status(),
-                        Err(error) => Err(error),
-                    }
-                }
+            #[derive(Debug, Default, Serialize, Deserialize)]
+            pub struct ComponentEthernetInterface {
+                #[serde(skip_serializing_if = "Option::is_none")]
+                pub description: Option<String>,
+                pub ip_addresses: Vec<IpAddressMapping>,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                pub component_id: Option<String>,
             }
 
-            pub async fn patch(
+            #[derive(Debug, Serialize, Deserialize)]
+            pub enum ComponentType {
+                CDU,
+                CabinetCDU,
+                CabinetPDU,
+                CabinetPDUOutlet,
+                CabinetPDUPowerConnector,
+                CabinetPDUController,
+                r#Cabinet,
+                Chassis,
+                ChassisBMC,
+                CMMRectifier,
+                CMMFpga,
+                CEC,
+                ComputeModule,
+                RouterModule,
+                NodeBMC,
+                NodeEnclosure,
+                NodeEnclosurePowerSupply,
+                HSNBoard,
+                Node,
+                Processor,
+                Drive,
+                StorageGroup,
+                NodeNIC,
+                Memory,
+                NodeAccel,
+                NodeAccelRiser,
+                NodeFpga,
+                HSNAsic,
+                RouterFpga,
+                RouterBMC,
+                HSNLink,
+                HSNConnector,
+                INVALID,
+            }
+
+            #[derive(Debug, Default, Serialize, Deserialize)]
+            pub struct EthernetInterface {
+                #[serde(skip_serializing_if = "Option::is_none")]
+                id: Option<String>,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                description: Option<String>,
+                mac_address: String,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                ip_address: Option<String>,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                last_update: Option<String>,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                component_id: Option<String>,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                r#type: Option<ComponentType>,
+            }
+        }
+
+        pub mod http_client {
+
+            // Get list of network interfaces
+            // ref --> https://csm12-apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doCompEthInterfacesGetV2/
+            pub async fn get(
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-                eth_interface_id: &str,
-                description: Option<&str>,
-                component_id: &str,
-                ip_address_mapping: (&str, &str), // [(<ip address>, <network>), ...], examle
-                                                  // [("192.168.1.10", "HMN"), ...]
+                mac_address: &str,
+                ip_address: &str,
+                network: &str,
+                component_id: &str, // Node's xname
+                r#type: &str,
+                olther_than: &str,
+                newer_than: &str,
             ) -> Result<reqwest::Response, reqwest::Error> {
-                let ip_address = ip_address_mapping.0;
-                let network = ip_address_mapping.1;
-                let cei = ComponentEthernetInterface {
-                    description: description.map(|value| value.to_string()),
-                    ip_addresses: vec![IpAddressMapping {
-                        ip_address: ip_address.to_string(),
-                        network: Some(network.to_string()),
-                    }],
-                    component_id: Some(component_id.to_string()),
-                };
-
                 let client_builder = reqwest::Client::builder()
                     .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -1408,16 +1354,21 @@ pub mod hw_inventory {
                     client_builder.build()?
                 };
 
-                let api_url: String = format!(
-                    "{}/smd/hsm/v2/Inventory/EthernetInterfaces/{}",
-                    shasta_base_url, eth_interface_id
-                );
+                let api_url: String =
+                    shasta_base_url.to_owned() + "/smd/hsm/v2/Inventory/EthernetInterfaces";
 
                 let response_rslt = client
-                    .patch(api_url)
-                    .query(&[("ethInterfaceID", ip_address), ("ipAddress", ip_address)])
+                    .get(api_url)
+                    .query(&[
+                        ("MACAddress", mac_address),
+                        ("IPAddress", ip_address),
+                        ("Network", network),
+                        ("ComponentID", component_id),
+                        ("Type", r#type),
+                        ("OlderThan", olther_than),
+                        ("NewerThan", newer_than),
+                    ])
                     .bearer_auth(shasta_token)
-                    .json(&cei)
                     .send()
                     .await;
 
@@ -1425,6 +1376,61 @@ pub mod hw_inventory {
                     Ok(response) => response.error_for_status(),
                     Err(error) => Err(error),
                 }
+            }
+        }
+
+        pub async fn patch(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            eth_interface_id: &str,
+            description: Option<&str>,
+            component_id: &str,
+            ip_address_mapping: (&str, &str), // [(<ip address>, <network>), ...], examle
+                                              // [("192.168.1.10", "HMN"), ...]
+        ) -> Result<reqwest::Response, reqwest::Error> {
+            let ip_address = ip_address_mapping.0;
+            let network = ip_address_mapping.1;
+            let cei = ComponentEthernetInterface {
+                description: description.map(|value| value.to_string()),
+                ip_addresses: vec![IpAddressMapping {
+                    ip_address: ip_address.to_string(),
+                    network: Some(network.to_string()),
+                }],
+                component_id: Some(component_id.to_string()),
+            };
+
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                // rest client to authenticate
+                client_builder.proxy(socks5proxy).build()?
+            } else {
+                client_builder.build()?
+            };
+
+            let api_url: String = format!(
+                "{}/smd/hsm/v2/Inventory/EthernetInterfaces/{}",
+                shasta_base_url, eth_interface_id
+            );
+
+            let response_rslt = client
+                .patch(api_url)
+                .query(&[("ethInterfaceID", ip_address), ("ipAddress", ip_address)])
+                .bearer_auth(shasta_token)
+                .json(&cei)
+                .send()
+                .await;
+
+            match response_rslt {
+                Ok(response) => response.error_for_status(),
+                Err(error) => Err(error),
             }
         }
     }

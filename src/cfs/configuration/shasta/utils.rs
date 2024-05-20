@@ -11,8 +11,6 @@ pub async fn filter(
     most_recent_opt: Option<bool>,
     limit_number_opt: Option<&u8>,
 ) {
-    // FILTER BY HSM GROUP NAMES
-    if !hsm_group_name_vec_opt.unwrap().is_empty() {
         if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
             let hsm_group_member_vec = hsm::group::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
