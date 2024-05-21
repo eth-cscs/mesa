@@ -61,6 +61,15 @@ pub async fn filter(
     bos_sessiontemplate_vec.to_vec()
 }
 
+pub async fn filter_by_configuration(
+    bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
+    cfs_configuration_name: &str,
+) {
+    bos_sessiontemplate_vec.retain(|bos_template| {
+        bos_template.get_confguration().as_deref() == Some(cfs_configuration_name)
+    });
+}
+
 pub fn get_image_id_cfs_configuration_target_tuple_vec(
     bos_sessiontemplate_value_vec: Vec<BosSessionTemplate>,
 ) -> Vec<(String, String, Vec<String>)> {
@@ -84,7 +93,7 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
             .unwrap();
 
         let path = bos_sessiontemplate
-            .get_path()
+            .get_path_vec()
             .first()
             .unwrap()
             .strip_prefix("s3://boot-images/")
@@ -159,7 +168,7 @@ pub fn find_bos_sessiontemplate_related_to_image_id(
         .iter()
         .find(|bos_sessiontemplate| {
             bos_sessiontemplate
-                .get_path()
+                .get_path_vec()
                 .first()
                 .unwrap()
                 .contains(image_id)

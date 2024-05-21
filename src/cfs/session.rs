@@ -1209,6 +1209,16 @@ pub mod mesa {
             });
         }
 
+        /// Filter CFS sessions to the ones related to a CFS configuration
+        pub fn filter_by_cofiguration(
+            cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
+            cfs_configuration_name: &str,
+        ) {
+            cfs_session_vec.retain(|cfs_session| {
+                cfs_session.get_configuration_name().as_deref() == Some(cfs_configuration_name)
+            });
+        }
+
         /// Filter CFS sessions related to a list of HSM group names and a list of nodes and filter
         /// all CFS sessions in the system using either the HSM group names or nodes as target.
         /// NOTE: Please make sure the user has access to the HSM groups and nodes he is asking for before

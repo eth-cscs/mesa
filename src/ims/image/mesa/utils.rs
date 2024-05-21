@@ -2,9 +2,14 @@ use serde_json::Value;
 
 use crate::ims::image::r#struct::{Image, ImsImageRecord2Update};
 
+/// Just sorts images by creation time in ascendent order
 pub async fn filter(image_vec: &mut [Image]) {
     // Sort images by creation time order ASC
     image_vec.sort_by(|a, b| a.created.as_ref().unwrap().cmp(b.created.as_ref().unwrap()));
+}
+
+pub fn filter_by_image_id(image_vec: &mut Vec<Image>, image_id_vec: &[&str]) {
+    image_vec.retain(|image| image_id_vec.contains(&image.id.as_ref().unwrap().as_str()));
 }
 
 /// update an IMS image record --> https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/ims.md#post_v2_image

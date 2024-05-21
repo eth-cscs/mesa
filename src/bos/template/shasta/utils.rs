@@ -111,7 +111,7 @@ pub fn get_image_id_from_bos_sessiontemplate_vec(
         .iter()
         .flat_map(|bos_sessiontemplate| {
             bos_sessiontemplate
-                .get_path()
+                .get_path_vec()
                 .iter()
                 .map(|path| {
                     path.strip_prefix("s3://boot-images/")

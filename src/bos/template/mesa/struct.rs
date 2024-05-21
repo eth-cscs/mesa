@@ -334,12 +334,31 @@ pub mod v1 {
             self.cfs.as_ref().unwrap().configuration.clone()
         }
 
-        pub fn get_path(&self) -> Vec<String> {
+        /// Returns all paths related to this BOS sessiontemplate
+        pub fn get_path_vec(&self) -> Vec<String> {
             self.boot_sets
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|(_, boot_param)| boot_param.path.clone().unwrap_or_default())
+                .collect()
+        }
+
+        /// Returns all images related to this BOS sessiontemplate
+        pub fn get_image_vec(&self) -> Vec<String> {
+            self.boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|(_, boot_param)| {
+                    boot_param
+                        .path
+                        .clone()
+                        .unwrap_or_default()
+                        .trim_start_matches("s3://boot-images/")
+                        .trim_end_matches("/manifest.json")
+                        .to_string()
+                })
                 .collect()
         }
 
