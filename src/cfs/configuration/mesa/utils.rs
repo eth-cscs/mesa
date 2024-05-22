@@ -11,6 +11,8 @@ use crate::{
 
 use super::r#struct::cfs_configuration_request::v2::CfsConfigurationRequest;
 
+use globset::Glob;
+
 pub async fn create(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -32,6 +34,7 @@ pub async fn filter(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     cfs_configuration_vec: &mut Vec<CfsConfigurationResponse>,
+    configuration_name_pattern_opt: Option<&str>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
@@ -149,6 +152,15 @@ pub async fn filter(
             .to_vec();
     }
 
+    // Filter CFS configurations based on mattern matching
+    if let Some(configuration_name_pattern) = configuration_name_pattern_opt {
+        let glob = Glob::new(configuration_name_pattern)
+            .unwrap()
+            .compile_matcher();
+        cfs_configuration_vec
+            .retain(|cfs_configuration| glob.is_match(cfs_configuration.name.clone()));
+    }
+
     cfs_configuration_vec.to_vec()
 }
 
@@ -160,6 +172,7 @@ pub async fn get_and_filter(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_name: Option<&str>,
+    configuration_name_pattern: Option<&str>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
@@ -181,6 +194,7 @@ pub async fn get_and_filter(
             shasta_base_url,
             shasta_root_cert,
             &mut cfs_configuration_value_vec,
+            configuration_name_pattern,
             hsm_group_name_vec,
             limit_number_opt,
         )
