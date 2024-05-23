@@ -8,7 +8,10 @@ pub mod v1 {
         shasta_root_cert: &[u8],
         bos_session_template_id_opt: Option<&String>,
     ) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
-        log::info!("Get BOS sessiontemplte {:?}", bos_session_template_id_opt);
+        log::info!(
+            "Get BOS sessiontemplates '{}'",
+            bos_session_template_id_opt.unwrap_or(&"all available".to_string())
+        );
 
         let client_builder = reqwest::Client::builder()
             .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);

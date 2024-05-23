@@ -6,7 +6,11 @@ pub async fn get_raw(
     shasta_root_cert: &[u8],
     image_id_opt: Option<&str>,
 ) -> Result<reqwest::Response, reqwest::Error> {
-    log::info!("Fetching images - id: {:?}", image_id_opt);
+    log::info!(
+        "Get IMS images '{}'",
+        image_id_opt.unwrap_or("all available")
+    );
+
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 

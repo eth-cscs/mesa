@@ -6,6 +6,11 @@ pub async fn get(
     shasta_root_cert: &[u8],
     image_id_opt: Option<&str>,
 ) -> Result<Vec<Image>, reqwest::Error> {
+    log::info!(
+        "Get IMS images '{}'",
+        image_id_opt.unwrap_or("all available")
+    );
+
     let response_rslt = crate::ims::image::shasta::http_client::get_raw(
         shasta_token,
         shasta_base_url,

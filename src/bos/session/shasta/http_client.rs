@@ -202,6 +202,8 @@ pub mod v2 {
         shasta_root_cert: &[u8],
         id_opt: Option<&str>,
     ) -> Result<Vec<BosSession>, Error> {
+        log::info!("Get BOS sessions '{}'", id_opt.unwrap_or("all available"));
+
         let client;
 
         let client_builder = reqwest::Client::builder()

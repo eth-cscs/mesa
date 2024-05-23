@@ -20,6 +20,11 @@ pub mod shasta {
                 session_name_opt: Option<&String>,
                 is_succeded_opt: Option<bool>,
             ) -> Result<Vec<CfsSessionGetResponse>, Error> {
+                log::info!(
+                    "Get CFS sessions '{}'",
+                    session_name_opt.unwrap_or(&"all available".to_string())
+                );
+
                 let client_builder = reqwest::Client::builder()
                     .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
