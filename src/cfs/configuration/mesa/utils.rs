@@ -29,6 +29,11 @@ pub async fn create(
     .await
 }
 
+/// Filter the list of CFS configurations provided. This operation is very expensive since it is
+/// filtering by HSM group which means it needs to link CFS configurations with CFS sessions and
+/// BOS sessiontemplate. Aditionally, it will also fetch CFS components to find CFS sessions and
+/// BOS sessiontemplates linked to specific xnames that also belongs to the HSM group the user is
+/// filtering from.
 pub async fn filter(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -62,29 +67,7 @@ pub async fn filter(
         Vec::new()
     };
 
-    // Get desired configuration from CFS components
-    let desired_config_vec: Vec<String> = cfs_component_vec
-        .into_iter()
-        .map(|cfs_component| cfs_component.desired_config)
-        .collect();
-
-    // Fetch BOS sessiontemplates
-    let mut bos_sessiontemplate_vec =
-        bos::template::mesa::http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
-            .await
-            .unwrap();
-
-    // Filter BOS sessiontemplates based on HSM groups
-    bos::template::mesa::utils::filter(
-        &mut bos_sessiontemplate_vec,
-        hsm_group_name_vec,
-        &Vec::new(),
-        // None,
-        None,
-    )
-    .await;
-
-    // Fetch CFS sessions
+    /* // Fetch CFS sessions
     let mut cfs_session_vec = cfs::session::mesa::http_client::get(
         shasta_token,
         shasta_base_url,
@@ -97,6 +80,37 @@ pub async fn filter(
     )
     .await
     .unwrap();
+
+    // Fetch BOS sessiontemplates
+    let mut bos_sessiontemplate_vec =
+        bos::template::mesa::http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
+            .await
+            .unwrap(); */
+
+    let (_, cfs_session_vec_opt, bos_sessiontemplate_vec_opt, _) =
+        crate::common::utils::get_configurations_sessions_bos_sessiontemplates_images(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            false,
+            true,
+            true,
+            false,
+        )
+        .await;
+
+    let mut cfs_session_vec = cfs_session_vec_opt.unwrap();
+    let mut bos_sessiontemplate_vec = bos_sessiontemplate_vec_opt.unwrap();
+
+    // Filter BOS sessiontemplates based on HSM groups
+    bos::template::mesa::utils::filter(
+        &mut bos_sessiontemplate_vec,
+        hsm_group_name_vec,
+        &Vec::new(),
+        // None,
+        None,
+    )
+    .await;
 
     // Filter CFS sessions based on HSM groups
     cfs::session::mesa::utils::filter_by_hsm(
@@ -122,7 +136,14 @@ pub async fn filter(
     let image_id_cfs_configuration_target_from_cfs_session: Vec<(String, String, Vec<String>)> =
         cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(cfs_session_vec);
 
-    // Merge CFS configurations in list of filtered CFS sessions and BOS sessiontemplates
+    // Get desired configuration from CFS components
+    let desired_config_vec: Vec<String> = cfs_component_vec
+        .into_iter()
+        .map(|cfs_component| cfs_component.desired_config)
+        .collect();
+
+    // Merge CFS configurations in list of filtered CFS sessions and BOS sessiontemplates and
+    // desired configurations in CFS components
     let cfs_configuration_in_cfs_session_and_bos_sessiontemplate: Vec<String> = [
         image_id_cfs_configuration_target_from_bos_sessiontemplate
             .into_iter()
