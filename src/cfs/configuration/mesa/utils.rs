@@ -38,7 +38,8 @@ pub async fn filter(
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
-    let cfs_components: Vec<CfsComponent> = if !hsm_group_name_vec.is_empty() {
+    // Fetch CFS components and filter by HSM group members
+    let cfs_component_vec: Vec<CfsComponent> = if !hsm_group_name_vec.is_empty() {
         let hsm_group_members = hsm::group::utils::get_member_vec_from_hsm_name_vec(
             shasta_token,
             shasta_base_url,
@@ -61,17 +62,19 @@ pub async fn filter(
         Vec::new()
     };
 
-    let desired_config: Vec<String> = cfs_components
+    // Get desired configuration from CFS components
+    let desired_config_vec: Vec<String> = cfs_component_vec
         .into_iter()
         .map(|cfs_component| cfs_component.desired_config)
         .collect();
 
-    // We need BOS session templates to find an image created by SAT
+    // Fetch BOS sessiontemplates
     let mut bos_sessiontemplate_vec =
         bos::template::mesa::http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
             .await
             .unwrap();
 
+    // Filter BOS sessiontemplates based on HSM groups
     bos::template::mesa::utils::filter(
         &mut bos_sessiontemplate_vec,
         hsm_group_name_vec,
@@ -81,7 +84,7 @@ pub async fn filter(
     )
     .await;
 
-    // We need CFS sessions to find images without a BOS session template
+    // Fetch CFS sessions
     let mut cfs_session_vec = cfs::session::mesa::http_client::get(
         shasta_token,
         shasta_base_url,
@@ -95,6 +98,7 @@ pub async fn filter(
     .await
     .unwrap();
 
+    // Filter CFS sessions based on HSM groups
     cfs::session::mesa::utils::filter_by_hsm(
         shasta_token,
         shasta_base_url,
@@ -105,6 +109,7 @@ pub async fn filter(
     )
     .await;
 
+    // Get boot image id and desired configuration from BOS sessiontemplates
     let image_id_cfs_configuration_target_from_bos_sessiontemplate: Vec<(
         String,
         String,
@@ -113,10 +118,12 @@ pub async fn filter(
         bos_sessiontemplate_vec,
     );
 
+    // Get image id, configuration and targets from CFS sessions
     let image_id_cfs_configuration_target_from_cfs_session: Vec<(String, String, Vec<String>)> =
         cfs::session::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(cfs_session_vec);
 
-    let image_id_cfs_configuration_target: Vec<String> = [
+    // Merge CFS configurations in list of filtered CFS sessions and BOS sessiontemplates
+    let cfs_configuration_in_cfs_session_and_bos_sessiontemplate: Vec<String> = [
         image_id_cfs_configuration_target_from_bos_sessiontemplate
             .into_iter()
             .map(|(_, config, _)| config)
@@ -125,15 +132,17 @@ pub async fn filter(
             .into_iter()
             .map(|(_, config, _)| config)
             .collect(),
-        desired_config,
+        desired_config_vec,
     ]
     .concat();
 
+    // Filter CFS configurations
     cfs_configuration_vec.retain(|cfs_configuration| {
         hsm_group_name_vec
             .iter()
             .any(|hsm_group| cfs_configuration.name.contains(hsm_group))
-            || image_id_cfs_configuration_target.contains(&cfs_configuration.name)
+            || cfs_configuration_in_cfs_session_and_bos_sessiontemplate
+                .contains(&cfs_configuration.name)
     });
 
     // Sort by last updated date in ASC order
@@ -218,7 +227,7 @@ pub async fn get_derivatives(
     // List of image ids from CFS sessions and BOS sessiontemplates related to CFS configuration
     let mut image_id_vec: Vec<String> = Vec::new();
 
-    // Get CFS sessions related to CFS configuration
+    /* // Get CFS sessions related to CFS configuration
     //
     let mut cfs_sessions = cfs::session::mesa::http_client::get(
         shasta_token,
@@ -233,22 +242,41 @@ pub async fn get_derivatives(
     .await
     .unwrap();
 
-    // Filter CFS sessions
-    cfs::session::mesa::utils::filter_by_cofiguration(&mut cfs_sessions, configuration_name);
-
-    // Add all image ids in CFS sessions into image_id_vec
-    image_id_vec.extend(
-        cfs_sessions
-            .iter()
-            .flat_map(|cfs_session| cfs_session.get_result_id_vec().into_iter()),
-    );
-
     // Get BOS sessiontemplate related to CFS configuration
     //
     let mut bos_sessiontemplates =
         bos::template::mesa::http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
             .await
             .unwrap();
+
+    // Get Images from CFS sessions
+    //
+    let mut images = crate::ims::image::mesa::http_client::get_all(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+    )
+    .await
+    .unwrap(); */
+
+    let (_, cfs_sessions_opt, bos_sessiontemplates_opt, ims_images_opt) =
+        crate::common::utils::get_configurations_sessions_bos_sessiontemplates_images(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            false,
+            true,
+            true,
+            true,
+        )
+        .await;
+
+    let mut cfs_sessions = cfs_sessions_opt.unwrap();
+    let mut bos_sessiontemplates = bos_sessiontemplates_opt.unwrap();
+    let mut ims_images = ims_images_opt.unwrap();
+
+    // Filter CFS sessions
+    cfs::session::mesa::utils::filter_by_cofiguration(&mut cfs_sessions, configuration_name);
 
     // Filter BOS sessiontemplate
     bos_sessiontemplates.retain(|bos_sessiontemplate| {
@@ -259,6 +287,13 @@ pub async fn get_derivatives(
             || bos_sessiontemplate.get_confguration().unwrap_or_default() == configuration_name
     });
 
+    // Add all image ids in CFS sessions into image_id_vec
+    image_id_vec.extend(
+        cfs_sessions
+            .iter()
+            .flat_map(|cfs_session| cfs_session.get_result_id_vec().into_iter()),
+    );
+
     // Add boot images from BOS sessiontemplate to image_id_vec
     image_id_vec.extend(
         bos_sessiontemplates
@@ -266,18 +301,12 @@ pub async fn get_derivatives(
             .flat_map(|bos_sessiontemplate| bos_sessiontemplate.get_image_vec()),
     );
 
-    // Get Images from CFS sessions
-    //
-    let mut images = crate::ims::image::mesa::http_client::get_all(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-    )
-    .await
-    .unwrap();
-
     // Filter images
-    images.retain(|image| image_id_vec.contains(image.id.as_ref().unwrap()));
+    ims_images.retain(|image| image_id_vec.contains(image.id.as_ref().unwrap()));
 
-    (Some(cfs_sessions), Some(bos_sessiontemplates), Some(images))
+    (
+        Some(cfs_sessions),
+        Some(bos_sessiontemplates),
+        Some(ims_images),
+    )
 }
