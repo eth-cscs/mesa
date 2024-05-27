@@ -349,9 +349,13 @@ pub mod group {
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .send()
                 .await?
+                // .expect("failed to get response")
                 .error_for_status()?
-                .json()
-                .await
+                .text()
+                .await?;
+                // .expect("failed to get payload");
+            // if we reach this point, the previous call hasn't bailed on us
+            Ok("".to_string())
         }
     }
 
