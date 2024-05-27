@@ -274,36 +274,50 @@ pub mod group {
             // Describe the JSON object
 
             // Create the variables that represent our JSON object
-            let myxnames = Member {
-                ids: Some(xnames.to_owned()),
-            };
+            let myxnames;
+            if xnames.first().unwrap().is_empty() {
+                myxnames = Member {
+                    ids: None,
+                };
+            } else {
+                myxnames = Member {
+                    ids: Some(xnames.to_owned()),
+                };
+            }
+
+            let mytags;
+            if tags.first().unwrap().is_empty() {
+                mytags = None;
+            } else {
+                mytags = Some(tags.to_owned());
+            }
 
             let hsm_group_json = HsmGroup {
                 label: hsm_group_name_opt.to_owned(),
                 description: Option::from(description.to_string().clone()),
-                tags: Option::from(tags.to_owned()),
+                tags: Option::from(mytags.to_owned()),
                 exclusive_group: Option::from(exclusive.to_string().clone()),
-                members: Some(myxnames),
+                members: Option::from(myxnames),
             };
-
             let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
                     Ok(m) => m,
                     Err(_) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
                 };
 
-            println!("{:#?}", &hsm_group_json_body);
-
             let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
-            client
+            let result = client
                 .post(url_api)
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .json(&hsm_group_json) // make sure this is not a string!
                 .send()
                 .await?
-                .error_for_status()?
-                .json()
-                .await
+                // .expect("failed to get response")
+                .text()
+                .await?;
+                // .expect("failed to get payload");
+            // if we reach this point, the previous call hasn't bailed on us
+            Ok(vec![hsm_group_json])
         }
 
         pub async fn delete_hsm_group(
