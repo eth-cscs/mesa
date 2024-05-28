@@ -6,7 +6,7 @@ pub mod v2 {
     use serde::{Deserialize, Serialize};
     use substring::Substring;
 
-    use crate::common::{gitea, local_git_repo};
+    use crate::common::gitea;
 
     #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
     pub struct Layer {
@@ -170,7 +170,7 @@ pub mod v2 {
             cfs_configuration
         }
 
-        pub async fn create_from_repos(
+        /* pub async fn create_from_repos(
             gitea_token: &str,
             gitea_base_url: &str,
             shasta_root_cert: &[u8],
@@ -260,7 +260,7 @@ pub mod v2 {
             }
 
             cfs_configuration
-        }
+        } */
     }
 }
 
@@ -270,7 +270,7 @@ pub mod v3 {
     use serde::{Deserialize, Serialize};
     use substring::Substring;
 
-    use crate::common::{gitea, local_git_repo};
+    use crate::common::gitea;
 
     #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
     pub struct Layer {
@@ -434,7 +434,7 @@ pub mod v3 {
             cfs_configuration
         }
 
-        pub async fn create_from_repos(
+        /* pub async fn create_from_repos(
             gitea_token: &str,
             gitea_base_url: &str,
             shasta_root_cert: &[u8],
@@ -524,6 +524,6 @@ pub mod v3 {
             }
 
             cfs_configuration
-        }
+        } */
     }
 }

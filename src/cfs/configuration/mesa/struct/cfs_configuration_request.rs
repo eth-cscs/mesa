@@ -9,7 +9,7 @@ pub mod v2 {
     use serde_yaml::Value;
     use substring::Substring;
 
-    use crate::common::{gitea, local_git_repo};
+    use crate::common::gitea;
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct Layer {
@@ -243,7 +243,7 @@ pub mod v2 {
             cfs_configuration
         }
 
-        pub async fn create_from_repos(
+        /* pub async fn create_from_repos(
             gitea_token: &str,
             gitea_base_url: &str,
             shasta_root_cert: &[u8],
@@ -334,6 +334,6 @@ pub mod v2 {
             }
 
             cfs_configuration
-        }
+        } */
     }
 }

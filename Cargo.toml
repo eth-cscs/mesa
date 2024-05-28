@@ -27,7 +27,7 @@ serde_yaml = "0.9.17"
 log = "0.4.17"
 # env_logger = "0.9.0" # Changing to log4rs because we also need to log in files for auditing
 log4rs = "1.2.0" # Docs about pattern encoder https://docs.rs/log4rs/0.10.0/log4rs/encode/pattern/index.html
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1" }
 tokio-rustls = "0.24.0" # used by kube-rs to configure client with socks proxy -- REMOVE
 # tokio-native-tls = "0.3.0" # used by kube-rs to configure client with socks proxy -- REMOVE
 tokio-util = "0.7.4"       # used by manta_console to create a read stream from container stdout
@@ -37,7 +37,7 @@ k8s-openapi = { version = "0.20.0", features = ["v1_26"] }
 rustls-pemfile = "1.0.3"
 # https://github.com/kube-rs/kube-rs/discussions/1012 and https://crates.io/crates/hyper-socks2
 hyper-socks2 = { version = "0.8.0", default-features = false, features = ["rustls"] } # needed by kube-rs (to operate with kube api) 
-hyper = { version = "0.14", features = ["full"] } # needed by kube-rs (to operate with kube api)
+hyper = { version = "0.14" } # needed by kube-rs (to operate with kube api)
 hyper-rustls = { version = "0.24.0", features = ["webpki-roots"] } # used by kube-rs to configure client with socks proxy
 # hyper-tls = "0.5.0" # needed by kube-rs (to operate with kube api) -- REMOVE ???
 tower = "0.4.13"
@@ -45,9 +45,9 @@ tower = "0.4.13"
 # rustls = { version = "0.21.1", features = [ "dangerous_configuration" ] }
 futures = "0.3.28" 
 # futures-util = "0.3.24"
-clap = { version =  "4.0.32", features = ["derive","cargo"] }
-clap_complete = "4.0.3"
-git2 = "0.18.1"
+# clap = { version =  "4.0.32", features = ["derive","cargo"] }
+# clap_complete = "4.0.3"
+# git2 = "0.18.1"
 # walkdir = "2.3.2"
 dialoguer = "0.10.2"
 substring = "1.4.5"
@@ -80,8 +80,8 @@ uuid = "1.6.1"
 globset = "0.4.14" # Used when searching for entities, use could use full name or patterns using glob
 
 [build-dependencies]
-clap = "4.0.32"
-clap_complete = "4.0.3"
+# clap = "4.0.32"
+# clap_complete = "4.0.3"
 
 [profile.release]
 opt-level = "s" # Tell `rustc` to optimize for small code size.
