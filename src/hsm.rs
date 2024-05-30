@@ -33,6 +33,8 @@ pub mod group {
 
     pub mod http_client {
 
+        use serde_json::Value;
+
         use crate::{
             error::Error,
             hsm::group::r#struct::{HsmGroup, Member, XnameId},
@@ -89,17 +91,26 @@ pub mod group {
             .await?;
 
             if response.status().is_success() {
-                response
-                    .json()
-                    .await
-                    .map_err(|error| Error::NetError(error))
+                if group_name_opt.is_some() {
+                    let payload = response
+                        .json::<HsmGroup>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+
+                    Ok(vec![payload])
+                } else {
+                    response
+                        .json()
+                        .await
+                        .map_err(|error| Error::NetError(error))
+                }
             } else {
                 let payload = response
-                    .json::<HsmGroup>()
+                    .json::<Value>()
                     .await
                     .map_err(|error| Error::NetError(error))?;
 
-                Ok(vec![payload])
+                Err(Error::CsmError(payload))
             }
         }
 
