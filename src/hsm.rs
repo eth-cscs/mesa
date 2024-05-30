@@ -306,16 +306,6 @@ pub mod group {
 
             let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
-            // let result = client
-            //     .post(url_api)
-            //     .header("Authorization", format!("Bearer {}", shasta_token))
-            //     .json(&hsm_group_json) // make sure this is not a string!
-            //     .send()
-            //     .await
-            //     .expect("failed to get response")
-            //     .text()
-            //     .await
-            //     .expect("failed to get payload");
             let result = match client
                 .post(url_api)
                 .header("Authorization", format!("Bearer {}", shasta_token))
@@ -325,22 +315,18 @@ pub mod group {
                 .error_for_status()?
                 .text()
                 .await {
-
+                // If we get here, there must have been an error parsing the result.
+                // Other returns from the API should be caught by error_for_status() and pushed back
+                // with the ? at the end of it.
                 Ok(_res) => {
-                    println!("Result:{}",_res);
                     _res
                 },
                 Err(e) => {
-                    println!("error: {}", e);
                     return Ok(vec![hsm_group_json])
                 }
             };
+
             Ok(vec![hsm_group_json])
-
-            // // if we reach this point, the previous call hasn't bailed on us
-            // println!("Result: {:?}",result);
-            // Ok(vec![hsm_group_json])
-
         }
 
         pub async fn delete_hsm_group(
