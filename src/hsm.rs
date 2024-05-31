@@ -16,6 +16,7 @@ pub mod group {
             pub members: Option<Member>,
             #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename(serialize = "exclusiveGroup"))]
+            #[serde(rename(deserialize = "exclusiveGroup"))]
             pub exclusive_group: Option<String>,
         }
 
