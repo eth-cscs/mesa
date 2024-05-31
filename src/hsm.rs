@@ -298,7 +298,7 @@ pub mod group {
             }
 
             let mytags;
-            if tags.first().unwrap().is_empty() {
+            if tags.len() > 0 && tags.first().unwrap().is_empty() {
                 mytags = None;
             } else {
                 mytags = Some(tags.to_owned());
