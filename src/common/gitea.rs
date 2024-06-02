@@ -258,9 +258,11 @@ pub mod http_client {
         }
 
         let api_url = format!(
-            "{}/api/v1/repos/cray/{}/git/commits/{}",
+            "{}api/v1/repos/{}/git/commits/{}",
             gitea_base_url, repo_name, commitid
         );
+
+        println!("DEBUG - URL - {}", api_url);
 
         log::debug!("Request to {}", api_url);
 
