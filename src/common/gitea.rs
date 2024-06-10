@@ -262,8 +262,6 @@ pub mod http_client {
             gitea_base_url, repo_name, commitid
         );
 
-        println!("DEBUG - URL - {}", api_url);
-
         log::debug!("Request to {}", api_url);
 
         let response = client
