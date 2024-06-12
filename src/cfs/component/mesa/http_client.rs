@@ -1,6 +1,7 @@
 use std::{
     io::{self, Write},
     sync::Arc,
+    time::Instant,
 };
 
 use serde_json::Value;
@@ -65,7 +66,9 @@ pub async fn get_multiple(
     shasta_root_cert: &[u8],
     hsm_groups_node_list: &[String],
 ) -> Result<Vec<CfsComponent>, Error> {
-    let chunk_size = 50;
+    let start = Instant::now();
+
+    let chunk_size = 80;
     let pipe_size = 10;
 
     log::debug!("Number of nodes per request: {chunk_size}; Pipe size (semaphore): {pipe_size}");
@@ -119,6 +122,9 @@ pub async fn get_multiple(
             component_vec.append(&mut cfs_component_vec);
         }
     }
+
+    let duration = start.elapsed();
+    log::info!("Time elapsed to get CFS components is: {:?}", duration);
 
     Ok(component_vec)
 }

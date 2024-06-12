@@ -128,7 +128,7 @@ pub mod bootparameters {
         use tokio::sync::Semaphore;
 
         use core::result::Result;
-        use std::sync::Arc;
+        use std::{sync::Arc, time::Instant};
 
         use crate::error::Error;
 
@@ -223,6 +223,8 @@ pub mod bootparameters {
             shasta_root_cert: &[u8],
             xnames: &[String],
         ) -> Result<Vec<BootParameters>, reqwest::Error> {
+            let start = Instant::now();
+
             let chunk_size = 30;
 
             let mut boot_params_vec = Vec::new();
@@ -263,6 +265,9 @@ pub mod bootparameters {
                 }
             }
 
+            let duration = start.elapsed();
+            log::info!("Time elapsed to BSS bootparameters is: {:?}", duration);
+
             Ok(boot_params_vec)
         }
 
@@ -273,14 +278,14 @@ pub mod bootparameters {
             shasta_root_cert: &[u8],
             xnames: &[String],
         ) -> Result<Vec<BootParameters>, Error> {
-            log::info!(
+            /* log::info!(
                 "Get BSS bootparameters '{}'",
                 if xnames.is_empty() {
                     "all available".to_string()
                 } else {
                     xnames.join(",")
                 }
-            );
+            ); */
 
             let client;
 

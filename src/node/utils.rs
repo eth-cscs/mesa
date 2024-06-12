@@ -166,8 +166,8 @@ pub async fn get_node_details(
             if let Some(node_boot_params) = node_boot_params_opt {
                 node_boot_params.get_boot_image()
             } else {
-                eprintln!("ERROR - boot parameters for node {} - NOT FOUND", node);
-                "".to_string()
+                eprintln!("BSS boot parameters for node {} - NOT FOUND", node);
+                "Not found".to_string()
             };
 
         // Get CFS configuration related to image id
@@ -183,7 +183,7 @@ pub async fn get_node_details(
             cfs::session::mesa::utils::get_cfs_configuration_name(&cfs_session_related_to_image_id)
                 .unwrap()
         } else {
-            log::info!(
+            log::warn!(
                 "No configuration found for node {} related to image id {}",
                 node,
                 kernel_image_path_in_boot_params
