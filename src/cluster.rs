@@ -108,15 +108,14 @@ impl VCluster {
         )
         .await;
 
-        let hsm_group_node_boot_param_vec =
-            crate::bss::bootparameters::http_client::get_boot_params(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                &hsm_group_node_list,
-            )
-            .await
-            .unwrap();
+        let hsm_group_node_boot_param_vec = crate::bss::bootparameters::http_client::get_raw(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &hsm_group_node_list,
+        )
+        .await
+        .unwrap();
 
         let mut node_image_map: HashMap<String, String> = HashMap::new();
 

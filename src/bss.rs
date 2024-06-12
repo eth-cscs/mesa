@@ -245,7 +245,7 @@ pub mod bootparameters {
                 tasks.spawn(async move {
                     let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
 
-                    get_boot_params(
+                    get_raw(
                         &shasta_token_string,
                         &shasta_base_url_string,
                         &shasta_root_cert_vec,
@@ -267,12 +267,21 @@ pub mod bootparameters {
         }
 
         /// Get node boot params, ref --> https://apidocs.svc.cscs.ch/iaas/bss/tag/bootparameters/paths/~1bootparameters/get/
-        pub async fn get_boot_params(
+        pub async fn get_raw(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             xnames: &[String],
         ) -> Result<Vec<BootParameters>, Error> {
+            log::info!(
+                "Get BSS bootparameters '{}'",
+                if xnames.is_empty() {
+                    "all available".to_string()
+                } else {
+                    xnames.join(",")
+                }
+            );
+
             let client;
 
             let client_builder = reqwest::Client::builder()

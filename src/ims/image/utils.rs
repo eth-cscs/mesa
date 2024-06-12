@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     bos,
-    bss::bootparameters::http_client::get_boot_params,
+    bss::bootparameters::http_client::get_raw,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::r#struct::Image, public_keys::http_client::v3::get},
 };
@@ -143,7 +143,7 @@ pub async fn filter(
     )
     .await;
 
-    let boot_param_value_vec = get_boot_params(
+    let boot_param_value_vec = get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
