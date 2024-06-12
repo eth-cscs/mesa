@@ -125,8 +125,10 @@ pub mod bootparameters {
     pub mod http_client {
 
         use serde_json::Value;
+        use tokio::sync::Semaphore;
 
         use core::result::Result;
+        use std::sync::Arc;
 
         use crate::error::Error;
 
@@ -227,6 +229,8 @@ pub mod bootparameters {
 
             let mut tasks = tokio::task::JoinSet::new();
 
+            let sem = Arc::new(Semaphore::new(10)); // CSM 1.3.1 higher number of concurrent tasks won't
+
             for sub_node_list in xnames.chunks(chunk_size) {
                 let shasta_token_string = shasta_token.to_string();
                 let shasta_base_url_string = shasta_base_url.to_string();
@@ -234,9 +238,13 @@ pub mod bootparameters {
 
                 // let hsm_subgroup_nodes_string: String = sub_node_list.join(",");
 
+                let permit = Arc::clone(&sem).acquire_owned().await;
+
                 let node_vec = sub_node_list.to_vec();
 
                 tasks.spawn(async move {
+                    let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
+
                     get_boot_params(
                         &shasta_token_string,
                         &shasta_base_url_string,

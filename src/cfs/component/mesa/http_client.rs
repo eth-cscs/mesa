@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use serde_json::Value;
+use tokio::sync::Semaphore;
 
 use crate::error::Error;
 
 use super::r#struct::CfsComponent;
 
-pub async fn get_multiple_components(
+pub async fn get_raw(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -53,7 +56,7 @@ pub async fn get_multiple_components(
 /// Get components data.
 /// Currently, CSM will throw an error if many xnames are sent in the request, therefore, this
 /// method will paralelize multiple calls, each with a batch of xnames
-pub async fn get(
+pub async fn get_multiple(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -65,6 +68,8 @@ pub async fn get(
 
     let mut tasks = tokio::task::JoinSet::new();
 
+    let sem = Arc::new(Semaphore::new(10)); // CSM 1.3.1 higher number of concurrent tasks won't
+
     for sub_node_list in hsm_groups_node_list.chunks(chunk_size) {
         let shasta_token_string = shasta_token.to_string();
         let shasta_base_url_string = shasta_base_url.to_string();
@@ -72,8 +77,12 @@ pub async fn get(
 
         let hsm_subgroup_nodes_string: String = sub_node_list.join(",");
 
+        let permit = Arc::clone(&sem).acquire_owned().await;
+
         tasks.spawn(async move {
-            get_multiple_components(
+            let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
+
+            get_raw(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -86,8 +95,8 @@ pub async fn get(
     }
 
     while let Some(message) = tasks.join_next().await {
-        if let Ok(mut node_status_vec) = message {
-            component_vec.append(&mut node_status_vec);
+        if let Ok(mut cfs_component_vec) = message {
+            component_vec.append(&mut cfs_component_vec);
         }
     }
 

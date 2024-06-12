@@ -55,7 +55,7 @@ pub async fn filter(
 
         // Note: nodes can be configured calling the component APi directly (bypassing BOS
         // session API)
-        crate::cfs::component::mesa::http_client::get(
+        crate::cfs::component::mesa::http_client::get_multiple(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

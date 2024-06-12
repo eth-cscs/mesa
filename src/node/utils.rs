@@ -1,7 +1,10 @@
 use regex::Regex;
 use serde_json::Value;
 
-use crate::{bss, cfs, hsm};
+use crate::{
+    bss::{self, bootparameters::BootParameters},
+    cfs, hsm,
+};
 
 use super::r#struct::NodeDetails;
 
@@ -53,7 +56,7 @@ pub async fn get_node_details(
     hsm_groups_node_list: Vec<String>,
 ) -> Vec<NodeDetails> {
     // Get CFS component status
-    let components_status = cfs::component::mesa::http_client::get(
+    let components_status = cfs::component::mesa::http_client::get_multiple(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -112,10 +115,19 @@ pub async fn get_node_details(
         // let mut node_details = Vec::new();
 
         // find component details
-        let component_details = components_status
+        let component_details_opt = components_status
             .iter()
-            .find(|component_status| component_status.id.eq(node))
-            .unwrap();
+            .find(|component_status| component_status.id.eq(node));
+
+        let component_details = if let Some(component_details) = component_details_opt {
+            component_details
+        } else {
+            eprintln!(
+                "ERROR - CFS component details for node {}.\nReason:\n{:#?}",
+                node, component_details_opt
+            );
+            std::process::exit(1);
+        };
 
         let desired_configuration = &component_details.desired_config;
         let configuration_status = &component_details.configuration_status;
@@ -145,12 +157,18 @@ pub async fn get_node_details(
         // get node boot params (these are the boot params of the nodes with the image the node
         // boot with). the image in the bos sessiontemplate may be different i don't know why. need
         // to investigate
-        let node_boot_params = bss::bootparameters::utils::find_boot_params_related_to_node(
+        let node_boot_params_opt = bss::bootparameters::utils::find_boot_params_related_to_node(
             &node_boot_params_vec,
             node,
         );
 
-        let kernel_image_path_in_boot_params = node_boot_params.unwrap().get_boot_image();
+        let kernel_image_path_in_boot_params: String =
+            if let Some(node_boot_params) = node_boot_params_opt {
+                node_boot_params.get_boot_image()
+            } else {
+                eprintln!("ERROR - boot parameters for node {} - NOT FOUND", node);
+                "".to_string()
+            };
 
         // Get CFS configuration related to image id
         let cfs_session_related_to_image_id_opt =

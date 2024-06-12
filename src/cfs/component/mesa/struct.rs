@@ -33,5 +33,6 @@ pub struct CfsComponent {
     pub enabled: bool,
     #[serde(rename = "configurationStatus")]
     pub configuration_status: String, //values unconfigured, pending, failed, configured
-    pub tags: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<HashMap<String, String>>,
 }
