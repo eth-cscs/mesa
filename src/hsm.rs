@@ -374,10 +374,10 @@ pub mod group {
             old_target_hsm_group_members: &Vec<String>,
             new_target_hsm_group_members: &Vec<String>,
         ) -> Result<(), Error> {
-            println!(
+            /* println!(
                 "DEBUG - Updating HSM group members from {:?} to {:?}",
                 old_target_hsm_group_members, new_target_hsm_group_members
-            );
+            ); */
 
             // Delete members
             for old_member in old_target_hsm_group_members {

@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    io::{self, Write},
+    sync::Arc,
+};
 
 use serde_json::Value;
 use tokio::sync::Semaphore;
@@ -62,15 +65,28 @@ pub async fn get_multiple(
     shasta_root_cert: &[u8],
     hsm_groups_node_list: &[String],
 ) -> Result<Vec<CfsComponent>, Error> {
-    let chunk_size = 30;
+    let chunk_size = 50;
+    let pipe_size = 10;
+
+    log::debug!("Number of nodes per request: {chunk_size}; Pipe size (semaphore): {pipe_size}");
 
     let mut component_vec = Vec::new();
 
     let mut tasks = tokio::task::JoinSet::new();
 
-    let sem = Arc::new(Semaphore::new(10)); // CSM 1.3.1 higher number of concurrent tasks won't
+    let sem = Arc::new(Semaphore::new(pipe_size)); // CSM 1.3.1 higher number of concurrent tasks won't
+
+    let num_chunks = hsm_groups_node_list.len() / chunk_size;
+
+    let mut i = 0;
+
+    // Calculate number of digits of a number
+    let width = num_chunks.checked_ilog10().unwrap_or(0) as usize + 1;
 
     for sub_node_list in hsm_groups_node_list.chunks(chunk_size) {
+        print!("\rGetting CFS components [{i:>width$}/{num_chunks}]");
+        io::stdout().flush().unwrap();
+
         let shasta_token_string = shasta_token.to_string();
         let shasta_base_url_string = shasta_base_url.to_string();
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
@@ -92,7 +108,11 @@ pub async fn get_multiple(
             .await
             .unwrap()
         });
+
+        i += 1;
     }
+
+    println!();
 
     while let Some(message) = tasks.join_next().await {
         if let Ok(mut cfs_component_vec) = message {
