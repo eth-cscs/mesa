@@ -2,6 +2,9 @@ use serde_json::Value;
 
 use crate::error::Error;
 
+/// This function will create an http client and call CSM '/cfs/healthz' endpoint to check CFS
+/// service health status.
+/// Returns the same payload received from CSM API
 pub async fn health_check(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -13,6 +16,8 @@ pub async fn health_check(
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
+    // Set SOCKS5 proxy if needed. User can set SOCKS5 proxy using the 'SOCKS5' environment
+    // variable with the actual proxy URI
     if std::env::var("SOCKS5").is_ok() {
         // socks5 proxy
         log::debug!("SOCKS5 enabled");
@@ -26,6 +31,7 @@ pub async fn health_check(
 
     let api_url = shasta_base_url.to_owned() + "/bos/v2/healthz";
 
+    // Call to CSM API
     let response = client
         .get(api_url)
         .bearer_auth(shasta_token)
@@ -33,6 +39,8 @@ pub async fn health_check(
         .await
         .map_err(|error| Error::NetError(error))?;
 
+    // Error handlelilng. Check for network errors and/or errors from the CSM API processing the
+    // request
     if response.status().is_success() {
         response
             .json()
