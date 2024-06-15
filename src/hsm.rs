@@ -16,6 +16,7 @@ pub mod group {
             pub members: Option<Member>,
             #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename(serialize = "exclusiveGroup"))]
+            #[serde(rename(deserialize = "exclusiveGroup"))]
             pub exclusive_group: Option<String>,
         }
 
@@ -34,11 +35,74 @@ pub mod group {
     pub mod http_client {
 
         use serde_json::Value;
+        use serde_json::json;
 
         use crate::{
             error::Error,
             hsm::group::r#struct::{HsmGroup, Member, XnameId},
         };
+
+        /// Patches an HSM group with a new description, or tags.
+        /// Returns an Error in case something broke doing the patch operation.
+        /// https://cray-hpe.github.io/docs-csm/en-15/api/smd/#dogrouppatch
+        pub async fn patch_hsm_group(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            hsm_group_name: &str,
+            description: &str,
+            tags: &[String],
+        ) -> Result<(), Error> {
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                // rest client to authenticate
+                client_builder.proxy(socks5proxy).build()?
+            } else {
+                client_builder.build()?
+            };
+
+            let api_url: String =
+                shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name;
+            // {
+            //     "description": "This is an updated group description",
+            //     "tags": [
+            //          "new_tag",
+            //          "existing_tag"
+            //     ]
+            // }
+            let payload;
+            if tags.len() == 1 && tags.first().unwrap().is_empty() {
+                 payload = json!({
+                    "description": description.clone(),
+                });
+            } else {
+                 payload = json!({
+                    "description": description.clone(),
+                    "tags": tags.clone()
+                });
+            }
+            println!("Patch contents: {:?}",payload);
+            let result = client
+                .patch(api_url)
+                .header("Authorization", format!("Bearer {}", shasta_token))
+                .json(&payload) // make sure this is not a string!
+                .send()
+                .await?
+                .error_for_status()?
+                .text()
+                .await?;
+            println!("Patch text result: {}", result.clone());
+            // This is only so it builds
+            Ok(())
+        }
+
 
         /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
         pub async fn get_raw(
@@ -176,16 +240,17 @@ pub mod group {
             let xname = XnameId {
                 id: Some(member_id.to_owned()),
             };
-
-            client
+            let result = client
                 .post(api_url)
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .json(&xname) // make sure this is not a string!
                 .send()
                 .await?
                 .error_for_status()?
-                .json()
+                .text()
                 .await?;
+
+            println!("Add member return: {}", result.clone());
             // TODO Parse the output!!!
             // TODO add some debugging output
 
@@ -223,17 +288,16 @@ pub mod group {
                 + "/members/"
                 + member_id;
 
-            client
+            let result = client
                 .delete(api_url)
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .send()
                 .await?
                 .error_for_status()?
-                .json()
+                .text()
                 .await?;
+            println!("Delete member return: {}", result.clone());
 
-            // TODO Parse the output!!!
-            // TODO add some debugging output
             Ok(())
         }
 
@@ -285,36 +349,59 @@ pub mod group {
             // Describe the JSON object
 
             // Create the variables that represent our JSON object
-            let myxnames = Member {
-                ids: Some(xnames.to_owned()),
-            };
+            let myxnames;
+            if xnames.first().unwrap().is_empty() {
+                myxnames = Member {
+                    ids: None,
+                };
+            } else {
+                myxnames = Member {
+                    ids: Some(xnames.to_owned()),
+                };
+            }
+
+            let mytags;
+            if tags.len() > 0 && tags.first().unwrap().is_empty() {
+                mytags = None;
+            } else {
+                mytags = Some(tags.to_owned());
+            }
 
             let hsm_group_json = HsmGroup {
                 label: hsm_group_name_opt.to_owned(),
                 description: Option::from(description.to_string().clone()),
-                tags: Option::from(tags.to_owned()),
+                tags: Option::from(mytags.to_owned()),
                 exclusive_group: Option::from(exclusive.to_string().clone()),
-                members: Some(myxnames),
+                members: Option::from(myxnames),
             };
-
             let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
                     Ok(m) => m,
                     Err(_) => panic!("Error parsing the JSON generated, one or more of the fields could have invalid chars."),
                 };
 
-            println!("{:#?}", &hsm_group_json_body);
-
             let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
-            client
+            let result = match client
                 .post(url_api)
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .json(&hsm_group_json) // make sure this is not a string!
                 .send()
                 .await?
                 .error_for_status()?
-                .json()
-                .await
+                .text()
+                .await {
+                // If we get here, there must have been an error parsing the result.
+                // Other returns from the API should be caught by error_for_status() and pushed back
+                // with the ? at the end of it.
+                Ok(_res) => {
+                    _res
+                },
+                Err(e) => {
+                    return Ok(vec![hsm_group_json])
+                }
+            };
+
+            Ok(vec![hsm_group_json])
         }
 
         pub async fn delete_hsm_group(
@@ -346,9 +433,13 @@ pub mod group {
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .send()
                 .await?
+                // .expect("failed to get response")
                 .error_for_status()?
-                .json()
-                .await
+                .text()
+                .await?;
+                // .expect("failed to get payload");
+            // if we reach this point, the previous call hasn't bailed on us
+            Ok("".to_string())
         }
     }
 
@@ -382,6 +473,8 @@ pub mod group {
             // Delete members
             for old_member in old_target_hsm_group_members {
                 if !new_target_hsm_group_members.contains(old_member) {
+                    println!("DEBUG - deleting node {}", old_member.clone());
+
                     let _ = delete_member(
                         shasta_token,
                         shasta_base_url,
@@ -389,13 +482,15 @@ pub mod group {
                         hsm_group_name,
                         old_member,
                     )
-                    .await;
+                    .await?;
                 }
             }
 
             // Add members
             for new_member in new_target_hsm_group_members {
                 if !old_target_hsm_group_members.contains(new_member) {
+                    println!("DEBUG - adding node {}", new_member.clone());
+
                     let _ = post_member(
                         shasta_token,
                         shasta_base_url,
@@ -403,7 +498,7 @@ pub mod group {
                         hsm_group_name,
                         new_member,
                     )
-                    .await;
+                    .await?;
                 }
             }
 
