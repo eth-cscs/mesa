@@ -79,9 +79,9 @@ pub async fn get_multiple(
 
     let sem = Arc::new(Semaphore::new(pipe_size)); // CSM 1.3.1 higher number of concurrent tasks won't
 
-    let num_chunks = hsm_groups_node_list.len() / chunk_size;
+    let num_chunks = (hsm_groups_node_list.len() / chunk_size) + 1;
 
-    let mut i = 0;
+    let mut i = 1;
 
     // Calculate number of digits of a number
     let width = num_chunks.checked_ilog10().unwrap_or(0) as usize + 1;
