@@ -437,7 +437,7 @@ pub mod utils {
                 .collect();
 
             print!(
-                "\rWaiting nodes to power on. Transitioning: {:?} ==> ON: {:?}. Trying again in {} seconds. Attempt {} of {}",
+                "\rWaiting nodes to power on. Transitioning: {:?} ==> ON: {:?}. Trying again in {} seconds. Attempt {} of {}.",
                 xname_vec.iter().filter(|xname| !node_on_vec.contains(xname)).collect::<Vec<_>>(),
                 node_on_vec,
                 delay_secs,
@@ -499,7 +499,7 @@ pub mod utils {
                 .collect();
 
             print!(
-                    "\rWaiting nodes to power off. Transitioning: {:?} ==> OFF: {:?}. Trying again in {} seconds. Attempt {} of {}",
+                    "\rWaiting nodes to power off. Transitioning: {:?} ==> OFF: {:?}. Trying again in {} seconds. Attempt {} of {}.",
                     xname_vec.iter().filter(|xname| !node_off_vec.contains(xname)).collect::<Vec<_>>(),
                     node_off_vec,
                     delay_secs,

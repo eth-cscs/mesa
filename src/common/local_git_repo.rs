@@ -246,13 +246,13 @@ pub fn fetch<'a>(
     cb.transfer_progress(|stats| {
         if stats.received_objects() == stats.total_objects() {
             print!(
-                "Resolving deltas {}/{}\r",
+                "Resolving deltas {}/{}.\r",
                 stats.indexed_deltas(),
                 stats.total_deltas()
             );
         } else if stats.total_objects() > 0 {
             print!(
-                "Received {}/{} objects ({}) in {} bytes\r",
+                "Received {}/{} objects ({}) in {} bytes.\r",
                 stats.received_objects(),
                 stats.total_objects(),
                 stats.indexed_objects(),

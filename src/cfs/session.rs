@@ -1374,7 +1374,7 @@ pub mod mesa {
                 print!("\x1B[2K"); // Clear current line
                 io::stdout().flush().unwrap();
                 print!(
-                "\rWaiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}",
+                "\rWaiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}.",
                 cfs_session_id, cfs_session_status, i, max
             );
                 io::stdout().flush().unwrap();

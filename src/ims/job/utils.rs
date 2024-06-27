@@ -34,7 +34,7 @@ pub async fn wait_ims_job_to_finish(
             print!("\x1B[2K"); // Clear current line
             io::stdout().flush().unwrap();
             print!(
-                "\rWaiting IMS job '{}' with job status '{}'. Checking again in 2 secs. Attempt {} of {}",
+                "\rWaiting IMS job '{}' with job status '{}'. Checking again in 2 secs. Attempt {} of {}.",
                 ims_job_id, ims_job_status, i, max
             );
             io::stdout().flush().unwrap();
