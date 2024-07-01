@@ -149,7 +149,7 @@ pub mod http_client {
             xname_vec: Vec<String>,
             reason: Option<String>,
         ) -> Result<Value, reqwest::Error> {
-            log::info!("Power ON nodes: {:?}", xname_vec);
+            // log::info!("Power ON nodes: {:?}", xname_vec);
 
             let power_on = PowerStatus::new(reason, xname_vec, false, None);
 

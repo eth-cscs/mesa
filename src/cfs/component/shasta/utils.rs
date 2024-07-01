@@ -1,4 +1,4 @@
-use crate::cfs::component::shasta::r#struct::Component;
+use crate::cfs::component::shasta::r#struct::v3::Component;
 
 pub async fn update_component_desired_configuration(
     shasta_token: &str,
@@ -18,7 +18,7 @@ pub async fn update_component_desired_configuration(
         enabled: Some(enabled),
     };
 
-    let _ = crate::cfs::component::shasta::http_client::v2::patch_component(
+    let _ = crate::cfs::component::shasta::http_client::v3::patch_component(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -51,7 +51,7 @@ pub async fn update_component_list_desired_configuration(
         component_list.push(component);
     }
 
-    let _ = crate::cfs::component::shasta::http_client::v2::patch_component_list(
+    let _ = crate::cfs::component::shasta::http_client::v3::patch_component_list(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
