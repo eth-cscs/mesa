@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use crate::error::Error;
+
 use super::{
     r#struct::{JobPostRequest, SshContainer},
     utils::wait_ims_job_to_finish,
@@ -14,7 +16,7 @@ pub async fn post_customize(
     image_root_archive_name: &str,
     artifact_id: &str,
     public_key_id: &str,
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     let ssh_container = SshContainer {
         name: "jail".to_string(),
         jail: true,
@@ -54,15 +56,28 @@ pub async fn post_customize(
 
     let api_url = shasta_base_url.to_owned() + "/ims/v3/jobs";
 
-    client
+    let response = client
         .post(api_url)
         .bearer_auth(shasta_token)
         .json(&ims_job)
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await
+        .map_err(|error| Error::NetError(error))?;
+
+    if response.status().is_success() {
+        // Make sure we return a vec if user requesting a single value
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .json::<Value>()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+
+        Err(Error::CsmError(payload))
+    }
 }
 
 /// Creates an IMS job, this method is asynchronous, meaning, it will returns when the server
