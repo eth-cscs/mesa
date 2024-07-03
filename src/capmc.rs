@@ -401,14 +401,14 @@ pub mod utils {
         xname_vec: Vec<String>,
         reason: Option<String>,
     ) -> Result<Value, reqwest::Error> {
-        let mut node_on_vec: Vec<String> = Vec::new();
+        let mut node_off_vec: Vec<String> = Vec::new();
         let mut node_status_value: Value = serde_json::Value::Null;
 
         // Check all nodes are OFF
         let mut i = 0;
         let max = 60;
         let delay_secs = 3;
-        while i <= max && xname_vec.iter().any(|xname| !node_on_vec.contains(xname)) {
+        while i <= max && !node_off_vec.is_empty() {
             let _ = node_power_on::post(
                 shasta_token,
                 shasta_base_url,
@@ -429,7 +429,9 @@ pub mod utils {
             .await
             .unwrap();
 
-            node_on_vec = node_status_value["on"]
+            println!("DEBUG - nodes power status:\n{:#?}", node_status_value);
+
+            node_off_vec = node_status_value["off"]
                 .as_array()
                 .unwrap_or(&Vec::new())
                 .iter()
@@ -437,9 +439,7 @@ pub mod utils {
                 .collect();
 
             print!(
-                "\rWaiting nodes to power on. Transitioning: {:?} ==> ON: {:?}. Trying again in {} seconds. Attempt {} of {}.",
-                xname_vec.iter().filter(|xname| !node_on_vec.contains(xname)).collect::<Vec<_>>(),
-                node_on_vec,
+                "\rWaiting nodes to power on. Trying again in {} seconds. Attempt {} of {}.",
                 delay_secs,
                 i + 1,
                 max
@@ -448,8 +448,6 @@ pub mod utils {
 
             i += 1;
         }
-
-        println!("\nNode(s) power state ON: {:?}", node_on_vec);
 
         Ok(node_status_value)
     }
@@ -499,19 +497,15 @@ pub mod utils {
                 .collect();
 
             print!(
-                    "\rWaiting nodes to power off. Transitioning: {:?} ==> OFF: {:?}. Trying again in {} seconds. Attempt {} of {}.",
-                    xname_vec.iter().filter(|xname| !node_off_vec.contains(xname)).collect::<Vec<_>>(),
-                    node_off_vec,
-                    delay_secs,
-                    i + 1,
-                    max
-                );
+                "\rWaiting nodes to power off. Trying again in {} seconds. Attempt {} of {}.",
+                delay_secs,
+                i + 1,
+                max
+            );
             std::io::stdout().flush().unwrap();
 
             i += 1;
         }
-
-        println!("\nNode(s) power state OFF: {:?}", node_off_vec);
 
         Ok(node_status_value)
     }
