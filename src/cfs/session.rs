@@ -321,7 +321,7 @@ pub mod shasta {
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                hsm_group_name_vec,
+                hsm_group_name_vec.to_vec(),
             )
             .await;
 
@@ -376,7 +376,7 @@ pub mod shasta {
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                hsm_group_name_vec,
+                hsm_group_name_vec.to_vec(),
             )
             .await;
 
@@ -1089,11 +1089,12 @@ pub mod mesa {
             hsm_group_name_vec: &[String],
             limit_number_opt: Option<&u8>,
         ) {
+            log::info!("Filter CFS sessions");
             let xname_vec: Vec<String> = hsm::group::utils::get_member_vec_from_hsm_name_vec(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                hsm_group_name_vec,
+                hsm_group_name_vec.to_vec(),
             )
             .await;
 

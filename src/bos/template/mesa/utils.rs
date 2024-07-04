@@ -7,6 +7,7 @@ pub async fn filter(
     // cfs_configuration_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<BosSessionTemplate> {
+    log::info!("Filter BOS sessiontemplates");
     // Filter by list of HSM group or xnames as target
     if !hsm_group_name_vec.is_empty() || !xname_vec.is_empty() {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {

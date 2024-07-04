@@ -354,14 +354,22 @@ pub mod group {
 
     pub mod utils {
 
-        use std::collections::{HashMap, HashSet};
+        use std::{
+            collections::{HashMap, HashSet},
+            sync::Arc,
+            time::Instant,
+        };
 
         use serde_json::Value;
+        use tokio::sync::Semaphore;
 
         use crate::{
             cfs::session::mesa::r#struct::v2::CfsSessionGetResponse,
             error::Error,
-            hsm::group::{http_client::post_member, r#struct::HsmGroup},
+            hsm::group::{
+                http_client::{get, post_member},
+                r#struct::HsmGroup,
+            },
         };
 
         use super::http_client::{self, delete_member};
@@ -442,9 +450,11 @@ pub mod group {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            hsm_name_vec: &[String],
+            hsm_name_vec: Vec<String>,
         ) -> Vec<String> {
-            let mut hsm_group_value_vec =
+            log::info!("Get xnames for HSM groups: {:?}", hsm_name_vec);
+
+            /* let mut hsm_group_value_vec =
                 http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
                     .await
                     .unwrap();
@@ -455,7 +465,59 @@ pub mod group {
                 get_member_vec_from_hsm_group_vec(&hsm_group_value_vec)
                     .iter()
                     .cloned(),
-            )
+            ) */
+
+            let start = Instant::now();
+
+            let mut hsm_group_member_vec: Vec<String> = Vec::new();
+
+            let pipe_size = 10;
+
+            let mut tasks = tokio::task::JoinSet::new();
+
+            let sem = Arc::new(Semaphore::new(pipe_size)); // CSM 1.3.1 higher number of concurrent tasks won't
+                                                           //
+            for hsm_name in hsm_name_vec {
+                let shasta_token_string = shasta_token.to_string();
+                let shasta_base_url_string = shasta_base_url.to_string();
+                let shasta_root_cert_vec = shasta_root_cert.to_vec();
+
+                let permit = Arc::clone(&sem).acquire_owned().await;
+
+                tasks.spawn(async move {
+                    let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
+
+                    get(
+                        &shasta_token_string,
+                        &shasta_base_url_string,
+                        &shasta_root_cert_vec,
+                        Some(&hsm_name),
+                    )
+                    .await
+                    .unwrap()
+                });
+            }
+
+            while let Some(message) = tasks.join_next().await {
+                if let Ok(hsm_group_vec) = message {
+                    let mut hsm_grop_members = hsm_group_vec
+                        .first()
+                        .unwrap()
+                        .members
+                        .as_ref()
+                        .unwrap()
+                        .ids
+                        .clone()
+                        .unwrap();
+
+                    hsm_group_member_vec.append(&mut hsm_grop_members);
+                }
+            }
+
+            let duration = start.elapsed();
+            log::info!("Time elapsed to get HSM members is: {:?}", duration);
+
+            hsm_group_member_vec
         }
 
         pub fn get_member_vec_from_hsm_group_value_vec(hsm_groups: &[Value]) -> HashSet<String> {

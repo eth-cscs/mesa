@@ -68,7 +68,7 @@ pub async fn get_multiple(
 ) -> Result<Vec<CfsComponent>, Error> {
     let start = Instant::now();
 
-    let chunk_size = 80;
+    let chunk_size = 20;
     let pipe_size = 10;
 
     log::debug!("Number of nodes per request: {chunk_size}; Pipe size (semaphore): {pipe_size}");
