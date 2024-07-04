@@ -1,10 +1,7 @@
 use regex::Regex;
 use serde_json::Value;
 
-use crate::{
-    bss::{self, bootparameters::BootParameters},
-    cfs, hsm,
-};
+use crate::{bss, cfs, hsm};
 
 use super::r#struct::NodeDetails;
 

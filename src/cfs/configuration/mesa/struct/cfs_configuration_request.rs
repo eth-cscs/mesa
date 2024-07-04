@@ -2,12 +2,10 @@
 /// name, commit date, etc
 
 pub mod v2 {
-    use std::{collections::BTreeMap, path::PathBuf};
+    use std::collections::BTreeMap;
 
-    use k8s_openapi::chrono;
     use serde::{Deserialize, Serialize};
     use serde_yaml::Value;
-    use substring::Substring;
 
     use crate::common::gitea;
 

@@ -1,12 +1,8 @@
 /// struct representing CSM API payload related to CFS configuration
 
 pub mod v2 {
-    use std::path::PathBuf;
 
     use serde::{Deserialize, Serialize};
-    use substring::Substring;
-
-    use crate::common::gitea;
 
     #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
     pub struct Layer {
@@ -265,12 +261,8 @@ pub mod v2 {
 }
 
 pub mod v3 {
-    use std::path::PathBuf;
 
     use serde::{Deserialize, Serialize};
-    use substring::Substring;
-
-    use crate::common::gitea;
 
     #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
     pub struct Layer {

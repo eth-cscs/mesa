@@ -9,7 +9,6 @@ pub mod v1 {
         shasta_root_cert: &[u8],
         bos_template_name: &String,
         operation: &str,
-        limit: Option<&String>,
     ) -> core::result::Result<Value, Error> {
         let payload = json!({
             "operation": operation,
