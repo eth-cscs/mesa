@@ -454,6 +454,8 @@ pub mod group {
         ) -> Vec<String> {
             log::info!("Get xnames for HSM groups: {:?}", hsm_name_vec);
 
+            let start = Instant::now();
+
             /* let mut hsm_group_value_vec =
                 http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
                     .await
@@ -466,8 +468,6 @@ pub mod group {
                     .iter()
                     .cloned(),
             ) */
-
-            let start = Instant::now();
 
             let mut hsm_group_member_vec: Vec<String> = Vec::new();
 
@@ -494,12 +494,30 @@ pub mod group {
                         Some(&hsm_name),
                     )
                     .await
-                    .unwrap()
                 });
             }
 
             while let Some(message) = tasks.join_next().await {
-                if let Ok(hsm_group_vec) = message {
+                match message {
+                    Ok(Ok(hsm_group_vec)) => {
+                        let mut hsm_grop_members = hsm_group_vec
+                            .first()
+                            .unwrap()
+                            .members
+                            .as_ref()
+                            .unwrap()
+                            .ids
+                            .clone()
+                            .unwrap();
+
+                        hsm_group_member_vec.append(&mut hsm_grop_members);
+                    }
+                    Ok(Err(error)) => log::warn!("{error}"),
+                    Err(error) => {
+                        log::warn!("{error}");
+                    }
+                }
+                /* if let Ok(hsm_group_vec) = message {
                     let mut hsm_grop_members = hsm_group_vec
                         .first()
                         .unwrap()
@@ -511,7 +529,7 @@ pub mod group {
                         .unwrap();
 
                     hsm_group_member_vec.append(&mut hsm_grop_members);
-                }
+                } */
             }
 
             let duration = start.elapsed();
