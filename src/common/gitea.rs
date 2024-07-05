@@ -258,7 +258,7 @@ pub mod http_client {
         }
 
         let api_url = format!(
-            "{}api/v1/repos/{}/git/commits/{}",
+            "{}/api/v1/repos/cray/{}/git/commits/{}",
             gitea_base_url, repo_name, commitid
         );
 
