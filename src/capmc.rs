@@ -401,8 +401,17 @@ pub mod utils {
         xname_vec: Vec<String>,
         reason: Option<String>,
     ) -> Result<Value, reqwest::Error> {
-        let mut node_off_vec: Vec<String> = Vec::new();
-        let mut node_status_value: Value = serde_json::Value::Null;
+        let mut node_status_value: Value =
+            node_power_status::post(shasta_token, shasta_base_url, shasta_root_cert, &xname_vec)
+                .await
+                .unwrap();
+
+        let mut node_off_vec: Vec<String> = node_status_value["off"]
+            .as_array()
+            .unwrap_or(&Vec::new())
+            .iter()
+            .map(|xname: &Value| xname.as_str().unwrap().to_string())
+            .collect();
 
         // Check all nodes are OFF
         let mut i = 0;
@@ -428,8 +437,6 @@ pub mod utils {
             )
             .await
             .unwrap();
-
-            println!("DEBUG - nodes power status:\n{:#?}", node_status_value);
 
             node_off_vec = node_status_value["off"]
                 .as_array()

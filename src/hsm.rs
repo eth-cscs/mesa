@@ -152,7 +152,7 @@ pub mod group {
             hsm_group_name: &str,
             member_id: &str,
         ) -> Result<(), reqwest::Error> {
-            log::info!("DEBUG - ADD member {}/{}", hsm_group_name, member_id);
+            log::info!("Add member {}/{}", hsm_group_name, member_id);
             let client;
 
             let client_builder = reqwest::Client::builder()
@@ -199,7 +199,7 @@ pub mod group {
             hsm_group_name: &str,
             member_id: &str,
         ) -> Result<(), reqwest::Error> {
-            log::info!("DEBUG - DELETE member {}/{}", hsm_group_name, member_id);
+            log::info!("Delete member {}/{}", hsm_group_name, member_id);
             let client;
 
             let client_builder = reqwest::Client::builder()
@@ -382,11 +382,6 @@ pub mod group {
             old_target_hsm_group_members: &Vec<String>,
             new_target_hsm_group_members: &Vec<String>,
         ) -> Result<(), Error> {
-            /* println!(
-                "DEBUG - Updating HSM group members from {:?} to {:?}",
-                old_target_hsm_group_members, new_target_hsm_group_members
-            ); */
-
             // Delete members
             for old_member in old_target_hsm_group_members {
                 if !new_target_hsm_group_members.contains(old_member) {
