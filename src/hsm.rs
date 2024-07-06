@@ -40,6 +40,8 @@ pub mod group {
             hsm::group::r#struct::{HsmGroup, Member, XnameId},
         };
 
+        use super::hacks::filter_system_hsm_groups;
+
         /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
         pub async fn get_raw(
             shasta_token: &str,
@@ -97,12 +99,20 @@ pub mod group {
                         .await
                         .map_err(|error| Error::NetError(error))?;
 
-                    Ok(vec![payload])
+                    let hsm_group_vec_rslt = Ok(vec![payload]);
+
+                    //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+                    //wide operations instead of using roles
+                    filter_system_hsm_groups(hsm_group_vec_rslt)
                 } else {
-                    response
+                    let hsm_group_vec_rslt = response
                         .json()
                         .await
-                        .map_err(|error| Error::NetError(error))
+                        .map_err(|error| Error::NetError(error));
+
+                    //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+                    //wide operations instead of using roles
+                    filter_system_hsm_groups(hsm_group_vec_rslt)
                 }
             } else {
                 let payload = response
@@ -349,6 +359,39 @@ pub mod group {
                 .error_for_status()?
                 .json()
                 .await
+        }
+    }
+
+    pub mod hacks {
+        use crate::error::Error;
+
+        use super::r#struct::HsmGroup;
+
+        pub fn filter_system_hsm_groups(
+            hsm_group_vec_rslt: Result<Vec<HsmGroup>, Error>,
+        ) -> Result<Vec<HsmGroup>, Error> {
+            //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+            //wide operations instead of using roles
+            let hsm_group_to_ignore_vec = ["alps", "prealps", "alpse", "alpsb"];
+            let hsm_group_vec_filtered_rslt: Result<Vec<HsmGroup>, Error> = hsm_group_vec_rslt
+                .and_then(|hsm_group_vec| {
+                    Ok(hsm_group_vec
+                        .iter()
+                        .filter(|hsm_group| {
+                            let label = hsm_group.label.as_str();
+                            !hsm_group_to_ignore_vec.contains(&label)
+                        })
+                        .cloned()
+                        .collect::<Vec<HsmGroup>>())
+                });
+
+            if let Ok([]) = hsm_group_vec_filtered_rslt.as_deref() {
+                Err(Error::Message(
+                    "HSM groups 'alps, prealps, alpse, alpsb' not allowed.".to_string(),
+                ))
+            } else {
+                hsm_group_vec_filtered_rslt
+            }
         }
     }
 
@@ -641,7 +684,7 @@ pub mod group {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            xname_vec: &[String],
+            xname_vec: &[&str],
         ) -> Vec<String> {
             let mut hsm_group_vec =
                 http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
@@ -657,7 +700,7 @@ pub mod group {
                     .as_ref()
                     .unwrap_or(&Vec::new())
                     .iter()
-                    .any(|hsm_group_member| xname_vec.contains(hsm_group_member))
+                    .any(|hsm_group_member| xname_vec.contains(&hsm_group_member.as_str()))
             });
 
             hsm_group_vec

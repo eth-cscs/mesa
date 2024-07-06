@@ -1114,13 +1114,6 @@ pub mod mesa {
                                 .any(|target_xname| xname_vec.contains(target_xname))
                         })
                 });
-
-                if let Some(limit_number) = limit_number_opt {
-                    // Limiting the number of results to return to client
-                    *cfs_session_vec = cfs_session_vec
-                        [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
-                        .to_vec();
-                }
             }
 
             // Sort CFS sessions by start time order ASC
@@ -1146,6 +1139,13 @@ pub mod mesa {
                             .unwrap(),
                     )
             });
+
+            if let Some(limit_number) = limit_number_opt {
+                // Limiting the number of results to return to client
+                *cfs_session_vec = cfs_session_vec
+                    [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
+                    .to_vec();
+            }
         }
 
         pub async fn filter_by_xname(
@@ -1153,10 +1153,10 @@ pub mod mesa {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
-            xname_vec: &[String],
+            xname_vec: &[&str],
             limit_number_opt: Option<&u8>,
         ) {
-            let hsm_group_name_vec: Vec<String> =
+            let hsm_group_name_from_xnames_vec: Vec<String> =
                 hsm::group::utils::get_hsm_group_vec_from_xname_vec(
                     shasta_token,
                     shasta_base_url,
@@ -1165,29 +1165,28 @@ pub mod mesa {
                 )
                 .await;
 
+            log::info!(
+                "HSM groups that belongs to xnames {:?} are: {:?}",
+                xname_vec,
+                hsm_group_name_from_xnames_vec
+            );
+
             // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
             // hsm_group.members.ids
-            if !hsm_group_name_vec.is_empty() {
+            if !hsm_group_name_from_xnames_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
                     cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                         target_hsm_vec
                             .iter()
-                            .any(|target_hsm| hsm_group_name_vec.contains(target_hsm))
+                            .any(|target_hsm| hsm_group_name_from_xnames_vec.contains(target_hsm))
                     }) || cfs_session
                         .get_target_xname()
                         .is_some_and(|target_xname_vec| {
                             target_xname_vec
                                 .iter()
-                                .any(|target_xname| xname_vec.contains(target_xname))
+                                .any(|target_xname| xname_vec.contains(&target_xname.as_str()))
                         })
                 });
-
-                if let Some(limit_number) = limit_number_opt {
-                    // Limiting the number of results to return to client
-                    *cfs_session_vec = cfs_session_vec
-                        [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
-                        .to_vec();
-                }
             }
 
             // Sort CFS sessions by start time order ASC
@@ -1213,6 +1212,13 @@ pub mod mesa {
                             .unwrap(),
                     )
             });
+
+            if let Some(limit_number) = limit_number_opt {
+                // Limiting the number of results to return to client
+                *cfs_session_vec = cfs_session_vec
+                    [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
+                    .to_vec();
+            }
         }
 
         /// Filter CFS sessions to the ones related to a CFS configuration

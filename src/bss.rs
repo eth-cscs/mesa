@@ -266,7 +266,7 @@ pub mod bootparameters {
             }
 
             let duration = start.elapsed();
-            log::info!("Time elapsed to BSS bootparameters is: {:?}", duration);
+            log::info!("Time elapsed to get BSS bootparameters is: {:?}", duration);
 
             Ok(boot_params_vec)
         }
