@@ -87,7 +87,9 @@ pub async fn get_multiple(
     let width = num_chunks.checked_ilog10().unwrap_or(0) as usize + 1;
 
     for sub_node_list in hsm_groups_node_list.chunks(chunk_size) {
-        print!("\rGetting CFS components batch [{i:>width$}/{num_chunks}] (batch size - {chunk_size}).");
+        log::info!(
+            "Getting CFS components batch [{i:>width$}/{num_chunks}] (batch size - {chunk_size})."
+        );
         io::stdout().flush().unwrap();
 
         let shasta_token_string = shasta_token.to_string();
