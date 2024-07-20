@@ -7,3 +7,4 @@ pub mod kubernetes;
 pub mod log_ops;
 pub mod utils;
 pub mod vault;
+pub mod csm;
