@@ -1,7 +1,7 @@
 use serde_json::Value;
 
-use crate::error::Error;
 use crate::common::csm;
+use crate::error::Error;
 
 pub async fn health_check(
     shasta_token: &str,
@@ -10,7 +10,6 @@ pub async fn health_check(
 ) -> Result<Value, Error> {
     let api_url = shasta_base_url.to_owned() + "/cfs/healthz";
 
-    let response = csm::get_csm_api_url(shasta_token, &api_url, shasta_root_cert)
-                    .await;
+    let response = csm::process_get_http_request(shasta_token, api_url, shasta_root_cert).await;
     response
 }
