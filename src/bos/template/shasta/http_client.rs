@@ -112,9 +112,9 @@ pub mod v2 {
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        bos_session_template_id_opt: Option<&String>,
-    ) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
-        log::info!("Get BOS sessiontemplte {:?}", bos_session_template_id_opt);
+        bos_session_template_id_opt: Option<&str>,
+    ) -> Result<Vec<BosSessionTemplate>, Error> {
+        log::info!("Get BOS sessiontemplate {:?}", bos_session_template_id_opt);
 
         let client_builder = reqwest::Client::builder()
             .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -132,20 +132,37 @@ pub mod v2 {
         };
 
         let api_url = if let Some(bos_session_template_id) = bos_session_template_id_opt {
-            shasta_base_url.to_owned() + "/bos/v2/sessiontemplate/" + bos_session_template_id
+            shasta_base_url.to_owned() + "/bos/v2/sessiontemplates/" + bos_session_template_id
         } else {
-            shasta_base_url.to_owned() + "/bos/v2/sessiontemplate"
+            shasta_base_url.to_owned() + "/bos/v2/sessiontemplates"
         };
 
-        let response = client.get(api_url).bearer_auth(shasta_token).send().await?;
+        let response = client
+            .get(api_url)
+            .bearer_auth(shasta_token)
+            .send()
+            .await
+            .map_err(|error| Error::NetError(error))?;
 
-        if bos_session_template_id_opt.is_none() {
-            response.json().await
+        if response.status().is_success() {
+            if bos_session_template_id_opt.is_none() {
+                response
+                    .json()
+                    .await
+                    .map_err(|error| Error::NetError(error))
+            } else {
+                response
+                    .json::<BosSessionTemplate>()
+                    .await
+                    .map(|cfs_configuration| vec![cfs_configuration])
+                    .map_err(|error| Error::NetError(error))
+            }
         } else {
-            response
-                .json::<BosSessionTemplate>()
+            let payload = response
+                .json::<Value>()
                 .await
-                .map(|cfs_configuration| vec![cfs_configuration])
+                .map_err(|error| Error::NetError(error))?;
+            Err(Error::CsmError(payload))
         }
     }
 
@@ -193,10 +210,10 @@ pub mod v2 {
             .map_err(|error| Error::NetError(error))?;
 
         if response.status().is_success() {
-            Ok(response
+            response
                 .json()
                 .await
-                .map_err(|error| Error::NetError(error))?)
+                .map_err(|error| Error::NetError(error))
         } else {
             let payload = response
                 .json::<Value>()

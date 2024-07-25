@@ -521,6 +521,13 @@ pub mod v2 {
     }
 
     impl BosSessionTemplate {
+        pub fn get_target(&self) -> Vec<String> {
+            let target_hsm = self.get_target_hsm();
+            let target_xname = self.get_target_xname();
+
+            [target_hsm, target_xname].concat()
+        }
+
         /// Returns HSM group names related to the BOS sessiontemplate
         pub fn get_target_hsm(&self) -> Vec<String> {
             self.boot_sets
@@ -544,12 +551,30 @@ pub mod v2 {
             self.cfs.as_ref().unwrap().configuration.clone()
         }
 
-        pub fn get_path(&self) -> Vec<String> {
+        pub fn get_path_vec(&self) -> Vec<String> {
             self.boot_sets
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|(_, boot_param)| boot_param.path.clone().unwrap_or_default())
+                .collect()
+        }
+
+        /// Returns all images related to this BOS sessiontemplate
+        pub fn get_image_vec(&self) -> Vec<String> {
+            self.boot_sets
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|(_, boot_param)| {
+                    boot_param
+                        .path
+                        .clone()
+                        .unwrap_or_default()
+                        .trim_start_matches("s3://boot-images/")
+                        .trim_end_matches("/manifest.json")
+                        .to_string()
+                })
                 .collect()
         }
 

@@ -1,7 +1,7 @@
 use tokio::task;
 
 use crate::{
-    bos::{self, template::mesa::r#struct::v1::BosSessionTemplate},
+    bos::{self, template::mesa::r#struct::v2::BosSessionTemplate},
     cfs::{
         self,
         configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,

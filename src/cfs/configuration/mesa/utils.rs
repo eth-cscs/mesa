@@ -1,5 +1,5 @@
 use crate::{
-    bos::{self, template::mesa::r#struct::v1::BosSessionTemplate},
+    bos::{self, template::mesa::r#struct::v2::BosSessionTemplate},
     cfs::{
         self, component::mesa::r#struct::CfsComponent,
         configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,

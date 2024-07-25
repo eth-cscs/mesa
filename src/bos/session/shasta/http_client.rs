@@ -115,6 +115,25 @@ pub mod v2 {
         Shutdown,
     }
 
+    impl Operation {
+        pub fn to_string(&self) -> String {
+            match self {
+                Operation::Boot => "boot".to_string(),
+                Operation::Reboot => "reboot".to_string(),
+                Operation::Shutdown => "shutdown".to_string(),
+            }
+        }
+
+        pub fn from_str(operation: &str) -> Result<Operation, Error> {
+            match operation {
+                "boot" => Ok(Operation::Boot),
+                "reboot" => Ok(Operation::Reboot),
+                "shutdown" => Ok(Operation::Shutdown),
+                _ => Err(Error::Message("Operation not valid".to_string())),
+            }
+        }
+    }
+
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Status {
         pub start_time: String,
@@ -161,16 +180,6 @@ pub mod v2 {
         }
 
         let api_url = shasta_base_url.to_string() + "/bos/v2/sessions";
-
-        /* client
-        .post(api_url)
-        .bearer_auth(shasta_token)
-        .json(&bos_session)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await */
 
         let response = client
             .post(api_url)
