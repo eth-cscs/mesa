@@ -423,38 +423,39 @@ pub mod power_cap {
 
         #[derive(Debug, Serialize, Deserialize)]
         pub struct Limit {
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "hostsLimitMax")]
             pub hosts_limit_max: Option<usize>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "hostsLimitMin")]
             pub hosts_limit_min: Option<usize>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "powerupPower")]
             pub powerup_power: Option<usize>,
         }
 
+        #[derive(Debug, Serialize, Deserialize)]
         pub struct PowerCapLimit {
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub name: Option<String>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "currentValue")]
             pub current_value: Option<usize>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "mamximumValue")]
             pub maximum_value: Option<usize>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "minimumValue")]
             pub mnimum_value: Option<usize>,
         }
 
         #[derive(Debug, Serialize, Deserialize)]
         pub struct PowerCapComponent {
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub xname: Option<String>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub error: Option<String>,
-            #[derive(Debug, Serialize, Deserialize)]
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub limits: Option<Limit>,
             #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "power_cap_limits")]

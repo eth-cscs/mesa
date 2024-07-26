@@ -195,11 +195,15 @@ pub async fn get_token_from_shasta_endpoint(
         client = client_builder.build()?;
     }
 
+    let api_url = format!(
+        "{}/realms/shasta/protocol/openid-connect/token",
+        keycloak_base_url
+    );
+
+    log::debug!("Request to fetch authentication token: {}", api_url);
+
     Ok(client
-        .post(format!(
-            "{}/realms/shasta/protocol/openid-connect/token",
-            keycloak_base_url
-        ))
+        .post(api_url)
         .form(&params)
         .send()
         .await?
