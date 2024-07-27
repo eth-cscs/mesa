@@ -85,8 +85,6 @@ pub mod v2 {
     #[derive(Serialize, Deserialize, Debug)]
     pub struct BosSession {
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
         pub name: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub tenant: Option<String>,
