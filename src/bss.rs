@@ -1,5 +1,7 @@
 #[cfg(feature = "ochami")]
 pub mod bootparameters {
+    use std::{collections::HashMap, iter::Map, str::SplitWhitespace};
+
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
 
@@ -77,48 +79,337 @@ pub mod bootparameters {
             image_id
         }
 
-        pub fn set_boot_image(&mut self, new_image_id: &str) {
-            self.params = self
-                .params
-                .split_whitespace()
-                .map(|kernel_param| {
-                    if kernel_param.contains("metal.server=s3://boot-images/") {
-                        // NCN node
-                        let aux = kernel_param
-                            .trim_start_matches("metal.server=s3://boot-images/")
-                            .split_once('/')
-                            .unwrap()
-                            .1;
+        /// Add boot image in kernel boot parameters and also in kernel and initrd fields
+        pub fn add_boot_image(&mut self, new_image_id: &str) {
+            let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
+            self.add_kernel_params(&boot_image_kernel_param);
 
-                        format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
-                    } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
-                        // CN node
-                        let aux = kernel_param
-                            .trim_start_matches("root=craycps-s3:s3://boot-images/")
-                            .split_once('/')
-                            .unwrap_or_default() // NCN has root=live:LABEL=SQFSRAID
-                            .1;
+            /* self.params = self
+            .params
+            .split_whitespace()
+            .map(|kernel_param| {
+                if kernel_param.contains("metal.server=s3://boot-images/") {
+                    // NCN node
+                    let aux = kernel_param
+                        .trim_start_matches("metal.server=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
 
-                        format!("root=craycps-s3:s3://boot-images/{}/{}", new_image_id, aux)
-                    } else if kernel_param.contains("nmd_data=") {
-                        // CN node
-                        let aux = kernel_param
-                            .trim_start_matches("nmd_data=url=s3://boot-images/")
-                            .split_once('/')
-                            .unwrap()
-                            .1;
+                    format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
+                } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
+                    // CN node
+                    format!("root=craycps-s3:s3://boot-images/{}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0", new_image_id)
+                    /* let aux = kernel_param
+                        .trim_start_matches("root=craycps-s3:s3://boot-images/")
+                        .split_once('/')
+                        .unwrap_or_default() // NCN has root=live:LABEL=SQFSRAID
+                        .1;
 
-                        format!("nmd_data=url=s3://boot-images/{}/{}", new_image_id, aux)
-                    } else {
-                        kernel_param.to_string()
-                    }
-                })
-                .collect::<Vec<String>>()
-                .join(" ");
+                    format!("root=craycps-s3:s3://boot-images/{}/{}", new_image_id, aux) */
+                } else if kernel_param.contains("nmd_data=") {
+                    // CN node
+                    format!("nmd_data=url=s3://boot-images/{}/rootfs,etag=etag", new_image_id)
+                    /* let aux = kernel_param
+                        .trim_start_matches("nmd_data=url=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
+
+                    format!("nmd_data=url=s3://boot-images/{}/{}", new_image_id, aux) */
+                } else {
+                    kernel_param.to_string()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(" "); */
 
             self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
 
             self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
+        }
+
+        /// Update boot image in kernel boot parameters and also in kernel and initrd fields if
+        /// exists. Otherwise nothing is changed. This method updates both kernel params related to
+        /// NCN and also CN
+        pub fn update_boot_image(&mut self, new_image_id: &str) {
+            let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
+            self.update_kernel_params(&boot_image_kernel_param);
+
+            /* self.params = self
+            .params
+            .split_whitespace()
+            .map(|kernel_param| {
+                if kernel_param.contains("metal.server=s3://boot-images/") {
+                    // NCN node
+                    let aux = kernel_param
+                        .trim_start_matches("metal.server=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
+
+                    format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
+                } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
+                    // CN node
+                    format!("root=craycps-s3:s3://boot-images/{}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0", new_image_id)
+                    /* let aux = kernel_param
+                        .trim_start_matches("root=craycps-s3:s3://boot-images/")
+                        .split_once('/')
+                        .unwrap_or_default() // NCN has root=live:LABEL=SQFSRAID
+                        .1;
+
+                    format!("root=craycps-s3:s3://boot-images/{}/{}", new_image_id, aux) */
+                } else if kernel_param.contains("nmd_data=") {
+                    // CN node
+                    format!("nmd_data=url=s3://boot-images/{}/rootfs,etag=etag", new_image_id)
+                    /* let aux = kernel_param
+                        .trim_start_matches("nmd_data=url=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
+
+                    format!("nmd_data=url=s3://boot-images/{}/{}", new_image_id, aux) */
+                } else {
+                    kernel_param.to_string()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(" "); */
+
+            self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
+
+            self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
+        }
+
+        pub fn upsert_boot_image(&mut self, new_image_id: &str) {
+            let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
+            self.upsert_kernel_params(&boot_image_kernel_param);
+
+            /* self.params = self
+            .params
+            .split_whitespace()
+            .map(|kernel_param| {
+                if kernel_param.contains("metal.server=s3://boot-images/") {
+                    // NCN node
+                    let aux = kernel_param
+                        .trim_start_matches("metal.server=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
+
+                    format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
+                } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
+                    // CN node
+                    let aux = kernel_param
+                        .trim_start_matches("root=craycps-s3:s3://boot-images/")
+                        .split_once('/')
+                        .unwrap_or_default() // NCN has root=live:LABEL=SQFSRAID
+                        .1;
+
+                    format!("root=craycps-s3:s3://boot-images/{}/{}", new_image_id, aux)
+                } else if kernel_param.contains("nmd_data=") {
+                    // CN node
+                    let aux = kernel_param
+                        .trim_start_matches("nmd_data=url=s3://boot-images/")
+                        .split_once('/')
+                        .unwrap()
+                        .1;
+
+                    format!("nmd_data=url=s3://boot-images/{}/{}", new_image_id, aux)
+                } else {
+                    kernel_param.to_string()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(" "); */
+
+            self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
+
+            self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
+        }
+
+        /// Add kernel parameter. If kernel parameter already exists, then it will be added,
+        /// otherwise nothing will change
+        pub fn add_kernel_params(&mut self, new_params: &str) {
+            let new_params: Vec<(&str, &str)> = new_params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            for (key, new_value) in &new_params {
+                params.entry(key).and_modify(|value| *value = new_value);
+            }
+
+            self.params = new_params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Add kernel parameter. If kernel parameter already exists, then it will be added,
+        /// otherwise nothing will change
+        pub fn add_kernel_param(&mut self, key: &str, new_value: &str) {
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            params.entry(key).and_modify(|value| *value = new_value);
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Apply kernel parameter. If kernel parameter already exists, then it will be updated,
+        /// otherwise it will be added
+        /// Input value expected the list of kernel parameters separated by space. eg: `console=ttyS0,115200 bad_page=panic crashkernel=512M hugepagelist=2m-2g intel_pstate=disable`
+        pub fn upsert_kernel_params(&mut self, new_params: &str) {
+            let new_params: Vec<(&str, &str)> = new_params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            for (key, new_value) in new_params {
+                params
+                    .entry(key)
+                    .and_modify(|value| *value = new_value)
+                    .or_insert(new_value);
+            }
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Apply kernel parameter. If kernel parameter already exists, then it will be updated,
+        /// otherwise it will be added
+        pub fn upsert_kernel_param(&mut self, key: &str, new_value: &str) {
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            params
+                .entry(key)
+                .and_modify(|value| *value = new_value)
+                .or_insert(new_value);
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Update kernel parameter. If kernel parameter exists, then it will be updated with new
+        /// value. otherwise nothing will change
+        /// Input value expected the list of kernel parameters separated by space. eg: `console=ttyS0,115200 bad_page=panic crashkernel=512M hugepagelist=2m-2g intel_pstate=disable`
+        pub fn update_kernel_params(&mut self, new_params: &str) {
+            let new_params: Vec<(&str, &str)> = new_params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            for (key, new_value) in new_params {
+                params
+                    .entry(key)
+                    .and_modify(|value| *value = new_value)
+                    .or_insert(new_value);
+            }
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Update kernel parameter. If kernel parameter exists, then it will be updated with new
+        /// value. otherwise nothing will change
+        pub fn update_kernel_param(&mut self, key: &str, new_value: &str) {
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            params
+                .entry(key)
+                .and_modify(|value| *value = new_value)
+                .or_insert(new_value);
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Delete kernel parameter. If kernel parameter exists, then it will be removed, otherwise
+        /// nothing will be changed
+        /// Input expected the list of kernel param keys separated by space. eg: `console bad_page crashkernel hugepagelist intel_pstate`
+        pub fn delete_kernel_params(&mut self, keys: &str) {
+            let keys: Vec<&str> = keys.split_whitespace().collect();
+
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            for key in keys {
+                params.remove(key);
+            }
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
+        }
+
+        /// Delete kernel parameter. If kernel parameter exists, then it will be removed, otherwise
+        /// nothing will be changed
+        pub fn delete_kernel_param(&mut self, key: &str) {
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .collect();
+
+            params.remove(key);
+
+            self.params = params
+                .iter()
+                .map(|(key, value)| format!("{key}={value}"))
+                .collect::<Vec<String>>()
+                .join(" ");
         }
     }
 
