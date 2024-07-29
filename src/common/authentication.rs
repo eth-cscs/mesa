@@ -152,7 +152,23 @@ pub async fn is_token_valid(
         .send()
         .await;
 
-    if let Ok(resp) = resp_rslt {
+    match resp_rslt {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                log::info!("Shasta token is valid");
+                return Ok(true);
+            } else {
+                log::error!("Token is not valid - {}", resp.text().await?);
+                return Ok(false);
+            }
+        }
+        Err(error) => {
+            eprintln!("Error connecting to Shasta API. Reason:\n{:?}. Exit", error);
+            log::debug!("Response:\n{:#?}", error);
+            std::process::exit(1);
+        }
+    }
+    /* if let Ok(resp) = resp_rslt {
         if resp.status().is_success() {
             log::info!("Shasta token is valid");
             Ok(true)
@@ -161,10 +177,13 @@ pub async fn is_token_valid(
             Ok(false)
         }
     } else {
-        eprintln!("Error connecting to Shasta API. Exit");
+        eprintln!(
+            "Error connecting to Shasta API. Reason:\n{:?}. Exit",
+            resp_rslt
+        );
         log::debug!("Response:\n{:#?}", resp_rslt);
         std::process::exit(1);
-    }
+    } */
 }
 
 pub async fn get_token_from_shasta_endpoint(

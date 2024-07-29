@@ -154,17 +154,17 @@ pub async fn get_node_details(
         // get node boot params (these are the boot params of the nodes with the image the node
         // boot with). the image in the bos sessiontemplate may be different i don't know why. need
         // to investigate
-        let node_boot_params_opt = bss::bootparameters::utils::find_boot_params_related_to_node(
-            &node_boot_params_vec,
-            node,
-        );
-
-        let kernel_image_path_in_boot_params: String =
-            if let Some(node_boot_params) = node_boot_params_opt {
-                node_boot_params.get_boot_image()
+        let (kernel_image_path_in_boot_params, kernel_params): (String, String) =
+            if let Some(node_boot_params) =
+                bss::bootparameters::utils::find_boot_params_related_to_node(
+                    &node_boot_params_vec,
+                    node,
+                )
+            {
+                (node_boot_params.get_boot_image(), node_boot_params.params)
             } else {
                 eprintln!("BSS boot parameters for node {} - NOT FOUND", node);
-                "Not found".to_string()
+                ("Not found".to_string(), "Not found".to_string())
             };
 
         // Get CFS configuration related to image id
@@ -198,6 +198,7 @@ pub async fn get_node_details(
             error_count: error_count.to_string(),
             boot_image_id: kernel_image_path_in_boot_params,
             boot_configuration: cfs_configuration_boot,
+            kernel_params,
         };
 
         node_details_vec.push(node_details);

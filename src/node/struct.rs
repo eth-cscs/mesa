@@ -11,4 +11,5 @@ pub struct NodeDetails {
     pub error_count: String,
     pub boot_image_id: String,
     pub boot_configuration: String,
+    pub kernel_params: String,
 }
