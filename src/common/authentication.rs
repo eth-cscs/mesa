@@ -147,15 +147,16 @@ pub async fn quick_connectivity_test(
 
     log::info!("Validate Shasta token against {}", api_url);
 
-    let resp_rslt = client
-        //.get(format!("{}/cfs/healthz", shasta_base_url))
+    client
         .get(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await;
+        .await
+        .map(|_| true) // return `true` if there is no error
 
-    match resp_rslt {
+    /* match resp_rslt {
         Ok(resp) => {
+            // Connectivity should be ok
             if resp.status().is_success() {
                 log::info!("Shasta token is valid");
                 return Ok(true);
@@ -169,7 +170,7 @@ pub async fn quick_connectivity_test(
             log::debug!("Response:\n{:#?}", error);
             std::process::exit(1);
         }
-    }
+    } */
 }
 
 pub async fn get_token_from_shasta_endpoint(
