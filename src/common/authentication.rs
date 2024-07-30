@@ -7,6 +7,7 @@ use std::{
     fs::{create_dir_all, File},
     io::{Read, Write},
     path::PathBuf,
+    time::Duration,
 };
 
 use termion::color;
@@ -32,7 +33,7 @@ pub async fn get_api_token(
 
             shasta_token = value;
 
-            match is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert).await {
+            match quick_connectivity_test(shasta_base_url, &shasta_token, shasta_root_cert).await {
                 Ok(_) => return Ok(shasta_token),
                 Err(_) => return Err(Error::Message("Authentication unsucessful".to_string())),
             }
@@ -66,7 +67,7 @@ pub async fn get_api_token(
         String::new()
     };
 
-    while !is_token_valid(shasta_base_url, &shasta_token, shasta_root_cert)
+    while !quick_connectivity_test(shasta_base_url, &shasta_token, shasta_root_cert)
         .await
         .unwrap()
         && attempts < 3
@@ -119,7 +120,7 @@ pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, reqwe
     Ok(shasta_token.to_string())
 }
 
-pub async fn is_token_valid(
+pub async fn quick_connectivity_test(
     shasta_base_url: &str,
     shasta_token: &str,
     shasta_root_cert: &[u8],
@@ -127,6 +128,7 @@ pub async fn is_token_valid(
     let client;
 
     let client_builder = reqwest::Client::builder()
+        .connect_timeout(Duration::new(1, 0))
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
@@ -168,22 +170,6 @@ pub async fn is_token_valid(
             std::process::exit(1);
         }
     }
-    /* if let Ok(resp) = resp_rslt {
-        if resp.status().is_success() {
-            log::info!("Shasta token is valid");
-            Ok(true)
-        } else {
-            log::error!("Token is not valid - {}", resp.text().await?);
-            Ok(false)
-        }
-    } else {
-        eprintln!(
-            "Error connecting to Shasta API. Reason:\n{:?}. Exit",
-            resp_rslt
-        );
-        log::debug!("Response:\n{:#?}", resp_rslt);
-        std::process::exit(1);
-    } */
 }
 
 pub async fn get_token_from_shasta_endpoint(
