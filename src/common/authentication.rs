@@ -33,7 +33,7 @@ pub async fn get_api_token(
 
             shasta_token = value;
 
-            match quick_connectivity_test(shasta_base_url, &shasta_token, shasta_root_cert).await {
+            match test_client_api(shasta_base_url, &shasta_token, shasta_root_cert).await {
                 Ok(_) => return Ok(shasta_token),
                 Err(_) => return Err(Error::Message("Authentication unsucessful".to_string())),
             }
@@ -67,7 +67,7 @@ pub async fn get_api_token(
         String::new()
     };
 
-    while !quick_connectivity_test(shasta_base_url, &shasta_token, shasta_root_cert)
+    while !test_client_api(shasta_base_url, &shasta_token, shasta_root_cert)
         .await
         .unwrap()
         && attempts < 3
@@ -120,7 +120,7 @@ pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, reqwe
     Ok(shasta_token.to_string())
 }
 
-pub async fn quick_connectivity_test(
+pub async fn test_client_api(
     shasta_base_url: &str,
     shasta_token: &str,
     shasta_root_cert: &[u8],
@@ -147,16 +147,10 @@ pub async fn quick_connectivity_test(
 
     log::info!("Validate Shasta token against {}", api_url);
 
-    client
-        .get(api_url)
-        .bearer_auth(shasta_token)
-        .send()
-        .await
-        .map(|_| true) // return `true` if there is no error
+    let resp_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
-    /* match resp_rslt {
+    match resp_rslt {
         Ok(resp) => {
-            // Connectivity should be ok
             if resp.status().is_success() {
                 log::info!("Shasta token is valid");
                 return Ok(true);
@@ -170,7 +164,7 @@ pub async fn quick_connectivity_test(
             log::debug!("Response:\n{:#?}", error);
             std::process::exit(1);
         }
-    } */
+    }
 }
 
 pub async fn get_token_from_shasta_endpoint(
