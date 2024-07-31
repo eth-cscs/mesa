@@ -148,7 +148,6 @@ pub async fn test_client_api(
     let client;
 
     let client_builder = reqwest::Client::builder()
-        .connect_timeout(Duration::new(1, 0))
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
