@@ -174,7 +174,7 @@ pub async fn test_client_api(
                 log::info!("Shasta token is valid");
                 return Ok(true);
             } else {
-                let payload: Value = resp.json().await?;
+                let payload = resp.text().await?;
                 log::error!("Token is not valid - {}", payload);
                 return Ok(false);
             }
