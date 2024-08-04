@@ -64,14 +64,16 @@ pub async fn get_multiple(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    hsm_groups_node_list: &[String],
+    node_vec: &[String],
 ) -> Result<Vec<CfsComponent>, Error> {
     let start = Instant::now();
 
-    let chunk_size = 20;
-    let pipe_size = 10;
+    let num_xnames_per_request = 60;
+    let pipe_size = 15;
 
-    log::debug!("Number of nodes per request: {chunk_size}; Pipe size (semaphore): {pipe_size}");
+    log::debug!(
+        "Number of nodes per request: {num_xnames_per_request}; Pipe size (semaphore): {pipe_size}"
+    );
 
     let mut component_vec = Vec::new();
 
@@ -79,16 +81,16 @@ pub async fn get_multiple(
 
     let sem = Arc::new(Semaphore::new(pipe_size)); // CSM 1.3.1 higher number of concurrent tasks won't
 
-    let num_chunks = (hsm_groups_node_list.len() / chunk_size) + 1;
+    let num_requests = (node_vec.len() / num_xnames_per_request) + 1;
 
     let mut i = 1;
 
-    // Calculate number of digits of a number
-    let width = num_chunks.checked_ilog10().unwrap_or(0) as usize + 1;
+    // Calculate number of digits of a number (used for pretty formatting console messages)
+    let width = num_requests.checked_ilog10().unwrap_or(0) as usize + 1;
 
-    for sub_node_list in hsm_groups_node_list.chunks(chunk_size) {
+    for sub_node_list in node_vec.chunks(num_xnames_per_request) {
         log::info!(
-            "Getting CFS components batch [{i:>width$}/{num_chunks}] (batch size - {chunk_size})."
+            "Getting CFS components: processing batch [{i:>width$}/{num_requests}] (batch size - {num_xnames_per_request})"
         );
         io::stdout().flush().unwrap();
 
@@ -116,8 +118,6 @@ pub async fn get_multiple(
 
         i += 1;
     }
-
-    println!();
 
     while let Some(message) = tasks.join_next().await {
         if let Ok(mut cfs_component_vec) = message {
