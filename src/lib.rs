@@ -9,5 +9,6 @@ pub mod error;
 #[cfg(feature = "ochami")]
 pub mod hsm;
 pub mod ims;
+pub mod keycloak;
 pub mod node;
 pub mod pcs;
