@@ -306,7 +306,7 @@ pub mod bootparameters {
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             params
@@ -316,7 +316,13 @@ pub mod bootparameters {
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
@@ -333,7 +339,7 @@ pub mod bootparameters {
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             for (key, new_value) in new_params {
@@ -345,7 +351,13 @@ pub mod bootparameters {
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
