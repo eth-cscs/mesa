@@ -17,7 +17,7 @@ mod tests {
 
         let new_image_id = "my_new_image";
 
-        boot_parameters.set_boot_image(new_image_id);
+        boot_parameters.add_boot_image(new_image_id);
 
         let kernel_param_iter = boot_parameters.params.split_whitespace();
 
@@ -57,7 +57,7 @@ mod tests {
 
         let new_image_id = "my_new_image";
 
-        boot_parameters.set_boot_image(new_image_id);
+        boot_parameters.add_boot_image(new_image_id);
 
         let kernel_param_iter = boot_parameters.params.split_whitespace();
 

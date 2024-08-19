@@ -1,4 +1,6 @@
 pub mod v2 {
+    use std::collections::HashMap;
+
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -17,6 +19,7 @@ pub mod v2 {
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct Component {
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub id: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub state: Option<Vec<State>>,
@@ -28,17 +31,23 @@ pub mod v2 {
         pub desired_config: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(rename = "errorCount")]
-        pub error_count: Option<String>,
+        pub error_count: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(rename = "retryPolicy")]
-        pub retry_policy: Option<String>,
+        pub retry_policy: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub enabled: Option<bool>,
-        // tags: TODO: this is supposed to be an object??? https://csm12-apidocs.svc.cscs.ch/paas/cfs/operation/patch_component/#!path=tags&t=request
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(rename = "configurationStatus")]
+        pub configuration_status: Option<String>, //values unconfigured, pending, failed, configured
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub tags: Option<HashMap<String, String>>,
     }
 }
 
 pub mod v3 {
+    use std::collections::HashMap;
+
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -68,6 +77,11 @@ pub mod v3 {
         pub retry_policy: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub enabled: Option<bool>,
-        // tags: TODO: this is supposed to be an object??? https://csm12-apidocs.svc.cscs.ch/paas/cfs/operation/patch_component/#!path=tags&t=request
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub configuration_status: Option<String>, //values unconfigured, pending, failed, configured
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub tags: Option<HashMap<String, String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub logs: Option<String>,
     }
 }

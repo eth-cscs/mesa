@@ -14,8 +14,10 @@ pub struct ConfigurationStateLayer {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct CfsComponent {
-    pub id: String,
-    pub state: Vec<ConfigurationStateLayer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Vec<ConfigurationStateLayer>>,
     #[serde(rename = "stateAppend")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_append: Option<ConfigurationStateLayer>,

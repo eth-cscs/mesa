@@ -16,6 +16,9 @@ pub async fn update_component_desired_configuration(
         error_count: None,
         retry_policy: None,
         enabled: Some(enabled),
+        tags: None,
+        configuration_status: None,
+        logs: None,
     };
 
     let _ = crate::cfs::component::shasta::http_client::v3::patch_component(
@@ -46,6 +49,9 @@ pub async fn update_component_list_desired_configuration(
             error_count: None,
             retry_policy: None,
             enabled: Some(enabled),
+            tags: None,
+            configuration_status: None,
+            logs: None,
         };
 
         component_list.push(component);

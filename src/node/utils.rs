@@ -114,7 +114,7 @@ pub async fn get_node_details(
         // find component details
         let component_details_opt = components_status
             .iter()
-            .find(|component_status| component_status.id.eq(node));
+            .find(|component_status| component_status.id.as_ref().unwrap().eq(node));
 
         let component_details = if let Some(component_details) = component_details_opt {
             component_details
@@ -129,7 +129,7 @@ pub async fn get_node_details(
         let desired_configuration = &component_details.desired_config;
         let configuration_status = &component_details.configuration_status;
         let enabled = component_details.enabled;
-        let error_count = component_details.error_count;
+        let error_count = component_details.error_count.clone();
 
         // get power status
         let node_hsm_info = node_hsm_info_resp
@@ -192,10 +192,10 @@ pub async fn get_node_details(
             xname: node.to_string(),
             nid: node_nid,
             power_status: node_power_status,
-            desired_configuration: desired_configuration.to_owned(),
-            configuration_status: configuration_status.to_owned(),
-            enabled: enabled.to_string(),
-            error_count: error_count.to_string(),
+            desired_configuration: desired_configuration.as_ref().unwrap().to_string(),
+            configuration_status: configuration_status.as_ref().unwrap().to_string(),
+            enabled: enabled.unwrap().to_string(),
+            error_count: error_count.unwrap().to_string(),
             boot_image_id: kernel_image_path_in_boot_params,
             boot_configuration: cfs_configuration_boot,
             kernel_params,
