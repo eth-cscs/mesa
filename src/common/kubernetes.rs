@@ -8,6 +8,7 @@ use futures::{io::Lines, AsyncBufReadExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
 use k8s_openapi::api::core::v1::{ConfigMap, Container, Pod};
+use kube::api::DeleteParams;
 use kube::{
     api::{AttachParams, AttachedProcess},
     client::ConfigExt,
@@ -23,6 +24,8 @@ use futures::StreamExt;
 use secrecy::SecretString;
 use serde_json::Value;
 use termion::color;
+
+use crate::common::vault::http_client::fetch_shasta_k8s_secrets;
 
 pub async fn get_k8s_client_programmatically(
     k8s_api_url: &str,
@@ -337,17 +340,15 @@ pub async fn get_container_logs_stream(
     Ok(container_log_stream)
 }
 
-pub async fn print_cfs_session_logs(client: kube::Client, cfs_session_name: &str) {
-    let logs_stream_rslt =
-        get_cfs_session_container_git_clone_logs_stream(client.clone(), cfs_session_name).await;
+pub async fn print_cfs_session_logs(
+    client: kube::Client,
+    cfs_session_name: &str,
+) -> Result<(), Box<dyn Error + std::marker::Send + Sync>> {
+    let mut logs_stream =
+        get_cfs_session_container_git_clone_logs_stream(client.clone(), cfs_session_name).await?;
 
-    match logs_stream_rslt {
-        Ok(mut logs_stream) => {
-            while let Some(line) = logs_stream.try_next().await.unwrap() {
-                println!("{}", line);
-            }
-        }
-        Err(error_msg) => log::error!("{}", error_msg),
+    while let Some(line) = logs_stream.try_next().await.unwrap() {
+        println!("{}", line);
     }
 
     let mut logs_stream = get_cfs_session_container_ansible_logs_stream(client, cfs_session_name)
@@ -357,6 +358,8 @@ pub async fn print_cfs_session_logs(client: kube::Client, cfs_session_name: &str
     while let Some(line) = logs_stream.try_next().await.unwrap() {
         println!("{}", line);
     }
+
+    Ok(())
 }
 
 pub async fn get_configmap(
@@ -855,4 +858,37 @@ pub async fn get_output(mut attached: AttachedProcess) -> String {
         .join("");
     attached.join().await.unwrap();
     out
+}
+
+pub async fn delete_session_pod(
+    vault_base_url: &str,
+    vault_secret_path: &str,
+    vault_role_id: &str,
+    k8s_api_url: &str,
+    cfs_session_name: &str,
+) -> Result<(), Box<dyn Error + std::marker::Send + Sync>> {
+    let shasta_k8s_secrets =
+        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+
+    let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
+        .await
+        .unwrap();
+
+    let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
+
+    let params = kube::api::ListParams::default()
+        .limit(1)
+        .labels(format!("cfsession={}", cfs_session_name).as_str());
+
+    let pods = pods_api.list(&params).await?;
+    let cfs_session_pod = &pods.items[0].clone();
+
+    let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
+    log::info!("Pod to delete: {}", cfs_session_pod_name);
+
+    // Delete Pod
+    /* let dp = DeleteParams::default();
+    let _ = pods_api.delete(&cfs_session_pod_name, &dp).await; */
+
+    Ok(())
 }

@@ -89,10 +89,10 @@ pub async fn get_multiple(
     let width = num_requests.checked_ilog10().unwrap_or(0) as usize + 1;
 
     for sub_node_list in node_vec.chunks(num_xnames_per_request) {
+        let num_nodes_in_flight = sub_node_list.len();
         log::info!(
-            "Getting CFS components: processing batch [{i:>width$}/{num_requests}] (batch size - {num_xnames_per_request})"
+            "Getting CFS components: processing batch [{i:>width$}/{num_requests}] (batch size - {num_nodes_in_flight})"
         );
-        io::stdout().flush().unwrap();
 
         let shasta_token_string = shasta_token.to_string();
         let shasta_base_url_string = shasta_base_url.to_string();
@@ -100,7 +100,7 @@ pub async fn get_multiple(
 
         let hsm_subgroup_nodes_string: String = sub_node_list.join(",");
 
-        let permit = Arc::clone(&sem).acquire_owned().await;
+        let permit = sem.clone().acquire_owned().await.unwrap();
 
         tasks.spawn(async move {
             let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
