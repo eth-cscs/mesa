@@ -1,8 +1,4 @@
-use std::{
-    io::{self, Write},
-    sync::Arc,
-    time::Instant,
-};
+use std::{sync::Arc, time::Instant};
 
 use serde_json::Value;
 use tokio::sync::Semaphore;
