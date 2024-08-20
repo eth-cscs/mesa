@@ -350,7 +350,7 @@ pub mod http_client {
             log::info!("Checking nodes status: {:?}", xnames);
 
             let node_status_payload =
-                NodeStatus::new(None, Some(xnames.clone()), Some("hsm".to_string()));
+                NodeStatus::new(None, Some(xnames.clone()), Some("redfish".to_string()));
 
             let client;
 
