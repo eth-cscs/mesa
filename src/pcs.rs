@@ -185,8 +185,7 @@ pub mod transitions {
             operation: &str,
             xname: &str,
         ) -> Result<Transition, Error> {
-            log::info!("Create PCS transition '{}'", operation);
-            log::debug!("Create PCS transition request:\n{:#?}", operation);
+            log::info!("Create PCS transition '{}' on '{}'", operation, xname);
 
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -403,8 +402,6 @@ pub mod power_cap {
 
     pub mod r#struct {
         use serde::{Deserialize, Serialize};
-
-        use crate::pcs::transitions::r#struct::Operation;
 
         #[derive(Debug, Serialize, Deserialize)]
         pub struct PowerCapTaskList {
