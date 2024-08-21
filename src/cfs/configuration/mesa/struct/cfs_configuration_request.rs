@@ -81,6 +81,7 @@ pub mod v2 {
 
         pub async fn from_sat_file_serde_yaml(
             shasta_root_cert: &[u8],
+            gitea_base_url: &str,
             gitea_token: &str,
             configuration_yaml: &serde_yaml::Value,
             cray_product_catalog: &BTreeMap<String, String>,
@@ -103,7 +104,7 @@ pub mod v2 {
                     let tag_value_opt = layer_yaml["git"].get("tag");
                     let branch_value_opt = layer_yaml["git"].get("branch");
 
-                    let commit_id: Option<String> = if commit_id_value_opt.is_some() {
+                    let commit_id_opt: Option<String> = if commit_id_value_opt.is_some() {
                         // Git commit id
                         layer_yaml["git"]
                             .get("commit")
@@ -144,21 +145,41 @@ pub mod v2 {
                         tag_details["id"].as_str().map(|commit| commit.to_string())
                     } else if branch_value_opt.is_some() {
                         // Branch name
-                        None
+                        Some(
+                            gitea::http_client::get_commit_pointed_by_branch(
+                                gitea_base_url,
+                                gitea_token,
+                                shasta_root_cert,
+                                &repo_url,
+                                branch_value_opt.unwrap().as_str().unwrap(),
+                            )
+                            .await
+                            .unwrap(),
+                        )
                     } else {
                         // This should be an error but we will let CSM to handle this
                         None
                     };
 
+                    // IMPORTANT: CSM won't allow CFS configuration layers with both commit id and
+                    // branch name, therefore, we will set branch name to None if we already have a
+                    // commit id
+                    let branch_name = if commit_id_opt.is_some() {
+                        None
+                    } else {
+                        branch_value_opt
+                            .map(|branch_value| branch_value.as_str().unwrap().to_string())
+                    };
+
                     let layer = Layer::new(
                         repo_url,
-                        commit_id,
+                        commit_id_opt,
                         layer_name,
                         layer_yaml["playbook"]
                             .as_str()
                             .unwrap_or_default()
                             .to_string(),
-                        branch_value_opt.map(|branch| branch.as_str().unwrap().to_string()),
+                        branch_name,
                         None,
                         None,
                     );
@@ -206,28 +227,43 @@ pub mod v2 {
                         .to_string()
                         .replace("vcs.cmn.alps.cscs.ch", "api-gw-service-nmn.local");
 
-                    /* let repo_url = format!(
-                        "https://api-gw-service-nmn.local/vcs/cray/{}-config-management.git",
-                        layer_yaml["name"].as_str().unwrap()
-                    ); */
-
                     let commit_id_opt = if product_branch_value_opt.is_some() {
                         // If branch is provided, then ignore the commit id in the CRAY products table
-                        None
+
+                        let commit = Some(
+                            gitea::http_client::get_commit_pointed_by_branch(
+                                gitea_base_url,
+                                gitea_token,
+                                shasta_root_cert,
+                                &repo_url,
+                                product_branch_value_opt.unwrap().as_str().unwrap(),
+                            )
+                            .await
+                            .unwrap(),
+                        );
+
+                        commit
                     } else {
                         Some(product_details["commit"].as_str().unwrap().to_string())
                     };
 
+                    // IMPORTANT: CSM won't allow CFS configuration layers with both commit id and
+                    // branch name, therefore, we will set branch name to None if we already have a
+                    // commit id
+                    let branch_name = if commit_id_opt.is_some() {
+                        None
+                    } else {
+                        product_branch_value_opt
+                            .map(|branch_value| branch_value.as_str().unwrap().to_string())
+                    };
+
+                    // Create CFS configuration layer struct
                     let layer = Layer::new(
                         repo_url,
                         commit_id_opt,
-                        layer_yaml["product"]["name"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .to_string(),
+                        product_name.to_string(),
                         layer_yaml["playbook"].as_str().unwrap().to_string(),
-                        product_branch_value_opt
-                            .map(|branch_value| branch_value.as_str().unwrap().to_string()),
+                        branch_name,
                         None,
                         None,
                     );

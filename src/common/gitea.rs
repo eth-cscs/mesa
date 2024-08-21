@@ -71,6 +71,28 @@ pub mod http_client {
         }
     }
 
+    /// Get most commit id (sha) pointed by a branch
+    pub async fn get_commit_pointed_by_branch(
+        gitea_base_url: &str,
+        gitea_token: &str,
+        shasta_root_cert: &[u8],
+        repo_url: &str,
+        branch_name: &str,
+    ) -> Result<String, crate::error::Error> {
+        let all_ref_vec =
+            get_all_refs_from_repo_url(gitea_base_url, gitea_token, repo_url, shasta_root_cert)
+                .await?;
+
+        let ref_details_opt = all_ref_vec.into_iter().find(|ref_details| {
+            ref_details["ref"].as_str().unwrap() == format!("refs/heads/{}", branch_name)
+        });
+
+        match ref_details_opt {
+            Some(ref_details) => Ok(ref_details["object"]["sha"].as_str().unwrap().to_string()),
+            None => Err(Error::Message("SHA for branch not found".to_string())),
+        }
+    }
+
     /// Returns the commit id (sha) related to a tag name
     /// Used to translate CFS configuration layer tag name into commit id values when processing
     /// SAT files
