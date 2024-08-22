@@ -8,6 +8,8 @@ pub enum Error {
     Message(String),
     #[error("ERROR - IO: {0}")]
     IoError(#[from] io::Error),
+    #[error("ERROR - Serde: {0}")]
+    SerdeError(#[from] serde_json::Error),
     #[error("ERROR - Net: {0}")]
     NetError(#[from] reqwest::Error),
     #[error("ERROR - CSM: {0}")]

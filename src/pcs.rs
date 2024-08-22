@@ -17,17 +17,24 @@ pub mod transitions {
 
         #[derive(Debug, Serialize, Deserialize)]
         pub enum Operation {
+            #[serde(rename = "on")]
             On,
+            #[serde(rename = "off")]
             Off,
+            #[serde(rename = "soft-off")]
             SoftOff,
+            #[serde(rename = "soft-restart")]
             SoftRestart,
+            #[serde(rename = "hard-restart")]
             HardRestart,
+            #[serde(rename = "init")]
             Init,
+            #[serde(rename = "force-off")]
             ForceOff,
         }
 
         impl Operation {
-            pub fn to_string(&self) -> String {
+            /* pub fn to_string(&self) -> String {
                 match self {
                     Operation::On => "on".to_string(),
                     Operation::Off => "off".to_string(),
@@ -37,7 +44,7 @@ pub mod transitions {
                     Operation::Init => "init".to_string(),
                     Operation::ForceOff => "force-off".to_string(),
                 }
-            }
+            } */
 
             pub fn from_str(operation: &str) -> Result<Operation, Error> {
                 match operation {
@@ -53,39 +60,37 @@ pub mod transitions {
             }
         }
 
-        impl FromStr for Operation {
+        /* impl FromStr for Operation {
             type Err = Error;
 
             fn from_str(operation: &str) -> Result<Operation, Error> {
                 Self::from_str(operation)
             }
-        }
+        } */
 
         #[derive(Debug, Serialize, Deserialize)]
         pub struct Transition {
-            pub operation: Operation,
+            pub operation: String,
             #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "taskDeadlineMinutes")]
             pub task_deadline_minutes: Option<usize>,
-            pub location: Location,
+            pub location: Vec<Location>,
         }
     }
 
     pub mod http_client {
+        use std::time;
+
         use serde_json::Value;
 
-        use crate::{
-            error::Error,
-            pcs::transitions::r#struct::{Location, Operation},
-        };
+        use crate::{error::Error, pcs::transitions::r#struct::Location};
 
         use super::r#struct::Transition;
-
         pub async fn get(
             shasta_base_url: &str,
             shasta_token: &str,
             shasta_root_cert: &[u8],
-        ) -> Result<Vec<Transition>, Error> {
+        ) -> Result<Vec<Value>, Error> {
             let client;
 
             let client_builder = reqwest::Client::builder()
@@ -118,9 +123,8 @@ pub mod transitions {
                     .await
                     .map_err(|error| Error::NetError(error))?;
 
-                serde_json::from_value::<Vec<Transition>>(resp_payload["transitions"].clone())
-                    .map_err(|error| Error::Message(error.to_string())) // TODO: Fix
-                                                                        // this by adding a fiend in Error compatible with serde_json::Error
+                serde_json::from_value::<Vec<Value>>(resp_payload["transitions"].clone())
+                    .map_err(|error| Error::SerdeError(error))
             } else {
                 let payload = response
                     .json::<Value>()
@@ -136,7 +140,7 @@ pub mod transitions {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             id: &str,
-        ) -> Result<Transition, Error> {
+        ) -> Result<Value, Error> {
             let client;
 
             let client_builder = reqwest::Client::builder()
@@ -164,10 +168,14 @@ pub mod transitions {
                 .map_err(|error| Error::NetError(error))?;
 
             if response.status().is_success() {
-                response
+                let payload = response
                     .json()
                     .await
-                    .map_err(|error| Error::NetError(error))
+                    .map_err(|error| Error::NetError(error));
+
+                log::debug!("PCS transition details\n{:#?}", payload);
+
+                payload
             } else {
                 let payload = response
                     .json::<Value>()
@@ -183,14 +191,35 @@ pub mod transitions {
             shasta_token: &str,
             shasta_root_cert: &[u8],
             operation: &str,
-            xname: &str,
-        ) -> Result<Transition, Error> {
-            log::info!("Create PCS transition '{}' on '{}'", operation, xname);
+            xname_vec: &Vec<String>,
+        ) -> Result<Value, Error> {
+            log::info!("Create PCS transition '{}' on {:?}", operation, xname_vec);
 
+            //Create request payload
+            //
+            // Create 'location' list with all the xnames to operate
+            let mut location_vec: Vec<Location> = Vec::new();
+
+            for xname in xname_vec {
+                let location: Location = Location {
+                    xname: xname.to_string(),
+                    deputy_key: None,
+                };
+
+                location_vec.push(location);
+            }
+
+            // Create 'transition'
+            let request_payload = Transition {
+                operation: operation.to_string(),
+                task_deadline_minutes: None,
+                location: location_vec,
+            };
+
+            // Build http client
             let client_builder = reqwest::Client::builder()
                 .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
-            // Build client
             let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
                 // socks5 proxy
                 log::debug!("SOCKS5 enabled");
@@ -204,17 +233,9 @@ pub mod transitions {
 
             let api_url = shasta_base_url.to_owned() + "/power-control/v1/transitions";
 
-            let request_payload = Transition {
-                operation: Operation::from_str(operation)?,
-                task_deadline_minutes: None,
-                location: Location {
-                    xname: xname.to_string(),
-                    deputy_key: None,
-                },
-            };
-
+            // Submit call to http api
             let response = client
-                .put(api_url)
+                .post(api_url)
                 .json(&request_payload)
                 .bearer_auth(shasta_token)
                 .send()
@@ -222,17 +243,91 @@ pub mod transitions {
                 .map_err(|error| Error::NetError(error))?;
 
             if response.status().is_success() {
-                Ok(response
-                    .json()
-                    .await
-                    .map_err(|error| Error::NetError(error))?)
+                Ok(response.json::<Value>().await.unwrap())
             } else {
-                let payload = response
-                    .json::<Value>()
-                    .await
-                    .map_err(|error| Error::NetError(error))?;
+                let payload = response.json().await.map_err(|e| Error::NetError(e))?;
 
                 Err(Error::CsmError(payload))
+            }
+        }
+
+        pub async fn post_block(
+            shasta_base_url: &str,
+            shasta_token: &str,
+            shasta_root_cert: &[u8],
+            operation: &str,
+            xname_vec: &Vec<String>,
+        ) -> Result<(), Error> {
+            let node_reset = post(
+                shasta_base_url,
+                shasta_token,
+                shasta_root_cert,
+                operation,
+                xname_vec,
+            )
+            .await?;
+
+            let transition_id = node_reset["transitionID"].as_str().unwrap();
+
+            log::info!("PCS transition ID: {}", transition_id);
+
+            let _ = wait_to_complete(
+                shasta_base_url,
+                shasta_token,
+                shasta_root_cert,
+                xname_vec,
+                transition_id,
+            )
+            .await?;
+
+            Ok(())
+        }
+
+        pub async fn wait_to_complete(
+            shasta_base_url: &str,
+            shasta_token: &str,
+            shasta_root_cert: &[u8],
+            xname_vec: &Vec<String>,
+            transition_id: &str,
+        ) -> Result<(), Error> {
+            let mut transition_status = "";
+
+            let mut transition: serde_json::Value = get_by_id(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                transition_id,
+            )
+            .await?;
+
+            let mut i = 1;
+            let max_attempt = 90;
+
+            while i <= max_attempt && transition_status != "completed" {
+                // Check PCS transition status
+                transition = get_by_id(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    transition_id,
+                )
+                .await?;
+
+                transition_status = transition["transitionStatus"].as_str().unwrap();
+
+                println!(
+                    "Power reset node(s) {:?} status: {}. Attempt {} of {}",
+                    xname_vec, transition_status, i, max_attempt
+                );
+
+                tokio::time::sleep(time::Duration::from_secs(3)).await;
+                i += 1;
+            }
+
+            if transition_status == "completed" {
+                Ok(())
+            } else {
+                Err(Error::CsmError(transition))
             }
         }
     }

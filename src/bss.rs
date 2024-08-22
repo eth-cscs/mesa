@@ -1,6 +1,6 @@
 #[cfg(feature = "ochami")]
 pub mod bootparameters {
-    use std::{collections::HashMap, iter::Map, str::SplitWhitespace};
+    use std::collections::HashMap;
 
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
