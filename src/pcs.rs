@@ -1,7 +1,6 @@
 pub mod transitions {
 
     pub mod r#struct {
-        use std::str::FromStr;
 
         use serde::{Deserialize, Serialize};
 
@@ -70,7 +69,7 @@ pub mod transitions {
 
         #[derive(Debug, Serialize, Deserialize)]
         pub struct Transition {
-            pub operation: String,
+            pub operation: Operation,
             #[serde(skip_serializing_if = "Option::is_none")]
             #[serde(rename = "taskDeadlineMinutes")]
             pub task_deadline_minutes: Option<usize>,
@@ -83,7 +82,10 @@ pub mod transitions {
 
         use serde_json::Value;
 
-        use crate::{error::Error, pcs::transitions::r#struct::Location};
+        use crate::{
+            error::Error,
+            pcs::transitions::r#struct::{Location, Operation},
+        };
 
         use super::r#struct::Transition;
         pub async fn get(
@@ -211,7 +213,7 @@ pub mod transitions {
 
             // Create 'transition'
             let request_payload = Transition {
-                operation: operation.to_string(),
+                operation: Operation::from_str(operation)?,
                 task_deadline_minutes: None,
                 location: location_vec,
             };
@@ -251,13 +253,15 @@ pub mod transitions {
             }
         }
 
+        // Creates a task on CSM for power management nodes.
+        // Returns a serde_json::Value with the power task management
         pub async fn post_block(
             shasta_base_url: &str,
             shasta_token: &str,
             shasta_root_cert: &[u8],
             operation: &str,
             xname_vec: &Vec<String>,
-        ) -> Result<(), Error> {
+        ) -> Result<Value, Error> {
             let node_reset = post(
                 shasta_base_url,
                 shasta_token,
@@ -271,7 +275,7 @@ pub mod transitions {
 
             log::info!("PCS transition ID: {}", transition_id);
 
-            let _ = wait_to_complete(
+            let power_management_status: Value = wait_to_complete(
                 shasta_base_url,
                 shasta_token,
                 shasta_root_cert,
@@ -280,7 +284,7 @@ pub mod transitions {
             )
             .await?;
 
-            Ok(())
+            Ok(power_management_status)
         }
 
         pub async fn wait_to_complete(
@@ -289,7 +293,7 @@ pub mod transitions {
             shasta_root_cert: &[u8],
             xname_vec: &Vec<String>,
             transition_id: &str,
-        ) -> Result<(), Error> {
+        ) -> Result<Value, Error> {
             let mut transition_status = "";
 
             let mut transition: serde_json::Value = get_by_id(
@@ -301,7 +305,7 @@ pub mod transitions {
             .await?;
 
             let mut i = 1;
-            let max_attempt = 90;
+            let max_attempt = 100;
 
             while i <= max_attempt && transition_status != "completed" {
                 // Check PCS transition status
@@ -315,9 +319,47 @@ pub mod transitions {
 
                 transition_status = transition["transitionStatus"].as_str().unwrap();
 
+                let operation = transition["operation"].as_str().unwrap();
+
+                let failed = transition
+                    .pointer("/taskCounts/failed")
+                    .unwrap()
+                    .as_number()
+                    .unwrap();
+
+                let in_progress = transition
+                    .pointer("/taskCounts/in-progress")
+                    .unwrap()
+                    .as_number()
+                    .unwrap();
+
+                /* let new = transition
+                .pointer("/taskCounts/new")
+                .unwrap()
+                .as_number()
+                .unwrap(); */
+
+                let succeeded = transition
+                    .pointer("/taskCounts/succeeded")
+                    .unwrap()
+                    .as_number()
+                    .unwrap();
+
+                let total = transition
+                    .pointer("/taskCounts/total")
+                    .unwrap()
+                    .as_number()
+                    .unwrap();
+
+                /* let un_supported = transition
+                .pointer("/taskCounts/un-supported")
+                .unwrap()
+                .as_number()
+                .unwrap(); */
+
                 println!(
-                    "Power reset node(s) {:?} status: {}. Attempt {} of {}",
-                    xname_vec, transition_status, i, max_attempt
+                    "Power '{}' summary - status: {}, failed: {}, in-progress: {}, succeeded: {}, total: {}. Attempt {} of {}",
+                    operation, transition_status, failed, in_progress, succeeded, total, i, max_attempt
                 );
 
                 tokio::time::sleep(time::Duration::from_secs(3)).await;
@@ -325,7 +367,7 @@ pub mod transitions {
             }
 
             if transition_status == "completed" {
-                Ok(())
+                Ok(transition)
             } else {
                 Err(Error::CsmError(transition))
             }
