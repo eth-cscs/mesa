@@ -40,6 +40,8 @@ pub async fn get_container_attachment_to_conman(
     let console_operator_pod = &pods_objects.items[0];
     let console_operator_pod_name = console_operator_pod.metadata.name.clone().unwrap();
 
+    log::info!("Console operator pod name '{}'", console_operator_pod_name);
+
     let mut attached = pods_fabric
         .exec(
             &console_operator_pod_name,
@@ -83,7 +85,7 @@ pub async fn get_container_attachment_to_conman(
         attachment
     } else {
         eprintln!(
-            "Error attaching to container 'cray-console-node' in pod {}. Exit",
+            "Error attaching to container 'cray-console-node' in pod '{}'. Exit",
             console_pod_name
         );
         std::process::exit(1);
@@ -236,7 +238,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
         attachment
     } else {
         eprintln!(
-            "Error attaching to container 'sshd' in pod {}. Exit",
+            "Error attaching to container 'sshd' in pod '{}'. Exit",
             console_operator_pod_name
         );
         std::process::exit(1);
