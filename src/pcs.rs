@@ -305,7 +305,7 @@ pub mod transitions {
             .await?;
 
             let mut i = 1;
-            let max_attempt = 100;
+            let max_attempt = 300;
 
             while i <= max_attempt && transition_status != "completed" {
                 // Check PCS transition status
