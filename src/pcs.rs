@@ -357,7 +357,7 @@ pub mod transitions {
                 .as_number()
                 .unwrap(); */
 
-                println!(
+                eprintln!(
                     "Power '{}' summary - status: {}, failed: {}, in-progress: {}, succeeded: {}, total: {}. Attempt {} of {}",
                     operation, transition_status, failed, in_progress, succeeded, total, i, max_attempt
                 );
