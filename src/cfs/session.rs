@@ -194,7 +194,10 @@ pub mod shasta {
     pub mod v3 {
         use serde_json::Value;
 
-        use crate::{cfs::session::mesa::r#struct::v2::CfsSessionGetResponse, error::Error};
+        use crate::{
+            cfs::session::mesa::r#struct::v3::{CfsSessionGetResponse, CfsSessionPostRequest},
+            error::Error,
+        };
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         pub async fn get(
@@ -227,9 +230,9 @@ pub mod shasta {
             };
 
             let api_url: String = if let Some(session_name) = session_name_opt {
-                shasta_base_url.to_owned() + "/cfs/v2/sessions/" + session_name
+                shasta_base_url.to_owned() + "/cfs/v3/sessions/" + session_name
             } else {
-                shasta_base_url.to_owned() + "/cfs/v2/sessions"
+                shasta_base_url.to_owned() + "/cfs/v3/sessions"
             };
 
             // Add params to request
@@ -289,6 +292,53 @@ pub mod shasta {
                         .await
                         .map_err(|error| Error::NetError(error))
                 }
+            } else {
+                let payload = response
+                    .json::<Value>()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+                Err(Error::CsmError(payload))
+            }
+        }
+
+        pub async fn post(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            session: &CfsSessionPostRequest,
+        ) -> Result<CfsSessionGetResponse, Error> {
+            log::debug!("Session:\n{:#?}", session);
+
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                // rest client to authenticate
+                client_builder.proxy(socks5proxy).build()?
+            } else {
+                client_builder.build()?
+            };
+
+            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+
+            let response = client
+                .post(api_url)
+                .json(&session)
+                .bearer_auth(shasta_token)
+                .send()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+
+            if response.status().is_success() {
+                Ok(response
+                    .json()
+                    .await
+                    .map_err(|error| Error::NetError(error))?)
             } else {
                 let payload = response
                     .json::<Value>()

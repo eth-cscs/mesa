@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     bos,
-    bss::bootparameters::http_client::get_raw,
+    bss::bootparameters::{http_client::get_raw, BootParameters},
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::r#struct::Image, public_keys::http_client::v3::get},
 };
@@ -165,6 +165,7 @@ pub async fn filter(
 
         let target_group_name_vec: Vec<String>;
         let cfs_configuration: String;
+        let target_groups: String;
 
         if let Some(tuple) = image_id_cfs_configuration_from_cfs_session
             .iter()
@@ -173,6 +174,7 @@ pub async fn filter(
             // Image details in CFS session
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
+            target_groups = target_group_name_vec.join(", ");
         } else if let Some(tuple) = image_id_cfs_configuration_from_cfs_session_vec
             .iter()
             .find(|tuple| tuple.0.eq(image_id))
@@ -180,6 +182,7 @@ pub async fn filter(
             // Image details in BOS session template
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
+            target_groups = target_group_name_vec.join(", ");
         } else if image_id_from_boot_params.contains(image_id)
             || hsm_group_name_vec
                 .iter()
@@ -187,13 +190,17 @@ pub async fn filter(
         {
             // Image details where image is found in a node boot param related to HSM we are
             // working with
+            // Boot params don't have CFS configuration information
             cfs_configuration = "Not found".to_string();
-            target_group_name_vec = vec![];
+            let xnames: Vec<&BootParameters> = boot_param_value_vec
+                .iter()
+                .filter(|boot_parameter| boot_parameter.hosts.contains(image_id))
+                .collect();
+
+            target_groups = "Not found".to_string();
         } else {
             continue;
         }
-
-        let target_groups = target_group_name_vec.join(", ");
 
         image_detail_vec.push((
             image.clone(),
