@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use regex::Regex;
 use serde_json::Value;
@@ -56,64 +56,53 @@ pub async fn get_node_details(
 ) -> Vec<NodeDetails> {
     let start = Instant::now();
 
-    // Get CFS component status
-    let components_status = cfs::component::mesa::http_client::get_multiple(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        &hsm_groups_node_list,
-    )
-    .await
-    .unwrap();
-
-    // Get boot params to get the boot image id for each node
-    let node_boot_params_vec = crate::bss::bootparameters::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        &hsm_groups_node_list,
-    )
-    .await
-    .unwrap();
-
-    // Get HSM component status (needed to get NIDS)
-    let node_hsm_info_resp = hsm::component_status::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        &hsm_groups_node_list,
-    )
-    .await
-    .unwrap();
-
-    // Get CFS sessions
-    let cfs_session_vec = crate::cfs::session::mesa::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        None,
-        None,
-        None,
-        None,
-        Some(true),
-    )
-    .await
-    .unwrap();
-
-    // Get BOS session template
-    let _ = crate::bos::template::mesa::http_client::get_all(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-    )
-    .await
-    .unwrap();
+    let (
+        components_status_rslt,
+        node_boot_params_vec_rslt,
+        node_hsm_info_rslt,
+        cfs_session_vec_rslt,
+    ) = tokio::join!(
+        // Get CFS component status
+        cfs::component::mesa::http_client::get_multiple(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &hsm_groups_node_list,
+        ),
+        // Get boot params to get the boot image id for each node
+        crate::bss::bootparameters::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &hsm_groups_node_list,
+        ),
+        // Get HSM component status (needed to get NIDS)
+        hsm::component_status::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &hsm_groups_node_list,
+        ),
+        // Get CFS sessions
+        crate::cfs::session::mesa::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            None,
+            None,
+            None,
+            None,
+            Some(true),
+        )
+    );
 
     // match node with bot_sessiontemplate and put them in a list
     let mut node_details_vec = Vec::new();
 
     for node in &hsm_groups_node_list {
         // let mut node_details = Vec::new();
+
+        let components_status = components_status_rslt.as_ref().unwrap();
 
         // find component details
         let component_details_opt = components_status
@@ -136,12 +125,11 @@ pub async fn get_node_details(
         let error_count = component_details.error_count.clone();
 
         // get power status
-        let node_hsm_info = node_hsm_info_resp
-            // ["Components"]
-            // .as_array()
-            // .unwrap()
+        let node_hsm_info = node_hsm_info_rslt
+            .as_ref()
+            .unwrap()
             .iter()
-            .find(|&component| component["ID"].as_str().unwrap().eq(node))
+            .find(|component| component["ID"].as_str().unwrap().eq(node))
             .unwrap();
 
         let node_power_status = node_hsm_info["State"]
@@ -161,7 +149,7 @@ pub async fn get_node_details(
         let (kernel_image_path_in_boot_params, kernel_params): (String, String) =
             if let Some(node_boot_params) =
                 bss::bootparameters::utils::find_boot_params_related_to_node(
-                    &node_boot_params_vec,
+                    &node_boot_params_vec_rslt.as_ref().unwrap(),
                     node,
                 )
             {
@@ -174,7 +162,7 @@ pub async fn get_node_details(
         // Get CFS configuration related to image id
         let cfs_session_related_to_image_id_opt =
             cfs::session::mesa::utils::find_cfs_session_related_to_image_id(
-                &cfs_session_vec,
+                &cfs_session_vec_rslt.as_ref().unwrap(),
                 &kernel_image_path_in_boot_params,
             );
 
@@ -192,9 +180,6 @@ pub async fn get_node_details(
             "Not found".to_string()
         };
 
-        let duration = start.elapsed();
-        log::info!("Time elapsed to get node details is: {:?}", duration);
-
         let node_details = NodeDetails {
             xname: node.to_string(),
             nid: node_nid,
@@ -210,6 +195,9 @@ pub async fn get_node_details(
 
         node_details_vec.push(node_details);
     }
+
+    let duration = start.elapsed();
+    log::info!("Time elapsed to get node details is: {:?}", duration);
 
     node_details_vec
 }
