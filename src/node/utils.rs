@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use regex::Regex;
 use serde_json::Value;
 
@@ -52,6 +54,8 @@ pub async fn get_node_details(
     shasta_root_cert: &[u8],
     hsm_groups_node_list: Vec<String>,
 ) -> Vec<NodeDetails> {
+    let start = Instant::now();
+
     // Get CFS component status
     let components_status = cfs::component::mesa::http_client::get_multiple(
         shasta_token,
@@ -187,6 +191,9 @@ pub async fn get_node_details(
             );
             "Not found".to_string()
         };
+
+        let duration = start.elapsed();
+        log::info!("Time elapsed to get node details is: {:?}", duration);
 
         let node_details = NodeDetails {
             xname: node.to_string(),
