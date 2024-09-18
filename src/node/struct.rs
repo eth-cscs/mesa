@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct NodeDetails {
     pub xname: String,
     pub nid: String,
+    pub hsm: String,
     pub power_status: String,
     pub desired_configuration: String,
     pub configuration_status: String,

@@ -52,7 +52,7 @@ pub async fn get_node_details(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    hsm_groups_node_list: Vec<String>,
+    node_list: Vec<String>,
 ) -> Vec<NodeDetails> {
     let start = Instant::now();
 
@@ -67,21 +67,21 @@ pub async fn get_node_details(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &hsm_groups_node_list,
+            &node_list,
         ),
         // Get boot params to get the boot image id for each node
         crate::bss::bootparameters::http_client::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &hsm_groups_node_list,
+            &node_list,
         ),
         // Get HSM component status (needed to get NIDS)
         hsm::component_status::http_client::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &hsm_groups_node_list,
+            &node_list,
         ),
         // Get CFS sessions
         crate::cfs::session::mesa::http_client::get(
@@ -99,7 +99,7 @@ pub async fn get_node_details(
     // match node with bot_sessiontemplate and put them in a list
     let mut node_details_vec = Vec::new();
 
-    for node in &hsm_groups_node_list {
+    for node in &node_list {
         // let mut node_details = Vec::new();
 
         let components_status = components_status_rslt.as_ref().unwrap();
@@ -180,9 +180,22 @@ pub async fn get_node_details(
             "Not found".to_string()
         };
 
+        let membership = hsm::memberships::http_client::get_xname(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            node,
+        )
+        .await
+        .expect(&format!(
+            "ERROR - could not get node '{}' membership from HSM",
+            node
+        ));
+
         let node_details = NodeDetails {
             xname: node.to_string(),
             nid: node_nid,
+            hsm: membership.group_labels.join(", "),
             power_status: node_power_status,
             desired_configuration: desired_configuration.as_ref().unwrap().to_string(),
             configuration_status: configuration_status.as_ref().unwrap().to_string(),
