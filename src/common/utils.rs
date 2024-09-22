@@ -5,7 +5,7 @@ use crate::{
     cfs::{
         self,
         configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
-        session::mesa::r#struct::v2::CfsSessionGetResponse,
+        session::mesa::r#struct::v3::CfsSessionGetResponse,
     },
     ims::{self, image::r#struct::Image},
 };

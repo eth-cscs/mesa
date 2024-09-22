@@ -3,7 +3,7 @@ use crate::{
     cfs::{
         self, component::shasta::r#struct::v2::Component,
         configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
-        session::mesa::r#struct::v2::CfsSessionGetResponse,
+        session::mesa::r#struct::v3::CfsSessionGetResponse,
     },
     hsm,
     ims::image::r#struct::Image,

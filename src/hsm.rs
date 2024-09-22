@@ -495,7 +495,7 @@ pub mod group {
         use tokio::sync::Semaphore;
 
         use crate::{
-            cfs::session::mesa::r#struct::v2::CfsSessionGetResponse,
+            cfs::session::mesa::r#struct::v3::CfsSessionGetResponse,
             error::Error,
             hsm::group::{
                 http_client::{get, post_member},

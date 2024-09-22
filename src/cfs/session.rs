@@ -189,162 +189,209 @@ pub mod shasta {
                 }
             }
         }
-    }
 
-    pub mod v3 {
-        use serde_json::Value;
+        pub mod v3 {
+            use serde_json::Value;
 
-        use crate::{
-            cfs::session::mesa::r#struct::v3::{CfsSessionGetResponse, CfsSessionPostRequest},
-            error::Error,
-        };
-
-        /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
-        pub async fn get(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-            session_name_opt: Option<&String>,
-            limit_opt: Option<u8>,
-            after_id_opt: Option<String>,
-            min_age_opt: Option<String>,
-            max_age_opt: Option<String>,
-            status_opt: Option<String>,
-            name_contains_opt: Option<String>,
-            is_succeded_opt: Option<bool>,
-            tags_opt: Option<String>,
-        ) -> Result<Vec<CfsSessionGetResponse>, Error> {
-            let client_builder = reqwest::Client::builder()
-                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-            // Build client
-            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-                // socks5 proxy
-                log::debug!("SOCKS5 enabled");
-                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
-
-                // rest client to authenticate
-                client_builder.proxy(socks5proxy).build()?
-            } else {
-                client_builder.build()?
+            use crate::{
+                cfs::session::mesa::r#struct::v3::{
+                    CfsSessionGetResponse, CfsSessionGetResponseList, CfsSessionPostRequest,
+                },
+                error::Error,
             };
 
-            let api_url: String = if let Some(session_name) = session_name_opt {
-                shasta_base_url.to_owned() + "/cfs/v3/sessions/" + session_name
-            } else {
-                shasta_base_url.to_owned() + "/cfs/v3/sessions"
-            };
+            /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
+            pub async fn get(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                session_name_opt: Option<&String>,
+                limit_opt: Option<u8>,
+                after_id_opt: Option<String>,
+                min_age_opt: Option<String>,
+                max_age_opt: Option<String>,
+                status_opt: Option<String>,
+                name_contains_opt: Option<String>,
+                is_succeded_opt: Option<bool>,
+                tags_opt: Option<String>,
+            ) -> Result<Vec<CfsSessionGetResponse>, Error> {
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
-            // Add params to request
-            let mut request_payload = Vec::new();
+                // Build client
+                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
 
-            if let Some(limit) = limit_opt {
-                request_payload.push(("limit", limit.to_string()));
-            }
+                    // rest client to authenticate
+                    client_builder.proxy(socks5proxy).build()?
+                } else {
+                    client_builder.build()?
+                };
 
-            if let Some(after_id) = after_id_opt {
-                request_payload.push(("after_id", after_id.to_string()));
-            }
+                let api_url: String = if let Some(session_name) = session_name_opt {
+                    shasta_base_url.to_owned() + "/cfs/v3/sessions/" + session_name
+                } else {
+                    shasta_base_url.to_owned() + "/cfs/v3/sessions"
+                };
 
-            if let Some(min_age) = min_age_opt {
-                request_payload.push(("min_age", min_age));
-            }
+                // Add params to request
+                let mut request_payload = Vec::new();
 
-            if let Some(max_age) = max_age_opt {
-                request_payload.push(("max_age", max_age));
-            }
+                if let Some(limit) = limit_opt {
+                    request_payload.push(("limit", limit.to_string()));
+                }
 
-            if let Some(status) = status_opt {
-                request_payload.push(("status", status));
-            }
+                if let Some(after_id) = after_id_opt {
+                    request_payload.push(("after_id", after_id.to_string()));
+                }
 
-            if let Some(name_contains) = name_contains_opt {
-                request_payload.push(("name_contains", name_contains));
-            }
+                if let Some(min_age) = min_age_opt {
+                    request_payload.push(("min_age", min_age));
+                }
 
-            if let Some(is_succeded) = is_succeded_opt {
-                request_payload.push(("succeced", is_succeded.to_string()));
-            }
+                if let Some(max_age) = max_age_opt {
+                    request_payload.push(("max_age", max_age));
+                }
 
-            if let Some(tags) = tags_opt {
-                request_payload.push(("tags", tags));
-            }
+                if let Some(status) = status_opt {
+                    request_payload.push(("status", status));
+                }
 
-            let response = client
-                .get(api_url)
-                .bearer_auth(shasta_token)
-                .send()
-                .await
-                .map_err(|error| Error::NetError(error))?;
+                if let Some(name_contains) = name_contains_opt {
+                    request_payload.push(("name_contains", name_contains));
+                }
 
-            if response.status().is_success() {
-                // Make sure we return a vec if user requesting a single value
-                if session_name_opt.is_some() {
+                if let Some(is_succeded) = is_succeded_opt {
+                    request_payload.push(("succeced", is_succeded.to_string()));
+                }
+
+                if let Some(tags) = tags_opt {
+                    request_payload.push(("tags", tags));
+                }
+
+                let response = client
+                    .get(api_url)
+                    .bearer_auth(shasta_token)
+                    .send()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+
+                if response.status().is_success() {
+                    // Make sure we return a vec if user requesting a single value
+                    if session_name_opt.is_some() {
+                        response
+                            .json::<CfsSessionGetResponse>()
+                            .await
+                            .map(|payload| vec![payload])
+                            .map_err(|error| Error::NetError(error))
+                    } else {
+                        response
+                            .json::<CfsSessionGetResponseList>()
+                            .await
+                            .map(|payload| payload.sessions)
+                            .map_err(|error| Error::NetError(error))
+                    }
+                } else {
                     let payload = response
-                        .json::<CfsSessionGetResponse>()
+                        .json::<Value>()
                         .await
                         .map_err(|error| Error::NetError(error))?;
+                    Err(Error::CsmError(payload))
+                }
+            }
 
-                    Ok(vec![payload])
+            pub async fn post(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                session: &CfsSessionPostRequest,
+            ) -> Result<CfsSessionGetResponse, Error> {
+                log::debug!("Session:\n{:#?}", session);
+
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+                // Build client
+                let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                    // rest client to authenticate
+                    client_builder.proxy(socks5proxy).build()?
                 } else {
-                    response
+                    client_builder.build()?
+                };
+
+                let api_url = shasta_base_url.to_owned() + "/cfs/v3/sessions";
+
+                let response = client
+                    .post(api_url)
+                    .json(&session)
+                    .bearer_auth(shasta_token)
+                    .send()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+
+                if response.status().is_success() {
+                    Ok(response
                         .json()
                         .await
-                        .map_err(|error| Error::NetError(error))
+                        .map_err(|error| Error::NetError(error))?)
+                } else {
+                    let payload = response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+                    Err(Error::CsmError(payload))
                 }
-            } else {
-                let payload = response
-                    .json::<Value>()
-                    .await
-                    .map_err(|error| Error::NetError(error))?;
-                Err(Error::CsmError(payload))
             }
-        }
 
-        pub async fn post(
-            shasta_token: &str,
-            shasta_base_url: &str,
-            shasta_root_cert: &[u8],
-            session: &CfsSessionPostRequest,
-        ) -> Result<CfsSessionGetResponse, Error> {
-            log::debug!("Session:\n{:#?}", session);
+            pub async fn delete(
+                shasta_token: &str,
+                shasta_base_url: &str,
+                shasta_root_cert: &[u8],
+                session_name: &str,
+            ) -> Result<(), Error> {
+                log::info!("Deleting CFS session id: {}", session_name);
 
-            let client_builder = reqwest::Client::builder()
-                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+                let client;
 
-            // Build client
-            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-                // socks5 proxy
-                log::debug!("SOCKS5 enabled");
-                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+                let client_builder = reqwest::Client::builder()
+                    .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
-                // rest client to authenticate
-                client_builder.proxy(socks5proxy).build()?
-            } else {
-                client_builder.build()?
-            };
+                // Build client
+                if std::env::var("SOCKS5").is_ok() {
+                    // socks5 proxy
+                    log::debug!("SOCKS5 enabled");
+                    let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
 
-            let api_url = shasta_base_url.to_owned() + "/cfs/v2/sessions";
+                    // rest client to authenticate
+                    client = client_builder.proxy(socks5proxy).build()?;
+                } else {
+                    client = client_builder.build()?;
+                }
 
-            let response = client
-                .post(api_url)
-                .json(&session)
-                .bearer_auth(shasta_token)
-                .send()
-                .await
-                .map_err(|error| Error::NetError(error))?;
+                let api_url = shasta_base_url.to_owned() + "/cfs/v3/sessions/" + session_name;
 
-            if response.status().is_success() {
-                Ok(response
-                    .json()
-                    .await
-                    .map_err(|error| Error::NetError(error))?)
-            } else {
-                let payload = response
-                    .json::<Value>()
+                let response = client
+                    .delete(api_url)
+                    .bearer_auth(shasta_token)
+                    .send()
                     .await
                     .map_err(|error| Error::NetError(error))?;
-                Err(Error::CsmError(payload))
+
+                if response.status().is_success() {
+                    Ok(())
+                } else {
+                    let payload = response
+                        .json::<Value>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+                    Err(Error::CsmError(payload))
+                }
             }
         }
     }
@@ -812,6 +859,19 @@ pub mod mesa {
             use serde::{Deserialize, Serialize};
 
             #[derive(Debug, Serialize, Deserialize, Clone)]
+            pub struct CfsSessionGetResponseList {
+                pub sessions: Vec<CfsSessionGetResponse>,
+                pub next: Option<Next>,
+            }
+
+            #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+            pub struct Next {
+                limit: Option<u8>,
+                after_id: Option<String>,
+                in_use: Option<bool>,
+            }
+
+            #[derive(Debug, Serialize, Deserialize, Clone)]
             pub struct CfsSessionGetResponse {
                 #[serde(skip_serializing_if = "Option::is_none")]
                 pub name: Option<String>,
@@ -825,12 +885,45 @@ pub mod mesa {
                 pub status: Option<Status>,
                 #[serde(skip_serializing_if = "Option::is_none")]
                 pub tags: Option<HashMap<String, String>>,
-                pub debug_on_failure: Option<bool>,
+                pub debug_on_failure: bool,
                 pub logs: Option<String>,
             }
 
             impl CfsSessionGetResponse {
+                /// Get start time
+                pub fn get_start_time(&self) -> Option<String> {
+                    self.status.as_ref().and_then(|status| {
+                        status
+                            .session
+                            .as_ref()
+                            .and_then(|session| session.start_time.clone())
+                    })
+                }
+
                 /// Returns list of result_ids
+                pub fn get_result_id_vec(&self) -> Vec<String> {
+                    if let Some(status) = &self.status {
+                        status
+                            .artifacts
+                            .as_ref()
+                            .unwrap_or(&Vec::new())
+                            .into_iter()
+                            .filter(|artifact| artifact.result_id.is_some())
+                            .map(|artifact| artifact.result_id.clone().unwrap())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    }
+                }
+
+                /// Returns list of result_ids
+                pub fn get_first_result_id(&self) -> Option<String> {
+                    CfsSessionGetResponse::get_result_id_vec(&self)
+                        .first()
+                        .cloned()
+                }
+
+                /* /// Returns list of result_ids
                 pub fn get_result_id(&self) -> Option<String> {
                     self.status.as_ref().and_then(|status| {
                         status.artifacts.as_ref().and_then(|artifacts| {
@@ -839,7 +932,7 @@ pub mod mesa {
                                 .and_then(|artifact| artifact.result_id.clone())
                         })
                     })
-                }
+                } */
 
                 /// Returns list of HSM groups targeted
                 pub fn get_target_hsm(&self) -> Option<Vec<String>> {
@@ -970,7 +1063,7 @@ pub mod mesa {
                 pub target: Target,
                 #[serde(skip_serializing_if = "Option::is_none")]
                 pub tags: Option<HashMap<String, String>>,
-                pub debug_on_failure: Option<bool>,
+                pub debug_on_failure: bool,
             }
 
             #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -993,6 +1086,61 @@ pub mod mesa {
                 source_id: String,
                 result_name: String,
             }
+
+            impl CfsSessionPostRequest {
+                pub fn new(
+                    name: String,
+                    configuration_name: String,
+                    configuration_limit: Option<String>,
+                    ansible_limit: Option<String>,
+                    ansible_config: Option<String>,
+                    ansible_verbosity: Option<u8>,
+                    ansible_passthrough: Option<String>,
+                    is_target_definition_image: bool,
+                    groups_name: Option<Vec<String>>,
+                    base_image_id: Option<String>,
+                    tags: Option<HashMap<String, String>>,
+                    debug_on_failure: bool,
+                    result_image_name: Option<String>,
+                ) -> Self {
+                    // This code is fine... the fact that I put Self behind a variable is ok, since image param
+                    // is not a default param, then doing things differently is not an issue. I checked with
+                    // other Rust developers in their discord https://discord.com/channels/442252698964721669/448238009733742612/1081686300182188207
+                    let mut cfs_session = Self {
+                        name,
+                        configuration_name,
+                        configuration_limit,
+                        ansible_config,
+                        ansible_limit,
+                        ansible_verbosity,
+                        ansible_passthrough,
+                        ..Default::default()
+                    };
+
+                    if is_target_definition_image {
+                        let target_groups: Vec<Group> = groups_name
+                            .unwrap()
+                            .into_iter()
+                            .map(|group_name| Group {
+                                name: group_name,
+                                members: vec![base_image_id.as_ref().unwrap().to_string()],
+                            })
+                            .collect();
+
+                        cfs_session.target.definition = Some("image".to_string());
+                        cfs_session.target.groups = Some(target_groups);
+                        cfs_session.target.image_map = Some(vec![ImageMap {
+                            source_id: base_image_id.expect("ERROR - can't create a CFS session to build an image without base image id"),
+                            result_name: result_image_name.expect("ERROR - can't create a CFS sessions to build an image without result image name"),
+                        }]);
+                    }
+
+                    cfs_session.tags = tags;
+                    cfs_session.debug_on_failure = debug_on_failure;
+
+                    cfs_session
+                }
+            }
         }
     }
 
@@ -1001,7 +1149,7 @@ pub mod mesa {
         use crate::{cfs, error::Error};
 
         use super::{
-            r#struct::v2::{CfsSessionGetResponse, CfsSessionPostRequest},
+            r#struct::v3::{CfsSessionGetResponse, CfsSessionPostRequest},
             wait_cfs_session_to_finish,
         };
 
@@ -1018,15 +1166,19 @@ pub mod mesa {
             session_name_opt: Option<&String>,
             is_succeded_opt: Option<bool>,
         ) -> Result<Vec<CfsSessionGetResponse>, Error> {
-            let mut cfs_session_vec = cfs::session::shasta::http_client::v2::get(
+            let mut cfs_session_vec = cfs::session::shasta::http_client::v3::get(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                min_age_opt,
-                max_age_opt,
-                status_opt,
                 session_name_opt,
+                None,
+                None,
+                min_age_opt.cloned(),
+                max_age_opt.cloned(),
+                status_opt.cloned(),
+                None,
                 is_succeded_opt,
+                None,
             )
             .await?;
 
@@ -1066,7 +1218,7 @@ pub mod mesa {
             log::info!("Create CFS session '{}'", session.name);
             log::debug!("Create CFS session request payload:\n{:#?}", session);
 
-            cfs::session::shasta::http_client::v2::post(
+            cfs::session::shasta::http_client::v3::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1124,7 +1276,7 @@ pub mod mesa {
 
         use crate::hsm;
 
-        use super::r#struct::v2::CfsSessionGetResponse;
+        use super::r#struct::v3::CfsSessionGetResponse;
 
         /// Filter CFS sessions related to a list of HSM group names, how this works is, it will
         /// get the list of nodes within those HSM groups and filter all CFS sessions in the system
@@ -1406,7 +1558,7 @@ pub mod mesa {
         let mut i = 0;
         let max = 1800; // Max ammount of attempts to check if CFS session has ended
         loop {
-            let cfs_session: r#struct::v2::CfsSessionGetResponse =
+            let cfs_session: r#struct::v3::CfsSessionGetResponse =
                 cfs::session::mesa::http_client::get(
                     shasta_token,
                     shasta_base_url,
