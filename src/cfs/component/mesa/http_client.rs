@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
-use crate::{cfs::component::shasta::r#struct::v2::Component, error::Error};
+use crate::{cfs::component::shasta::r#struct::v2::ComponentResponse, error::Error};
 
 pub async fn get_raw(
     shasta_token: &str,
@@ -11,7 +11,7 @@ pub async fn get_raw(
     shasta_root_cert: &[u8],
     components_ids: Option<&str>,
     status: Option<&str>,
-) -> Result<Vec<Component>, Error> {
+) -> Result<Vec<ComponentResponse>, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -39,7 +39,7 @@ pub async fn get_raw(
 
     if response.status().is_success() {
         response
-            .json::<Vec<Component>>()
+            .json::<Vec<ComponentResponse>>()
             .await
             .map_err(|error| Error::NetError(error))
     } else {
@@ -59,7 +59,7 @@ pub async fn get_multiple(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     node_vec: &[String],
-) -> Result<Vec<Component>, Error> {
+) -> Result<Vec<ComponentResponse>, Error> {
     let start = Instant::now();
 
     let num_xnames_per_request = 60;

@@ -1,7 +1,7 @@
 use crate::{
     bos::{self, template::mesa::r#struct::v2::BosSessionTemplate},
     cfs::{
-        self, component::shasta::r#struct::v2::Component,
+        self, component::shasta::r#struct::v2::ComponentResponse,
         configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
         session::mesa::r#struct::v3::CfsSessionGetResponse,
     },
@@ -45,7 +45,7 @@ pub async fn filter(
 ) -> Vec<CfsConfigurationResponse> {
     log::info!("Filter CFS configurations");
     // Fetch CFS components and filter by HSM group members
-    let cfs_component_vec: Vec<Component> = if !hsm_group_name_vec.is_empty() {
+    let cfs_component_vec: Vec<ComponentResponse> = if !hsm_group_name_vec.is_empty() {
         let hsm_group_members = hsm::group::utils::get_member_vec_from_hsm_name_vec(
             shasta_token,
             shasta_base_url,

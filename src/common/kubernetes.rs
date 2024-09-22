@@ -8,6 +8,7 @@ use futures::{io::Lines, AsyncBufReadExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
 use k8s_openapi::api::core::v1::{ConfigMap, Container, Pod};
+use kube::api::DeleteParams;
 use kube::{
     api::{AttachParams, AttachedProcess},
     client::ConfigExt,
@@ -886,8 +887,8 @@ pub async fn delete_session_pod(
     log::info!("Pod to delete: {}", cfs_session_pod_name);
 
     // Delete Pod
-    /* let dp = DeleteParams::default();
-    let _ = pods_api.delete(&cfs_session_pod_name, &dp).await; */
+    let dp = DeleteParams::default();
+    let _ = pods_api.delete(&cfs_session_pod_name, &dp).await;
 
     Ok(())
 }

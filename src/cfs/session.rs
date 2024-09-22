@@ -1558,22 +1558,24 @@ pub mod mesa {
         let mut i = 0;
         let max = 1800; // Max ammount of attempts to check if CFS session has ended
         loop {
-            let cfs_session: r#struct::v3::CfsSessionGetResponse =
-                cfs::session::mesa::http_client::get(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    None,
-                    None,
-                    None,
-                    Some(&cfs_session_id.to_string()),
-                    None,
-                )
-                .await
-                .unwrap()
-                .first()
-                .unwrap()
-                .clone();
+            let cfs_session_vec_rslt = cfs::session::mesa::http_client::get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                None,
+                None,
+                None,
+                Some(&cfs_session_id.to_string()),
+                None,
+            )
+            .await;
+
+            let cfs_session = if let Ok(cfs_session_vec) = cfs_session_vec_rslt {
+                cfs_session_vec.first().unwrap().clone()
+            } else {
+                eprintln!("ERROR - CFS session '{}' missing. Exit", cfs_session_id);
+                std::process::exit(1);
+            };
 
             log::debug!("CFS session details:\n{:#?}", cfs_session);
 
@@ -1582,8 +1584,8 @@ pub mod mesa {
             if cfs_session_status != "complete" && i < max {
                 print!("\x1B[2K"); // Clear current line
                 io::stdout().flush().unwrap();
-                print!(
-                "\rWaiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}.",
+                println!(
+                "Waiting CFS session '{}' with status '{}'. Checking again in 2 secs. Attempt {} of {}.",
                 cfs_session_id, cfs_session_status, i, max
             );
                 io::stdout().flush().unwrap();
@@ -1593,7 +1595,7 @@ pub mod mesa {
                 i += 1;
             } else {
                 println!(
-                    "\nCFS session '{}' finished with status '{}'",
+                    "CFS session '{}' finished with status '{}'",
                     cfs_session_id, cfs_session_status
                 );
                 break;
