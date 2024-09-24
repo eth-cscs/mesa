@@ -613,7 +613,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
         println!(
-            "Pod for cfs session {} not ready. Trying again in {} secs. Attempt {} of {}",
+            "Waiting k8s to create pod/container for cfs session '{}'. Trying again in {} secs. Attempt {} of {}",
             cfs_session_name,
             delay_secs,
             i + 1,
@@ -626,7 +626,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
 
     if pods.items.is_empty() {
         return Err(format!(
-            "Pod for cfs session {} not ready. Aborting operation",
+            "Pod for cfs session '{}' not created. Aborting operation.",
             cfs_session_name
         )
         .into());
@@ -659,7 +659,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
         || container_status.as_ref().unwrap().waiting.is_some() && i <= max
     {
         println!(
-            "Waiting for container '{}' to be ready. Checking again in 2 secs. Attempt {} of {}",
+            "Container ({}) status missing or 'waiting'. Checking again in 2 secs. Attempt {} of {}",
             ansible_container.name,
             i + 1,
             max
@@ -676,7 +676,7 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
 
     if container_status.as_ref().unwrap().waiting.is_some() {
         return Err(format!(
-            "Container '{}' not ready. Aborting operation",
+            "Container ({}) status is waiting. Aborting operation.",
             ansible_container.name
         )
         .into());

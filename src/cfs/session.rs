@@ -977,6 +977,7 @@ pub mod mesa {
                         .and_then(|configuration| configuration.name.clone())
                 }
 
+                /// Returns 'true' if CFS session succeeded
                 pub fn is_success(&self) -> bool {
                     self.status
                         .as_ref()
