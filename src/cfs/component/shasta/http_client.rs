@@ -161,10 +161,7 @@ pub mod v3 {
 pub mod v2 {
     use serde_json::Value;
 
-    use crate::{
-        cfs::component::shasta::r#struct::v2::{ComponentRequest, ComponentResponse},
-        error::Error,
-    };
+    use crate::{cfs::component::shasta::r#struct::v2::ComponentRequest, error::Error};
 
     pub async fn get_single_component(
         shasta_token: &str,

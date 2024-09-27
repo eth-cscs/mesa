@@ -934,6 +934,14 @@ pub mod mesa {
                     })
                 } */
 
+                /// Returns list of targets (either groups or xnames)
+                pub fn get_targets(&self) -> Option<Vec<String>> {
+                    Some(
+                        self.get_target_hsm()
+                            .unwrap_or(self.get_target_xname().unwrap()),
+                    )
+                }
+
                 /// Returns list of HSM groups targeted
                 pub fn get_target_hsm(&self) -> Option<Vec<String>> {
                     self.target.as_ref().and_then(|target| {
