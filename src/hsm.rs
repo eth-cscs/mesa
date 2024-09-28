@@ -524,7 +524,7 @@ pub mod group {
             )
             .await
             {
-                eprintln!("Nodes '{:?}' not valid", new_target_hsm_members);
+                eprintln!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
                 std::process::exit(1);
             }
 
@@ -566,7 +566,7 @@ pub mod group {
                 "tags": []
             });
 
-            println!(
+            log::debug!(
                 "{}",
                 serde_json::to_string_pretty(&target_hsm_group).unwrap()
             );
@@ -578,7 +578,7 @@ pub mod group {
                 "tags": []
             });
 
-            println!(
+            log::debug!(
                 "{}",
                 serde_json::to_string_pretty(&parent_hsm_group).unwrap()
             );
@@ -586,7 +586,15 @@ pub mod group {
             // *********************************************************************************************************
             // UPDATE HSM GROUP MEMBERS IN CSM
             if !nodryrun {
-                log::info!("Dryrun enabled, not modifying the HSM groups on the system.")
+                log::info!("dry-run enabled, changes not persisted.");
+                println!(
+                    "HSM '{}' members: {:?}",
+                    target_hsm_group_name, target_hsm_group_member_vec
+                );
+                println!(
+                    "HSM '{}' members: {:?}",
+                    parent_hsm_group_name, parent_hsm_group_member_vec
+                );
             } else {
                 for xname in new_target_hsm_members {
                     // TODO: This is creating a new client per xname, look whether this can be improved reusing the client.
