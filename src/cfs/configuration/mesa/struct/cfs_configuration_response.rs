@@ -4,20 +4,20 @@ pub mod v2 {
 
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+    #[derive(Debug, Serialize, Deserialize, Clone, Default)]
     pub struct Layer {
         pub name: String,
         #[serde(rename = "cloneUrl")]
         pub clone_url: String,
-        pub source: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub commit: Option<String>,
         pub playbook: String,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub branch: Option<String>,
+        pub source: Option<String>,
     }
 
-    #[derive(Debug, Serialize, Deserialize, Clone, Default)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+    #[derive(Debug, Serialize, Deserialize, Clone, Default)]
     pub struct AdditionalInventory {
         #[serde(rename = "cloneUrl")]
         pub clone_url: String,
@@ -28,7 +28,7 @@ pub mod v2 {
         pub branch: Option<String>,
     }
 
-    #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+    #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct CfsConfigurationResponse {
         pub name: String,
         #[serde(rename = "lastUpdated")]
@@ -38,13 +38,13 @@ pub mod v2 {
         pub additional_inventory: Option<AdditionalInventory>,
     }
 
-    #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+    #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct CfsConfigurationVecResponse {
         pub configurations: Vec<CfsConfigurationResponse>,
         pub next: Option<Next>,
     }
 
-    #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+    #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct Next {
         limit: Option<u8>,
         after_id: Option<String>,

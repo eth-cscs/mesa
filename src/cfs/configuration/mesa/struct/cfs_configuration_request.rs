@@ -11,11 +11,11 @@ pub mod v2 {
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct Layer {
+        pub name: String,
         #[serde(rename = "cloneUrl")]
         pub clone_url: String,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub commit: Option<String>,
-        pub name: String,
         playbook: String,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub branch: Option<String>,
@@ -33,7 +33,7 @@ pub mod v2 {
         ims_required_dkms: Option<bool>,
     }
 
-    #[derive(Debug, Deserialize, Serialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
+    #[derive(Debug, Deserialize, Serialize, Clone)]
     pub struct CfsConfigurationRequest {
         pub name: String,
         pub layers: Vec<Layer>,
