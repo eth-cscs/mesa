@@ -514,7 +514,7 @@ pub mod group {
             parent_hsm_group_name: &str,
             new_target_hsm_members: Vec<&str>,
             nodryrun: bool,
-        ) {
+        ) -> Result<(Vec<String>, Vec<String>), Error> {
             if !validate_xnames(
                 shasta_token,
                 shasta_base_url,
@@ -524,8 +524,10 @@ pub mod group {
             )
             .await
             {
-                eprintln!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
-                std::process::exit(1);
+                let error_msg = format!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
+                return Err(Error::Message(error_msg));
+                /* eprintln!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
+                std::process::exit(1); */
             }
 
             // get list of target HSM group members
@@ -587,17 +589,8 @@ pub mod group {
             // UPDATE HSM GROUP MEMBERS IN CSM
             if !nodryrun {
                 log::info!("dry-run enabled, changes not persisted.");
-                println!(
-                    "HSM '{}' members: {:?}",
-                    target_hsm_group_name, target_hsm_group_member_vec
-                );
-                println!(
-                    "HSM '{}' members: {:?}",
-                    parent_hsm_group_name, parent_hsm_group_member_vec
-                );
             } else {
                 for xname in new_target_hsm_members {
-                    // TODO: This is creating a new client per xname, look whether this can be improved reusing the client.
                     let _ = post_member(
                         shasta_token,
                         shasta_base_url,
@@ -617,6 +610,8 @@ pub mod group {
                     .await;
                 }
             }
+
+            Ok((target_hsm_group_member_vec, parent_hsm_group_member_vec))
         }
 
         pub async fn update_hsm_group_members(
