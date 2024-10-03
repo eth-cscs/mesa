@@ -457,7 +457,9 @@ pub mod v3 {
         }
 
         pub fn add_layer(&mut self, layer: Layer) {
-            self.layers.map(|mut layers| layers.push(layer));
+            if let Some(ref mut layers) = self.layers.as_mut() {
+                layers.push(layer);
+            }
         }
 
         pub async fn from_sat_file_serde_yaml(
@@ -466,10 +468,11 @@ pub mod v3 {
             gitea_token: &str,
             configuration_yaml: &serde_yaml::Value,
             cray_product_catalog: &BTreeMap<String, String>,
-        ) -> Self {
+        ) -> (String, Self) {
+            let cfs_configuration_name;
             let mut cfs_configuration = Self::new();
 
-            cfs_configuration.name = configuration_yaml["name"].as_str().unwrap().to_string();
+            cfs_configuration_name = configuration_yaml["name"].as_str().unwrap().to_string();
 
             for layer_yaml in configuration_yaml["layers"].as_sequence().unwrap() {
                 // println!("\n\n### Layer:\n{:#?}\n", layer_json);
@@ -508,7 +511,7 @@ pub mod v3 {
                             log::debug!("tag details:\n{:#?}", tag_details);
                             tag_details
                         } else {
-                            eprintln!("ERROR - Could not get details for git tag '{}' in CFS configuration '{}'. Reason:\n{:#?}", git_tag, cfs_configuration.name, tag_details_rslt);
+                            eprintln!("ERROR - Could not get details for git tag '{}' in CFS configuration '{}'. Reason:\n{:#?}", git_tag, cfs_configuration_name, tag_details_rslt);
                             std::process::exit(1);
                         };
 
@@ -640,9 +643,9 @@ pub mod v3 {
 
                     // Create CFS configuration layer struct
                     let layer = Layer::new(
-                        repo_url,
+                        Some(repo_url),
                         commit_id_opt,
-                        product_name.to_string(),
+                        Some(product_name.to_string()),
                         layer_yaml["playbook"].as_str().unwrap().to_string(),
                         branch_name,
                         None,
@@ -655,7 +658,7 @@ pub mod v3 {
                 }
             }
 
-            cfs_configuration
+            (cfs_configuration_name, cfs_configuration)
         }
 
         /* pub async fn create_from_repos(
