@@ -5,8 +5,7 @@ use tokio::task;
 use crate::{
     bos::{self, template::mesa::r#struct::v2::BosSessionTemplate},
     cfs::{
-        self,
-        component::shasta::r#struct::{v2::ComponentResponse, v3::Component},
+        self, component::shasta::r#struct::v2::ComponentResponse,
         configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
         session::mesa::r#struct::v3::CfsSessionGetResponse,
     },
