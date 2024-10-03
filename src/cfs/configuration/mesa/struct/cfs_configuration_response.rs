@@ -14,7 +14,7 @@ pub mod v2 {
         pub playbook: String,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub branch: Option<String>,
-        pub source: Option<String>,
+        // pub source: Option<String>,
     }
 
     #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -54,7 +54,7 @@ pub mod v2 {
     impl Layer {
         pub fn new(
             clone_url: String,
-            source: Option<String>,
+            // source: Option<String>,
             commit: Option<String>,
             name: String,
             playbook: String,
@@ -62,7 +62,7 @@ pub mod v2 {
         ) -> Self {
             Self {
                 clone_url,
-                source,
+                // source,
                 commit,
                 name,
                 playbook,
@@ -121,7 +121,7 @@ pub mod v2 {
                     let repo_url = layer_yaml["git"]["url"].as_str().unwrap().to_string();
                     let layer = Layer::new(
                         repo_url,
-                        None, // TODO: replace with real source value
+                        // None, // TODO: replace with real source value
                         // Some(layer_json["git"]["commit"].as_str().unwrap_or_default().to_string()),
                         None,
                         repo_name,
@@ -145,7 +145,7 @@ pub mod v2 {
                     );
                     let layer = Layer::new(
                         repo_url,
-                        None, // TODO: replace with real source value
+                        // None, // TODO: replace with real source value
                         // Some(layer_json["product"]["commit"].as_str().unwrap_or_default().to_string()),
                         None,
                         layer_yaml["product"]["name"]

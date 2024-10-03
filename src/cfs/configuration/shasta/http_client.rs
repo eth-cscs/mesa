@@ -183,8 +183,8 @@ pub mod v3 {
 
     use crate::{
         cfs::configuration::mesa::r#struct::{
-            cfs_configuration_request::v2::CfsConfigurationRequest,
-            cfs_configuration_response::v2::CfsConfigurationResponse,
+            cfs_configuration_request::v3::CfsConfigurationRequest,
+            cfs_configuration_response::v3::CfsConfigurationResponse,
         },
         error::Error,
     };
