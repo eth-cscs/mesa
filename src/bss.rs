@@ -79,7 +79,7 @@ pub mod bootparameters {
             image_id
         }
 
-        /// Add boot image in kernel boot parameters and also in kernel and initrd fields
+        /* /// Add boot image in kernel boot parameters and also in kernel and initrd fields
         pub fn add_boot_image(&mut self, new_image_id: &str) {
             let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
             self.add_kernel_params(&boot_image_kernel_param);
@@ -127,14 +127,59 @@ pub mod bootparameters {
             self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
 
             self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
-        }
+        } */
 
         /// Update boot image in kernel boot parameters and also in kernel and initrd fields if
         /// exists. Otherwise nothing is changed. This method updates both kernel params related to
         /// NCN and also CN
         pub fn update_boot_image(&mut self, new_image_id: &str) {
-            let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
-            self.update_kernel_params(&boot_image_kernel_param);
+            // convert kernel params to a hashmap
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
+                .collect();
+
+            // replace image id in 'root' kernel param
+            let mut root_kernel_param: Vec<&str> = params
+                .get("root")
+                .expect("The 'root' kernel param does not exists")
+                .split("/")
+                .collect();
+
+            for substring in &mut root_kernel_param {
+                if let Ok(_) = uuid::Uuid::try_parse(substring) {
+                    *substring = new_image_id;
+                }
+            }
+
+            let new_root_kernel_param = root_kernel_param.join("/");
+
+            params
+                .entry("root")
+                .and_modify(|root_param| *root_param = &new_root_kernel_param);
+
+            // replace image id in 'nmd_data' kernel param
+            let mut nmd_kernel_param: Vec<&str> = params
+                .get("nmd_data")
+                .expect("The 'nmd_data' kernel param does not exists")
+                .split("/")
+                .collect();
+
+            for substring in &mut nmd_kernel_param {
+                if let Ok(_) = uuid::Uuid::try_parse(substring) {
+                    *substring = new_image_id;
+                }
+            }
+
+            let new_nmd_kernel_param = nmd_kernel_param.join("/");
+
+            params
+                .entry("nmd_data")
+                .and_modify(|nmd_param| *nmd_param = &new_nmd_kernel_param);
+
+            self.update_kernel_param("root", &new_root_kernel_param);
+            self.update_kernel_param("nmd_data", &new_nmd_kernel_param);
 
             /* self.params = self
             .params
@@ -181,7 +226,7 @@ pub mod bootparameters {
             self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
         }
 
-        pub fn upsert_boot_image(&mut self, new_image_id: &str) {
+        /* pub fn upsert_boot_image(&mut self, new_image_id: &str) {
             let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
             self.upsert_kernel_params(&boot_image_kernel_param);
 
@@ -226,20 +271,20 @@ pub mod bootparameters {
             self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
 
             self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
-        }
+        } */
 
         /// Add kernel parameter. If kernel parameter already exists, then it will be added,
         /// otherwise nothing will change
         pub fn add_kernel_params(&mut self, new_params: &str) {
             let new_params: Vec<(&str, &str)> = new_params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             for (key, new_value) in &new_params {
@@ -248,7 +293,13 @@ pub mod bootparameters {
 
             self.params = new_params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
@@ -259,14 +310,20 @@ pub mod bootparameters {
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             params.entry(key).and_modify(|value| *value = new_value);
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
@@ -277,13 +334,13 @@ pub mod bootparameters {
         pub fn upsert_kernel_params(&mut self, new_params: &str) {
             let new_params: Vec<(&str, &str)> = new_params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             for (key, new_value) in new_params {
@@ -295,7 +352,13 @@ pub mod bootparameters {
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
@@ -368,7 +431,7 @@ pub mod bootparameters {
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             params
@@ -378,7 +441,13 @@ pub mod bootparameters {
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
@@ -392,7 +461,7 @@ pub mod bootparameters {
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             for key in keys {
@@ -401,7 +470,13 @@ pub mod bootparameters {
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
@@ -412,14 +487,20 @@ pub mod bootparameters {
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
-                .map(|kernel_param| kernel_param.split_once('=').unwrap())
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
             params.remove(key);
 
             self.params = params
                 .iter()
-                .map(|(key, value)| format!("{key}={value}"))
+                .map(|(key, value)| {
+                    if !value.is_empty() {
+                        format!("{key}={value}")
+                    } else {
+                        key.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(" ");
         }
