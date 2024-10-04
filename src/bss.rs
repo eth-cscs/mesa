@@ -133,6 +133,8 @@ pub mod bootparameters {
         /// exists. Otherwise nothing is changed. This method updates both kernel params related to
         /// NCN and also CN
         pub fn update_boot_image(&mut self, new_image_id: &str) {
+            // replace image id in 'root' kernel param
+
             // convert kernel params to a hashmap
             let mut params: HashMap<&str, &str> = self
                 .params
@@ -140,7 +142,6 @@ pub mod bootparameters {
                 .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
-            // replace image id in 'root' kernel param
             let mut root_kernel_param: Vec<&str> = params
                 .get("root")
                 .expect("The 'root' kernel param does not exists")
@@ -159,27 +160,37 @@ pub mod bootparameters {
                 .entry("root")
                 .and_modify(|root_param| *root_param = &new_root_kernel_param);
 
+            self.update_kernel_param("root", &new_root_kernel_param);
+
             // replace image id in 'nmd_data' kernel param
-            let mut nmd_kernel_param: Vec<&str> = params
-                .get("nmd_data")
-                .expect("The 'nmd_data' kernel param does not exists")
-                .split("/")
+
+            // convert kernel params to a hashmap
+            let mut params: HashMap<&str, &str> = self
+                .params
+                .split_whitespace()
+                .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
-            for substring in &mut nmd_kernel_param {
-                if let Ok(_) = uuid::Uuid::try_parse(substring) {
-                    *substring = new_image_id;
+            // NOTE: NCN nodes may not have 'nmd_data' kernel parameter
+            let mut nmd_kernel_param: Vec<&str>;
+            if let Some(nmd_data) = params.get("nmd_data") {
+                nmd_kernel_param = nmd_data.split("/").collect();
+
+                for substring in &mut nmd_kernel_param {
+                    if let Ok(_) = uuid::Uuid::try_parse(substring) {
+                        *substring = new_image_id;
+                    }
                 }
-            }
 
-            let new_nmd_kernel_param = nmd_kernel_param.join("/");
+                let new_nmd_kernel_param = nmd_kernel_param.join("/");
 
-            params
-                .entry("nmd_data")
-                .and_modify(|nmd_param| *nmd_param = &new_nmd_kernel_param);
+                params
+                    .entry("nmd_data")
+                    .and_modify(|nmd_param| *nmd_param = &new_nmd_kernel_param);
 
-            self.update_kernel_param("root", &new_root_kernel_param);
-            self.update_kernel_param("nmd_data", &new_nmd_kernel_param);
+                self.update_kernel_param("nmd_data", &new_nmd_kernel_param);
+            } else {
+            };
 
             /* self.params = self
             .params

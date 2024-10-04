@@ -184,7 +184,9 @@ pub mod v3 {
     use crate::{
         cfs::configuration::mesa::r#struct::{
             cfs_configuration_request::v3::CfsConfigurationRequest,
-            cfs_configuration_response::v3::CfsConfigurationResponse,
+            cfs_configuration_response::v3::{
+                CfsConfigurationResponse, CfsConfigurationVecResponse,
+            },
         },
         error::Error,
     };
@@ -238,10 +240,12 @@ pub mod v3 {
 
                 Ok(vec![payload])
             } else {
-                response
-                    .json()
+                let payload = response
+                    .json::<CfsConfigurationVecResponse>()
                     .await
-                    .map_err(|error| Error::NetError(error))
+                    .map_err(|error| Error::NetError(error))?;
+
+                Ok(payload.configurations)
             }
         } else {
             let payload = response

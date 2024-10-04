@@ -2,21 +2,24 @@ use crate::{
     bos::{self, template::mesa::r#struct::v2::BosSessionTemplate},
     cfs::{
         self, component::shasta::r#struct::v2::ComponentResponse,
-        configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
         session::mesa::r#struct::v3::CfsSessionGetResponse,
     },
     hsm,
     ims::image::r#struct::Image,
 };
 
-use super::r#struct::cfs_configuration_request::v2::CfsConfigurationRequest;
-
 use globset::Glob;
+
+use super::r#struct::{
+    cfs_configuration_request::v3::CfsConfigurationRequest,
+    cfs_configuration_response::v3::CfsConfigurationResponse,
+};
 
 pub async fn create(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
+    cfs_configuration_name: &str,
     cfs_configuration: &CfsConfigurationRequest,
 ) -> Result<CfsConfigurationResponse, crate::error::Error> {
     cfs::configuration::mesa::http_client::put(
@@ -24,7 +27,7 @@ pub async fn create(
         shasta_base_url,
         shasta_root_cert,
         cfs_configuration,
-        &cfs_configuration.name,
+        cfs_configuration_name,
     )
     .await
 }

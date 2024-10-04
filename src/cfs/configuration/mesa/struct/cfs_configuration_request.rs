@@ -556,15 +556,17 @@ pub mod v3 {
                     };
 
                     let layer = Layer::new(
-                        Some(repo_url),
-                        commit_id_opt,
                         Some(layer_name),
+                        Some(repo_url),
+                        layer_yaml["source"]
+                            .as_str()
+                            .and_then(|source_value| Some(source_value.to_string())),
                         layer_yaml["playbook"]
                             .as_str()
                             .unwrap_or_default()
                             .to_string(),
+                        commit_id_opt,
                         branch_name,
-                        None,
                         None,
                     );
                     cfs_configuration.add_layer(layer);
@@ -643,12 +645,14 @@ pub mod v3 {
 
                     // Create CFS configuration layer struct
                     let layer = Layer::new(
-                        Some(repo_url),
-                        commit_id_opt,
                         Some(product_name.to_string()),
+                        Some(repo_url),
+                        layer_yaml["source"]
+                            .as_str()
+                            .map(|source_value| source_value.to_string()),
                         layer_yaml["playbook"].as_str().unwrap().to_string(),
+                        commit_id_opt,
                         branch_name,
-                        None,
                         None,
                     );
                     cfs_configuration.add_layer(layer);

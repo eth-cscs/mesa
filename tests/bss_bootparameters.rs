@@ -17,7 +17,7 @@ mod tests {
 
         let new_image_id = "my_new_image";
 
-        boot_parameters.add_boot_image(new_image_id);
+        boot_parameters.update_boot_image(new_image_id);
 
         let kernel_param_iter = boot_parameters.params.split_whitespace();
 
@@ -26,19 +26,24 @@ mod tests {
         for kernel_param in kernel_param_iter {
             if kernel_param.contains("metal.server=s3://boot-images/") {
                 pass = pass && kernel_param.contains(new_image_id);
+                println!("DEBUG - pass 1 {}", pass);
             }
 
             if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
                 pass = pass && kernel_param.contains(new_image_id);
+                println!("DEBUG - pass 2 {}", pass);
             }
 
             if kernel_param.contains("nmd_data=url=s3://boot-images/") {
                 pass = pass && kernel_param.contains(new_image_id);
+                println!("DEBUG - pass 3 {}", pass);
             }
         }
 
         pass = pass && boot_parameters.kernel.contains(new_image_id);
+        println!("DEBUG - pass 4 {}", pass);
         pass = pass && boot_parameters.initrd.contains(new_image_id);
+        println!("DEBUG - pass 5 {}", pass);
 
         assert!(pass)
     }
@@ -57,7 +62,7 @@ mod tests {
 
         let new_image_id = "my_new_image";
 
-        boot_parameters.add_boot_image(new_image_id);
+        boot_parameters.update_boot_image(new_image_id);
 
         let kernel_param_iter = boot_parameters.params.split_whitespace();
 
