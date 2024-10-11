@@ -142,20 +142,27 @@ pub mod bootparameters {
                 .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
+            // Get `root` kernel parameter and split it by '/'
             let mut root_kernel_param: Vec<&str> = params
                 .get("root")
                 .expect("The 'root' kernel param does not exists")
                 .split("/")
                 .collect();
 
+            // Replace image id in root kernel param with new image id
             for substring in &mut root_kernel_param {
+                // Look for any substring between '/' that matches an UUID formant and take it as
+                // the image id
                 if let Ok(_) = uuid::Uuid::try_parse(substring) {
+                    // Replace image id in `root` kernel parameter with new value
                     *substring = new_image_id;
                 }
             }
 
+            // Create new `root` kernel param string
             let new_root_kernel_param = root_kernel_param.join("/");
 
+            // Create new kernel parameters
             params
                 .entry("root")
                 .and_modify(|root_param| *root_param = &new_root_kernel_param);
@@ -439,17 +446,20 @@ pub mod bootparameters {
         /// Update kernel parameter. If kernel parameter exists, then it will be updated with new
         /// value. otherwise nothing will change
         pub fn update_kernel_param(&mut self, key: &str, new_value: &str) {
+            // convert kernel params to a hashmap
             let mut params: HashMap<&str, &str> = self
                 .params
                 .split_whitespace()
                 .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
+            // Update kernel param with new value
             params
                 .entry(key)
                 .and_modify(|value| *value = new_value)
                 .or_insert(new_value);
 
+            // Create new kernel params as a string
             self.params = params
                 .iter()
                 .map(|(key, value)| {
