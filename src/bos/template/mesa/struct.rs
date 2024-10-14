@@ -548,7 +548,7 @@ pub mod v2 {
         }
 
         pub fn get_confguration(&self) -> Option<String> {
-            self.cfs.as_ref().unwrap().configuration.clone()
+            self.cfs.as_ref().and_then(|cfs| cfs.configuration.clone())
         }
 
         pub fn get_path_vec(&self) -> Vec<String> {
