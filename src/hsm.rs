@@ -506,6 +506,137 @@ pub mod group {
 
         use super::http_client::{self, delete_member};
 
+        /// Add a list of xnames to target HSM group
+        /// Returns the new list of nodes in target HSM group
+        pub async fn add_hsm_members(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            target_hsm_group_name: &str,
+            new_target_hsm_members: Vec<&str>,
+            nodryrun: bool,
+        ) -> Result<Vec<String>, Error> {
+            // get list of target HSM group members
+            let mut target_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                target_hsm_group_name,
+            )
+            .await;
+
+            // merge HSM group list with the list of xnames provided by the user
+            target_hsm_group_member_vec
+                .extend(new_target_hsm_members.iter().map(|xname| xname.to_string()));
+
+            target_hsm_group_member_vec.sort();
+            target_hsm_group_member_vec.dedup();
+
+            // *********************************************************************************************************
+            // UPDATE HSM GROUP MEMBERS IN CSM
+            if !nodryrun {
+                let target_hsm_group = serde_json::json!({
+                    "label": target_hsm_group_name,
+                    "decription": "",
+                    "members": target_hsm_group_member_vec,
+                    "tags": []
+                });
+
+                println!(
+                    "Target HSM group:\n{}",
+                    serde_json::to_string_pretty(&target_hsm_group).unwrap()
+                );
+
+                println!("dry-run enabled, changes not persisted.");
+            } else {
+                for xname in new_target_hsm_members {
+                    let _ = post_member(
+                        shasta_token,
+                        shasta_base_url,
+                        shasta_root_cert,
+                        target_hsm_group_name,
+                        xname,
+                    )
+                    .await;
+                }
+            }
+
+            Ok(target_hsm_group_member_vec)
+        }
+
+        /// Removes list of xnames from  HSM group
+        pub async fn remove_hsm_members(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            parent_hsm_group_name: &str,
+            new_target_hsm_members: Vec<&str>,
+            nodryrun: bool,
+        ) -> Result<Vec<String>, Error> {
+            // Check nodes are valid xnames and they belong to parent HSM group
+            if !validate_xnames(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                new_target_hsm_members.as_slice(),
+                Some(&parent_hsm_group_name.to_string()),
+            )
+            .await
+            {
+                let error_msg = format!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
+                return Err(Error::Message(error_msg));
+                /* eprintln!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
+                std::process::exit(1); */
+            }
+
+            // get list of parent HSM group members
+            let mut parent_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                parent_hsm_group_name,
+            )
+            .await;
+
+            parent_hsm_group_member_vec
+                .retain(|parent_member| !new_target_hsm_members.contains(&parent_member.as_str()));
+
+            parent_hsm_group_member_vec.sort();
+            parent_hsm_group_member_vec.dedup();
+
+            // *********************************************************************************************************
+            // UPDATE HSM GROUP MEMBERS IN CSM
+            if !nodryrun {
+                let parent_hsm_group = serde_json::json!({
+                    "label": parent_hsm_group_name,
+                    "decription": "",
+                    "members": parent_hsm_group_member_vec,
+                    "tags": []
+                });
+
+                println!(
+                    "Parent HSM group:\n{}",
+                    serde_json::to_string_pretty(&parent_hsm_group).unwrap()
+                );
+
+                println!("dry-run enabled, changes not persisted.");
+            } else {
+                for xname in new_target_hsm_members {
+                    let _ = delete_member(
+                        shasta_token,
+                        shasta_base_url,
+                        shasta_root_cert,
+                        parent_hsm_group_name,
+                        xname,
+                    )
+                    .await;
+                }
+            }
+
+            Ok(parent_hsm_group_member_vec)
+        }
+
+        /// Moves list of xnames from parent to target HSM group
         pub async fn migrate_hsm_members(
             shasta_token: &str,
             shasta_base_url: &str,
@@ -515,6 +646,7 @@ pub mod group {
             new_target_hsm_members: Vec<&str>,
             nodryrun: bool,
         ) -> Result<(Vec<String>, Vec<String>), Error> {
+            // Check nodes are valid xnames and they belong to parent HSM group
             if !validate_xnames(
                 shasta_token,
                 shasta_base_url,
@@ -561,34 +693,34 @@ pub mod group {
             parent_hsm_group_member_vec.sort();
             parent_hsm_group_member_vec.dedup();
 
-            let target_hsm_group = serde_json::json!({
-                "label": target_hsm_group_name,
-                "decription": "",
-                "members": target_hsm_group_member_vec,
-                "tags": []
-            });
-
-            log::debug!(
-                "{}",
-                serde_json::to_string_pretty(&target_hsm_group).unwrap()
-            );
-
-            let parent_hsm_group = serde_json::json!({
-                "label": parent_hsm_group_name,
-                "decription": "",
-                "members": parent_hsm_group_member_vec,
-                "tags": []
-            });
-
-            log::debug!(
-                "{}",
-                serde_json::to_string_pretty(&parent_hsm_group).unwrap()
-            );
-
             // *********************************************************************************************************
             // UPDATE HSM GROUP MEMBERS IN CSM
             if !nodryrun {
-                log::info!("dry-run enabled, changes not persisted.");
+                let target_hsm_group = serde_json::json!({
+                    "label": target_hsm_group_name,
+                    "decription": "",
+                    "members": target_hsm_group_member_vec,
+                    "tags": []
+                });
+
+                println!(
+                    "Target HSM group:\n{}",
+                    serde_json::to_string_pretty(&target_hsm_group).unwrap()
+                );
+
+                let parent_hsm_group = serde_json::json!({
+                    "label": parent_hsm_group_name,
+                    "decription": "",
+                    "members": parent_hsm_group_member_vec,
+                    "tags": []
+                });
+
+                println!(
+                    "Parent HSM group:\n{}",
+                    serde_json::to_string_pretty(&parent_hsm_group).unwrap()
+                );
+
+                println!("dry-run enabled, changes not persisted.");
             } else {
                 for xname in new_target_hsm_members {
                     let _ = post_member(
@@ -614,6 +746,7 @@ pub mod group {
             Ok((target_hsm_group_member_vec, parent_hsm_group_member_vec))
         }
 
+        /// Receives 2 lists of xnames old xnames to remove from parent HSM group and new xhanges to add to target HSM group, and does just that
         pub async fn update_hsm_group_members(
             shasta_token: &str,
             shasta_base_url: &str,
