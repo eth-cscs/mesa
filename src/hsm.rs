@@ -939,6 +939,30 @@ pub mod group {
             member_hsm_map
         }
 
+        pub async fn get_member_vec_from_hsm_group_name_opt(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            hsm_group: &str,
+        ) -> Option<Vec<String>> {
+            // Take all nodes for all hsm_groups found and put them in a Vec
+            http_client::get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                Some(&hsm_group.to_string()),
+            )
+            .await
+            .unwrap()
+            .first()
+            .unwrap()
+            .members
+            .as_ref()
+            .unwrap()
+            .ids
+            .clone()
+        }
+
         pub async fn get_member_vec_from_hsm_group_name(
             shasta_token: &str,
             shasta_base_url: &str,

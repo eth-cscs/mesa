@@ -7,6 +7,7 @@ use crate::{bss, cfs, hsm};
 
 use super::r#struct::NodeDetails;
 
+/// Validate xname is correct (it uses regex taken from HPE Cray CSM docs)
 pub fn validate_xname_format(xname: &str) -> bool {
     let xname_re = Regex::new(r"^x\d{4}c[0-7]s([0-9]|[1-5][0-9]|6[0-4])b[0-1]n[0-7]$").unwrap();
 
