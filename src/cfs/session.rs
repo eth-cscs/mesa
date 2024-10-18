@@ -1565,7 +1565,7 @@ pub mod mesa {
         cfs_session_id: &str,
     ) {
         let mut i = 0;
-        let max = 1800; // Max ammount of attempts to check if CFS session has ended
+        let max = 3000; // Max ammount of attempts to check if CFS session has ended
         loop {
             let cfs_session_vec_rslt = cfs::session::mesa::http_client::get(
                 shasta_token,
