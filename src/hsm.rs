@@ -153,6 +153,9 @@ pub mod group {
                 .map_err(|error| Error::NetError(error))
         }
 
+        /// Gets list of HSM groups from CSM api. It also does a hack where the list returned by
+        /// CSM API gets shrinked by removing the CSM wide HSM groups like `alps`, `alpsm`,
+        /// `alpsb`, etc
         pub async fn get(
             shasta_token: &str,
             shasta_base_url: &str,
@@ -176,7 +179,7 @@ pub mod group {
 
                     let hsm_group_vec_rslt = Ok(vec![payload]);
 
-                    //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+                    //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
                     //wide operations instead of using roles
                     filter_system_hsm_groups(hsm_group_vec_rslt)
                 } else {
@@ -185,7 +188,7 @@ pub mod group {
                         .await
                         .map_err(|error| Error::NetError(error));
 
-                    //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+                    //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
                     //wide operations instead of using roles
                     filter_system_hsm_groups(hsm_group_vec_rslt)
                 }
@@ -209,6 +212,7 @@ pub mod group {
 
         /// Get list of HSM groups using --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
         /// NOTE: this returns all HSM groups which name contains hsm_groupu_name param value
+        /// FIXME: change `hsm_group_name_opt` type from `Option<&String>` to Option<`&str`>
         pub async fn get_hsm_group_vec(
             shasta_token: &str,
             shasta_base_url: &str,
@@ -470,7 +474,7 @@ pub mod group {
         }
 
         pub fn filter_system_hsm_group_names(hsm_group_name_vec: Vec<String>) -> Vec<String> {
-            //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+            //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
             //wide operations instead of using roles
             let hsm_group_to_ignore_vec = ["alps", "prealps", "alpse", "alpsb"];
 
@@ -514,7 +518,7 @@ pub mod group {
             shasta_root_cert: &[u8],
             target_hsm_group_name: &str,
             new_target_hsm_members: Vec<&str>,
-            nodryrun: bool,
+            dryrun: bool,
         ) -> Result<Vec<String>, Error> {
             // get list of target HSM group members
             let mut target_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
@@ -534,17 +538,10 @@ pub mod group {
 
             // *********************************************************************************************************
             // UPDATE HSM GROUP MEMBERS IN CSM
-            if !nodryrun {
-                let target_hsm_group = serde_json::json!({
-                    "label": target_hsm_group_name,
-                    "decription": "",
-                    "members": target_hsm_group_member_vec,
-                    "tags": []
-                });
-
+            if dryrun {
                 println!(
-                    "Target HSM group:\n{}",
-                    serde_json::to_string_pretty(&target_hsm_group).unwrap()
+                    "Add following nodes to HSM group {}:\n{:?}",
+                    target_hsm_group_name, new_target_hsm_members
                 );
 
                 println!("dry-run enabled, changes not persisted.");
@@ -569,9 +566,9 @@ pub mod group {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
-            parent_hsm_group_name: &str,
+            target_hsm_group_name: &str,
             new_target_hsm_members: Vec<&str>,
-            nodryrun: bool,
+            dryrun: bool,
         ) -> Result<Vec<String>, Error> {
             // Check nodes are valid xnames and they belong to parent HSM group
             if !validate_xnames(
@@ -579,7 +576,7 @@ pub mod group {
                 shasta_base_url,
                 shasta_root_cert,
                 new_target_hsm_members.as_slice(),
-                Some(&parent_hsm_group_name.to_string()),
+                Some(&target_hsm_group_name.to_string()),
             )
             .await
             {
@@ -590,33 +587,26 @@ pub mod group {
             }
 
             // get list of parent HSM group members
-            let mut parent_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
+            let mut target_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                parent_hsm_group_name,
+                target_hsm_group_name,
             )
             .await;
 
-            parent_hsm_group_member_vec
+            target_hsm_group_member_vec
                 .retain(|parent_member| !new_target_hsm_members.contains(&parent_member.as_str()));
 
-            parent_hsm_group_member_vec.sort();
-            parent_hsm_group_member_vec.dedup();
+            target_hsm_group_member_vec.sort();
+            target_hsm_group_member_vec.dedup();
 
             // *********************************************************************************************************
             // UPDATE HSM GROUP MEMBERS IN CSM
-            if !nodryrun {
-                let parent_hsm_group = serde_json::json!({
-                    "label": parent_hsm_group_name,
-                    "decription": "",
-                    "members": parent_hsm_group_member_vec,
-                    "tags": []
-                });
-
+            if dryrun {
                 println!(
-                    "Parent HSM group:\n{}",
-                    serde_json::to_string_pretty(&parent_hsm_group).unwrap()
+                    "Remove following nodes from HSM group {}:\n{:?}",
+                    target_hsm_group_name, new_target_hsm_members
                 );
 
                 println!("dry-run enabled, changes not persisted.");
@@ -626,14 +616,14 @@ pub mod group {
                         shasta_token,
                         shasta_base_url,
                         shasta_root_cert,
-                        parent_hsm_group_name,
+                        target_hsm_group_name,
                         xname,
                     )
                     .await;
                 }
             }
 
-            Ok(parent_hsm_group_member_vec)
+            Ok(target_hsm_group_member_vec)
         }
 
         /// Moves list of xnames from parent to target HSM group
@@ -784,6 +774,42 @@ pub mod group {
             }
 
             Ok(())
+        }
+
+        // Returns a HashMap with keys being the hsm names/labels the user has access a curated list of xnames
+        // for each hsm name as values
+        pub async fn get_hsm_map_and_filter_by_hsm_name_vec(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            hsm_name_vec: Vec<&str>,
+        ) -> Result<HashMap<String, Vec<String>>, Error> {
+            let hsm_group_vec =
+                http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
+
+            Ok(filter_and_convert_to_map(hsm_name_vec, hsm_group_vec))
+        }
+
+        /// Given a list of HsmGroup struct and a list of Hsm group names, it will filter out those
+        /// not in the Hsm group names and convert from HsmGroup struct to HashMap
+        pub fn filter_and_convert_to_map(
+            hsm_name_vec: Vec<&str>,
+            hsm_group_vec: Vec<HsmGroup>,
+        ) -> HashMap<String, Vec<String>> {
+            let mut hsm_group_map: HashMap<String, Vec<String>> = HashMap::new();
+
+            for hsm_group in hsm_group_vec {
+                if hsm_name_vec.contains(&hsm_group.label.as_str()) {
+                    hsm_group_map.entry(hsm_group.label).or_insert(
+                        hsm_group
+                            .members
+                            .and_then(|members| Some(members.ids.unwrap_or_default()))
+                            .unwrap(),
+                    );
+                }
+            }
+
+            hsm_group_map
         }
 
         pub fn get_member_vec_from_hsm_group_value(hsm_group: &Value) -> Vec<String> {
