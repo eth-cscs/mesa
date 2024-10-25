@@ -1142,6 +1142,10 @@ pub mod mesa {
                             source_id: base_image_id.expect("ERROR - can't create a CFS session to build an image without base image id"),
                             result_name: result_image_name.expect("ERROR - can't create a CFS sessions to build an image without result image name"),
                         }]);
+                    } else {
+                        cfs_session.target.definition = Some("dynamic".to_string());
+                        cfs_session.target.groups = None;
+                        cfs_session.target.image_map = Some(Vec::new());
                     }
 
                     cfs_session.tags = tags;
