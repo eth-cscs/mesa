@@ -488,7 +488,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
         .unwrap();
 
     log::info!(
-        "Fetching logs for contaianer {} in namespace/pod {}/{}",
+        "Fetching logs for init container {} in namespace/pod {}/{}",
         init_container_name,
         cfs_session_pod.clone().metadata.namespace.unwrap(),
         cfs_session_pod.clone().metadata.name.unwrap(),
@@ -503,23 +503,10 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
         .into_iter()
         .find(|init_container| init_container.name.eq(&git_clone_container.name));
 
-    log::debug!("Container status:\n{:#?}", init_container_status);
+    log::info!("Init container status:\n{:#?}", init_container_status);
 
     let mut i = 0;
-    let max = 30;
-
-    /* // Check init container is terminated
-    if init_container_status
-            .clone()
-            .unwrap()
-            .state
-            .unwrap()
-            .terminated
-            .is_some() {
-
-        return Err(format!("Init container {} terminated", init_container_name)
-        .into());
-    } */
+    let max = 60;
 
     // Waiting for init container to start
     while (init_container_status.is_none()
@@ -529,17 +516,11 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             .state
             .unwrap()
             .waiting
-            .is_some()/* || !init_container_status
-    .clone()
-    .unwrap()
-    .state
-    .unwrap()
-    .terminated
-    .is_some() */)
+            .is_some())
         && i <= max
     {
         log::info!(
-            "Container {} state {:?}",
+            "Init container '{}' state:\n{:?}",
             git_clone_container.name,
             init_container_status.clone().unwrap().state.unwrap()
         );
