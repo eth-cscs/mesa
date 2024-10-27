@@ -389,8 +389,6 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
 ) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + std::marker::Send + Sync>> {
-    let init_container_name = "git-clone";
-
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
 
     let params = kube::api::ListParams::default()
@@ -412,7 +410,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
         println!(
-            "Pod for cfs session '{}' not ready. Trying again in {} secs. Attempt {} of {}",
+            "Pod for cfs session '{}' missing (probably being created). Trying again in {} secs. Attempt {} of {}",
             cfs_session_name,
             delay_secs,
             i + 1,
@@ -425,39 +423,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
 
     if pods.items.is_empty() {
         return Err(format!(
-            "Pod for cfs session {}; not ready. Aborting operation",
-            cfs_session_name
-        )
-        .into());
-    }
-
-    let params = kube::api::ListParams::default()
-        .limit(1)
-        .labels(format!("cfsession={}", cfs_session_name).as_str());
-
-    let mut pods = pods_api.list(&params).await?;
-
-    let mut i = 0;
-    let max = 30;
-    let delay_secs = 2;
-
-    // Waiting for pod to start
-    while pods.items.is_empty() && i <= max {
-        println!(
-            "Pod for cfs session '{}' not ready. Trying again in {} secs. Attempt {} of {}",
-            cfs_session_name,
-            delay_secs,
-            i + 1,
-            max
-        );
-        i += 1;
-        tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-        pods = pods_api.list(&params).await?;
-    }
-
-    if pods.items.is_empty() {
-        return Err(format!(
-            "Pod for cfs session {}; not ready. Aborting operation",
+            "Pod for cfs session {} missing. Aborting operation",
             cfs_session_name
         )
         .into());
@@ -467,6 +433,9 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
 
     let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
     log::info!("Pod name: {}", cfs_session_pod_name);
+
+    // Get logs for 'git-clone' init container
+    let init_container_name = "git-clone";
 
     let mut init_container_vec = cfs_session_pod
         .spec
@@ -494,7 +463,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
         cfs_session_pod.clone().metadata.name.unwrap(),
     );
 
-    let init_container_status = cfs_session_pod
+    let mut init_container_status = cfs_session_pod
         .status
         .clone()
         .unwrap()
@@ -502,8 +471,6 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
         .unwrap()
         .into_iter()
         .find(|init_container| init_container.name.eq(&git_clone_container.name));
-
-    log::info!("Init container status:\n{:#?}", init_container_status);
 
     let mut i = 0;
     let max = 60;
@@ -522,7 +489,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
         log::info!(
             "Init container '{}' state:\n{:?}",
             git_clone_container.name,
-            init_container_status.clone().unwrap().state.unwrap()
+            init_container_status
         );
         println!(
             "Waiting for container '{}' to be ready. Checking again in 2 secs. Attempt {} of {}",
@@ -549,10 +516,14 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             .find(|container| container.name.eq("git-clone"))
             .unwrap();
 
-        log::debug!(
-            "Container status:\n{:#?}",
-            init_container_status.as_ref().unwrap()
-        );
+        init_container_status = cfs_session_pod
+            .status
+            .clone()
+            .unwrap()
+            .init_container_statuses
+            .unwrap()
+            .into_iter()
+            .find(|init_container| init_container.name.eq(&git_clone_container.name));
     }
 
     if init_container_status.is_none()
