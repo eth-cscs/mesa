@@ -201,53 +201,26 @@ pub mod http_client {
     // NOTE: repo_name value must not contain the group (eg in CSSC gitlab we have
     // alps/csm-config/template-management and in gitea is vcs/api/v1/repos/template-management
     pub async fn get_commit_details_from_external_url(
-        repo_url: &str,
+        // repo_url: &str,
+        repo_name: &str,
         commitid: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
     ) -> Result<Value, crate::error::Error> {
         let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
-        let repo_name = repo_url
-            .trim_end_matches(".git")
-            .trim_start_matches(gitea_external_base_url);
+        /* let repo_name = repo_url
+        .trim_end_matches(".git")
+        .trim_start_matches(gitea_external_base_url); */
 
-        if repo_name.ne(repo_url) {
+        /* if repo_name.ne(repo_url) {
             crate::error::Error::Message(
                 "repo url provided does not match gitea internal URL".to_string(),
             );
-        }
+        } */
 
         get_commit_details(
             gitea_external_base_url,
-            repo_name,
-            commitid,
-            gitea_token,
-            shasta_root_cert,
-        )
-        .await
-    }
-
-    pub async fn get_commit_details_from_internal_url(
-        repo_url: &str,
-        commitid: &str,
-        gitea_token: &str,
-        shasta_root_cert: &[u8],
-    ) -> Result<Value, crate::error::Error> {
-        let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
-
-        let repo_name = repo_url
-            .trim_end_matches(".git")
-            .trim_start_matches(gitea_internal_base_url);
-
-        if repo_name.ne(repo_url) {
-            crate::error::Error::Message(
-                "repo url provided does not match gitea internal URL".to_string(),
-            );
-        }
-
-        get_commit_details(
-            gitea_internal_base_url,
             repo_name,
             commitid,
             gitea_token,
@@ -284,6 +257,8 @@ pub mod http_client {
             gitea_base_url, repo_name, commitid
         );
 
+        log::info!("url to get commit details: {}", api_url);
+
         let response = client
             .get(api_url)
             .header("Authorization", format!("token {}", gitea_token))
@@ -297,11 +272,8 @@ pub mod http_client {
                 .await
                 .map_err(|error| Error::NetError(error))
         } else {
-            let payload = response
-                .json::<Value>()
-                .await
-                .map_err(|error| Error::NetError(error))?;
-            Err(Error::CsmError(payload))
+            let payload = response.text().await.unwrap();
+            Err(Error::CsmError(serde_json::json!({ "message": payload })))
         }
     }
 
