@@ -46,14 +46,14 @@ pub async fn get_fuzzy(
 }
 
 /// Returns a tuple like(Image sruct, cfs configuration name, list of target - either hsm group name
-/// or xnames)
+/// or xnames, bool - indicates if image is used to boot a node or not)
 /// This method tries to filter by HSM group which means it will make use of:
-/// CFS sessions to find which image id was created against which HSM group
-/// BOS sessiontemplates to find the HSM group related to nodes being rebooted in the past
-/// Image ids in boot params for nodes in HSM groups we are looking for (This is needed to not miss
+///  - CFS sessions to find which image id was created against which HSM group
+///  - BOS sessiontemplates to find the HSM group related to nodes being rebooted in the past
+///  - Image ids in boot params for nodes in HSM groups we are looking for (This is needed to not miss
 /// images currenly used which name may not have HSM group we are looking for included not CFS
 /// session nor BOS sessiontemplate)
-/// Image names with HSM group name included (This is a bad practice because this is a free text
+///  - Image names with HSM group name included (This is a bad practice because this is a free text
 /// prone to human errors)
 pub async fn filter(
     shasta_token: &str,
@@ -62,7 +62,7 @@ pub async fn filter(
     image_vec: &mut Vec<Image>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
-) -> Vec<(Image, String, String)> {
+) -> Vec<(Image, String, String, bool)> {
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
         *image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
@@ -90,7 +90,7 @@ pub async fn filter(
     // We need CFS sessions to find images without a BOS session template (hopefully the CFS
     // session has not been deleted by CSCS staff, otherwise it will be technically impossible to
     // find unless we search images by HSM name and expect HSM name to be in image name...)
-    let mut cfs_session_value_vec = crate::cfs::session::mesa::http_client::get(
+    let mut cfs_session_vec = crate::cfs::session::mesa::http_client::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -107,7 +107,7 @@ pub async fn filter(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        &mut cfs_session_value_vec,
+        &mut cfs_session_vec,
         hsm_group_name_vec,
         None,
     )
@@ -115,7 +115,7 @@ pub async fn filter(
 
     let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_value_vec.clone(),
+            cfs_session_vec.clone(),
         );
 
     image_id_cfs_configuration_from_cfs_session
@@ -123,7 +123,7 @@ pub async fn filter(
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_value_vec,
+            cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session_vec
@@ -140,7 +140,7 @@ pub async fn filter(
     )
     .await;
 
-    let boot_param_value_vec = get_raw(
+    let boot_param_vec = get_raw(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -149,13 +149,13 @@ pub async fn filter(
     .await
     .unwrap_or(Vec::new());
 
-    let image_id_from_boot_params: Vec<String> = boot_param_value_vec
+    let image_id_from_boot_params: Vec<String> = boot_param_vec
         .iter()
         .map(|boot_param| boot_param.get_boot_image())
         .collect();
 
     // Get Image details from IMS images API endpoint
-    let mut image_detail_vec: Vec<(Image, String, String)> = Vec::new();
+    let mut image_detail_vec: Vec<(Image, String, String, bool)> = Vec::new();
 
     for image in image_vec {
         let image_id = image.id.as_ref().unwrap();
@@ -163,6 +163,7 @@ pub async fn filter(
         let target_group_name_vec: Vec<String>;
         let cfs_configuration: String;
         let target_groups: String;
+        let boot_image: bool;
 
         if let Some(tuple) = image_id_cfs_configuration_from_cfs_session
             .iter()
@@ -180,29 +181,42 @@ pub async fn filter(
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
             target_groups = target_group_name_vec.join(", ");
-        } else if image_id_from_boot_params.contains(image_id)
-            || hsm_group_name_vec
-                .iter()
-                .any(|hsm_group_name| image.name.contains(hsm_group_name))
+        } else if let Some(boot_params) = boot_param_vec
+            .iter()
+            .find(|boot_params| boot_params.get_boot_image().eq(image_id))
         {
             // Image details where image is found in a node boot param related to HSM we are
             // working with
             // Boot params don't have CFS configuration information
             cfs_configuration = "Not found".to_string();
-            let xnames: Vec<&BootParameters> = boot_param_value_vec
-                .iter()
-                .filter(|boot_parameter| boot_parameter.hosts.contains(image_id))
-                .collect();
+            target_groups = boot_params.hosts.clone().join(",");
+        } else if hsm_group_name_vec
+            .iter()
+            .any(|hsm_group_name| image.name.contains(hsm_group_name))
+        {
+            // Image details where image name contains HSM group name available to the user.
+            // Boot params don't have CFS configuration information
+            // NOTE: CSCS specific
+            cfs_configuration = "Not found".to_string();
 
             target_groups = "Not found".to_string();
         } else {
             continue;
         }
 
+        // NOTE: 'boot_image' needs to be processed outside the 'if' statement. Otherwise we may
+        // miss images used to boot nodes filtered by a different branch in the 'if' statement
+        boot_image = if image_id_from_boot_params.contains(image_id) {
+            true
+        } else {
+            false
+        };
+
         image_detail_vec.push((
             image.clone(),
             cfs_configuration.to_string(),
             target_groups.clone(),
+            boot_image,
         ));
     }
 
