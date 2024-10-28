@@ -119,8 +119,8 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
-        format!(
-            "\nPod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}\n",
+        println!(
+            "Pod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}",
             cfs_session_name,
             i + 1,
             max
@@ -192,8 +192,8 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
 
     // Waiting for pod to start
     while pods.items.is_empty() && i <= max {
-        format!(
-            "\nPod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}\n",
+        println!(
+            "Pod for cfs session {} not ready. Trying again in 2 secs. Attempt {} of {}",
             cfs_session_name,
             i + 1,
             max

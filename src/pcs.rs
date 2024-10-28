@@ -279,7 +279,6 @@ pub mod transitions {
                 shasta_base_url,
                 shasta_token,
                 shasta_root_cert,
-                xname_vec,
                 transition_id,
             )
             .await?;
@@ -291,7 +290,6 @@ pub mod transitions {
             shasta_base_url: &str,
             shasta_token: &str,
             shasta_root_cert: &[u8],
-            xname_vec: &Vec<String>,
             transition_id: &str,
         ) -> Result<Value, Error> {
             let mut transition_status = "";
