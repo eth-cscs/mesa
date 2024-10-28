@@ -398,17 +398,18 @@ pub async fn register_new_image(
         .await
 }
 
+/// Returns the first user public key in IMS is can find
 pub async fn get_single(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    username_opt: Option<&str>,
+    username_opt: &str,
 ) -> Option<Value> {
     if let Ok(public_key_value_list) = get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        username_opt,
+        Some(username_opt),
     )
     .await
     {
