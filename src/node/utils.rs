@@ -98,128 +98,6 @@ pub async fn get_node_details(
         )
     );
 
-    /* let duration = start.elapsed();
-    log::info!("Time elapsed to get CFS components, boot parameters, HSM components and CFS sessions is: {:?}", duration);
-
-    // match node with bot_sessiontemplate and put them in a list
-    let mut node_details_vec = Vec::new();
-
-    for xname in &xname_list {
-        // let mut node_details = Vec::new();
-
-        let components_status = components_status_rslt.as_ref().unwrap();
-
-        // find component details
-        let component_details_opt = components_status
-            .iter()
-            .find(|component_status| component_status.id.as_ref().unwrap().eq(xname));
-
-        let component_details = if let Some(component_details) = component_details_opt {
-            component_details
-        } else {
-            eprintln!(
-                "ERROR - CFS component details for node {}.\nReason:\n{:#?}",
-                xname, component_details_opt
-            );
-            std::process::exit(1);
-        };
-
-        let desired_configuration = &component_details.desired_config;
-        let configuration_status = &component_details.configuration_status;
-        let enabled = component_details.enabled;
-        let error_count = component_details.error_count.clone();
-
-        let node_hsm_info = node_hsm_info_rslt
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|component| component["ID"].as_str().unwrap().eq(xname))
-            .unwrap();
-
-        // Get power status
-        let node_power_status = node_hsm_info["State"]
-            .as_str()
-            .unwrap()
-            .to_string()
-            .to_uppercase();
-
-        // Calculate NID
-        let node_nid = format!(
-            "nid{:0>6}",
-            node_hsm_info["NID"].as_u64().unwrap().to_string()
-        );
-
-        // get node boot params (these are the boot params of the nodes with the image the node
-        // boot with). the image in the bos sessiontemplate may be different i don't know why. need
-        // to investigate
-        let (image_id_in_kernel_params, kernel_params): (String, String) =
-            if let Some(node_boot_params) =
-                bss::bootparameters::utils::find_boot_params_related_to_node(
-                    &node_boot_params_vec_rslt.as_ref().unwrap(),
-                    xname,
-                )
-            {
-                (node_boot_params.get_boot_image(), node_boot_params.params)
-            } else {
-                eprintln!("BSS boot parameters for node {} - NOT FOUND", xname);
-                ("Not found".to_string(), "Not found".to_string())
-            };
-
-        // Get CFS configuration related to image id
-        let cfs_session_related_to_image_id_opt =
-            cfs::session::mesa::utils::find_cfs_session_related_to_image_id(
-                &cfs_session_vec_rslt.as_ref().unwrap(),
-                &image_id_in_kernel_params,
-            );
-
-        let cfs_configuration_boot = if let Some(cfs_session_related_to_image_id) =
-            cfs_session_related_to_image_id_opt
-        {
-            cfs::session::mesa::utils::get_cfs_configuration_name(&cfs_session_related_to_image_id)
-                .unwrap()
-        } else {
-            log::warn!(
-                "No configuration found for node {} related to image id {}",
-                xname,
-                image_id_in_kernel_params
-            );
-            "Not found".to_string()
-        };
-
-        let membership = hsm::memberships::http_client::get_xname(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            xname,
-        )
-        .await
-        .expect(&format!(
-            "ERROR - could not get node '{}' membership from HSM",
-            xname
-        ));
-
-        let node_details = NodeDetails {
-            xname: xname.to_string(),
-            nid: node_nid,
-            hsm: membership.group_labels.join(", "),
-            power_status: node_power_status,
-            desired_configuration: desired_configuration.as_ref().unwrap().to_string(),
-            configuration_status: configuration_status.as_ref().unwrap().to_string(),
-            enabled: enabled.unwrap().to_string(),
-            error_count: error_count.unwrap().to_string(),
-            boot_image_id: image_id_in_kernel_params,
-            boot_configuration: cfs_configuration_boot,
-            kernel_params,
-        };
-
-        node_details_vec.push(node_details);
-    }
-
-    let duration = start.elapsed();
-    log::info!("Time elapsed to get node details SYNC is: {:?}", duration);
-
-    node_details_vec */
-
     // ------------------------------------------------------------------------
     // Get and collect HSM members
     let mut node_details_map = HashMap::new();
@@ -287,7 +165,7 @@ pub async fn get_node_details(
             {
                 (node_boot_params.get_boot_image(), node_boot_params.params)
             } else {
-                eprintln!("BSS boot parameters for node {} - NOT FOUND", xname);
+                eprintln!("BSS boot parameters for node '{}' - NOT FOUND", xname);
                 ("Not found".to_string(), "Not found".to_string())
             };
 
@@ -305,7 +183,7 @@ pub async fn get_node_details(
                 .unwrap()
         } else {
             log::warn!(
-                "No configuration found for node {} related to image id {}",
+                "No configuration found for node '{}' related to image id '{}'",
                 xname,
                 image_id_in_kernel_params
             );
