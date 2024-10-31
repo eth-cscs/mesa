@@ -1,7 +1,8 @@
-use std::time::Instant;
+use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use regex::Regex;
 use serde_json::Value;
+use tokio::sync::Semaphore;
 
 use crate::{bss, cfs, hsm};
 
@@ -53,7 +54,7 @@ pub async fn get_node_details(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    node_list: Vec<String>,
+    xname_list: Vec<String>,
 ) -> Vec<NodeDetails> {
     let start = Instant::now();
 
@@ -68,21 +69,21 @@ pub async fn get_node_details(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &node_list,
+            &xname_list,
         ),
         // Get boot params to get the boot image id for each node
         crate::bss::bootparameters::http_client::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &node_list,
+            &xname_list,
         ),
         // Get HSM component status (needed to get NIDS)
         hsm::component_status::http_client::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &node_list,
+            &xname_list,
         ),
         // Get CFS sessions
         crate::cfs::session::mesa::http_client::get(
@@ -97,10 +98,13 @@ pub async fn get_node_details(
         )
     );
 
+    /* let duration = start.elapsed();
+    log::info!("Time elapsed to get CFS components, boot parameters, HSM components and CFS sessions is: {:?}", duration);
+
     // match node with bot_sessiontemplate and put them in a list
     let mut node_details_vec = Vec::new();
 
-    for node in &node_list {
+    for xname in &xname_list {
         // let mut node_details = Vec::new();
 
         let components_status = components_status_rslt.as_ref().unwrap();
@@ -108,14 +112,14 @@ pub async fn get_node_details(
         // find component details
         let component_details_opt = components_status
             .iter()
-            .find(|component_status| component_status.id.as_ref().unwrap().eq(node));
+            .find(|component_status| component_status.id.as_ref().unwrap().eq(xname));
 
         let component_details = if let Some(component_details) = component_details_opt {
             component_details
         } else {
             eprintln!(
                 "ERROR - CFS component details for node {}.\nReason:\n{:#?}",
-                node, component_details_opt
+                xname, component_details_opt
             );
             std::process::exit(1);
         };
@@ -125,20 +129,21 @@ pub async fn get_node_details(
         let enabled = component_details.enabled;
         let error_count = component_details.error_count.clone();
 
-        // get power status
         let node_hsm_info = node_hsm_info_rslt
             .as_ref()
             .unwrap()
             .iter()
-            .find(|component| component["ID"].as_str().unwrap().eq(node))
+            .find(|component| component["ID"].as_str().unwrap().eq(xname))
             .unwrap();
 
+        // Get power status
         let node_power_status = node_hsm_info["State"]
             .as_str()
             .unwrap()
             .to_string()
             .to_uppercase();
 
+        // Calculate NID
         let node_nid = format!(
             "nid{:0>6}",
             node_hsm_info["NID"].as_u64().unwrap().to_string()
@@ -147,16 +152,16 @@ pub async fn get_node_details(
         // get node boot params (these are the boot params of the nodes with the image the node
         // boot with). the image in the bos sessiontemplate may be different i don't know why. need
         // to investigate
-        let (kernel_image_path_in_boot_params, kernel_params): (String, String) =
+        let (image_id_in_kernel_params, kernel_params): (String, String) =
             if let Some(node_boot_params) =
                 bss::bootparameters::utils::find_boot_params_related_to_node(
                     &node_boot_params_vec_rslt.as_ref().unwrap(),
-                    node,
+                    xname,
                 )
             {
                 (node_boot_params.get_boot_image(), node_boot_params.params)
             } else {
-                eprintln!("BSS boot parameters for node {} - NOT FOUND", node);
+                eprintln!("BSS boot parameters for node {} - NOT FOUND", xname);
                 ("Not found".to_string(), "Not found".to_string())
             };
 
@@ -164,7 +169,7 @@ pub async fn get_node_details(
         let cfs_session_related_to_image_id_opt =
             cfs::session::mesa::utils::find_cfs_session_related_to_image_id(
                 &cfs_session_vec_rslt.as_ref().unwrap(),
-                &kernel_image_path_in_boot_params,
+                &image_id_in_kernel_params,
             );
 
         let cfs_configuration_boot = if let Some(cfs_session_related_to_image_id) =
@@ -175,8 +180,8 @@ pub async fn get_node_details(
         } else {
             log::warn!(
                 "No configuration found for node {} related to image id {}",
-                node,
-                kernel_image_path_in_boot_params
+                xname,
+                image_id_in_kernel_params
             );
             "Not found".to_string()
         };
@@ -185,16 +190,16 @@ pub async fn get_node_details(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            node,
+            xname,
         )
         .await
         .expect(&format!(
             "ERROR - could not get node '{}' membership from HSM",
-            node
+            xname
         ));
 
         let node_details = NodeDetails {
-            xname: node.to_string(),
+            xname: xname.to_string(),
             nid: node_nid,
             hsm: membership.group_labels.join(", "),
             power_status: node_power_status,
@@ -202,7 +207,7 @@ pub async fn get_node_details(
             configuration_status: configuration_status.as_ref().unwrap().to_string(),
             enabled: enabled.unwrap().to_string(),
             error_count: error_count.unwrap().to_string(),
-            boot_image_id: kernel_image_path_in_boot_params,
+            boot_image_id: image_id_in_kernel_params,
             boot_configuration: cfs_configuration_boot,
             kernel_params,
         };
@@ -211,9 +216,180 @@ pub async fn get_node_details(
     }
 
     let duration = start.elapsed();
-    log::info!("Time elapsed to get node details is: {:?}", duration);
+    log::info!("Time elapsed to get node details SYNC is: {:?}", duration);
 
-    node_details_vec
+    node_details_vec */
+
+    // ------------------------------------------------------------------------
+    // Get and collect HSM members
+    let mut node_details_map = HashMap::new();
+    let mut tasks = tokio::task::JoinSet::new();
+
+    let sem = Arc::new(Semaphore::new(10)); // CSM 1.3.1 higher number of concurrent tasks won't
+
+    for xname in xname_list {
+        let shasta_token_string = shasta_token.to_string();
+        let shasta_base_url_string = shasta_base_url.to_string();
+        let shasta_root_cert_vec = shasta_root_cert.to_vec();
+
+        let components_status = components_status_rslt.as_ref().unwrap();
+
+        // find component details
+        let component_details_opt = components_status
+            .iter()
+            .find(|component_status| component_status.id.as_ref().unwrap().eq(&xname));
+
+        let component_details = if let Some(component_details) = component_details_opt {
+            component_details
+        } else {
+            eprintln!(
+                "ERROR - CFS component details for node {}.\nReason:\n{:#?}",
+                xname, component_details_opt
+            );
+            std::process::exit(1);
+        };
+
+        let desired_configuration = &component_details.desired_config;
+        let configuration_status = &component_details.configuration_status;
+        let enabled = component_details.enabled;
+        let error_count = component_details.error_count.clone();
+
+        // Get node HSM details
+        let node_hsm_info_value = node_hsm_info_rslt
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|component| component["ID"].as_str().unwrap().eq(&xname))
+            .unwrap();
+
+        // Gget power status
+        let node_power_status = node_hsm_info_value["State"]
+            .as_str()
+            .unwrap()
+            .to_string()
+            .to_uppercase();
+
+        // Calculate NID
+        let node_nid = format!(
+            "nid{:0>6}",
+            node_hsm_info_value["NID"].as_u64().unwrap().to_string()
+        );
+
+        // get node boot params (these are the boot params of the nodes with the image the node
+        // boot with). the image in the bos sessiontemplate may be different i don't know why. need
+        // to investigate
+        let (image_id_in_kernel_params, kernel_params): (String, String) =
+            if let Some(node_boot_params) =
+                bss::bootparameters::utils::find_boot_params_related_to_node(
+                    &node_boot_params_vec_rslt.as_ref().unwrap(),
+                    &xname,
+                )
+            {
+                (node_boot_params.get_boot_image(), node_boot_params.params)
+            } else {
+                eprintln!("BSS boot parameters for node {} - NOT FOUND", xname);
+                ("Not found".to_string(), "Not found".to_string())
+            };
+
+        // Get CFS configuration related to image id
+        let cfs_session_related_to_image_id_opt =
+            cfs::session::mesa::utils::find_cfs_session_related_to_image_id(
+                &cfs_session_vec_rslt.as_ref().unwrap(),
+                &image_id_in_kernel_params,
+            );
+
+        let cfs_configuration_boot = if let Some(cfs_session_related_to_image_id) =
+            cfs_session_related_to_image_id_opt
+        {
+            cfs::session::mesa::utils::get_cfs_configuration_name(&cfs_session_related_to_image_id)
+                .unwrap()
+        } else {
+            log::warn!(
+                "No configuration found for node {} related to image id {}",
+                xname,
+                image_id_in_kernel_params
+            );
+            "Not found".to_string()
+        };
+
+        node_details_map
+            .entry(xname.clone())
+            .and_modify(|node_details: &mut NodeDetails| {
+                node_details.xname = xname.clone();
+                node_details.nid = node_nid.clone();
+                node_details.hsm = "".to_string();
+                node_details.power_status = node_power_status.clone();
+                node_details.desired_configuration = desired_configuration.clone().unwrap();
+                node_details.configuration_status = configuration_status.clone().unwrap();
+                node_details.enabled = enabled.unwrap().to_string();
+                node_details.error_count = error_count.unwrap().to_string();
+                node_details.boot_image_id = image_id_in_kernel_params.clone();
+                node_details.boot_configuration = cfs_configuration_boot.clone();
+                node_details.kernel_params = kernel_params.clone();
+            })
+            .or_insert(NodeDetails {
+                xname: xname.clone(),
+                nid: node_nid,
+                hsm: "".to_string(),
+                power_status: node_power_status,
+                desired_configuration: desired_configuration.clone().unwrap(),
+                configuration_status: configuration_status.clone().unwrap(),
+                enabled: enabled.unwrap().to_string(),
+                error_count: error_count.unwrap().to_string(),
+                boot_image_id: image_id_in_kernel_params,
+                boot_configuration: cfs_configuration_boot,
+                kernel_params,
+            });
+
+        let permit = Arc::clone(&sem).acquire_owned().await;
+
+        tasks.spawn(async move {
+            let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
+
+            hsm::memberships::http_client::get_xname(
+                &shasta_token_string,
+                &shasta_base_url_string,
+                &shasta_root_cert_vec,
+                &xname,
+            )
+            .await
+            .expect(&format!(
+                "ERROR - could not get node '{}' membership from HSM",
+                xname
+            ))
+        });
+    }
+
+    while let Some(message) = tasks.join_next().await {
+        if let Ok(node_membership) = message {
+            let node_details = NodeDetails {
+                xname: "".to_string(),
+                nid: "".to_string(),
+                hsm: node_membership.group_labels.join(", "),
+                power_status: "".to_string(),
+                desired_configuration: "".to_string(),
+                configuration_status: "".to_string(),
+                enabled: "".to_string(),
+                error_count: "".to_string(),
+                boot_image_id: "".to_string(),
+                boot_configuration: "".to_string(),
+                kernel_params: "".to_string(),
+            };
+
+            node_details_map
+                .entry(node_membership.id.clone())
+                .and_modify(|node_details: &mut NodeDetails| {
+                    node_details.hsm = node_membership.group_labels.join(", ")
+                })
+                .or_insert(node_details);
+        }
+    }
+
+    let duration = start.elapsed();
+    log::info!("Time elapsed to get node details is: {:?}", duration);
+    // ------------------------------------------------------------------------
+
+    node_details_map.into_values().collect()
 }
 
 pub fn nodes_to_string_format_one_line(nodes: Option<&Vec<Value>>) -> String {

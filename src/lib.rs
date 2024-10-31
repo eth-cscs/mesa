@@ -1,4 +1,5 @@
 pub mod bos;
+#[cfg(feature = "ochami")]
 pub mod bss;
 pub mod capmc;
 pub mod cfs;
