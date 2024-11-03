@@ -272,9 +272,7 @@ pub mod group {
                 .json(&xname) // make sure this is not a string!
                 .send()
                 .await?
-                .error_for_status()?
-                .json()
-                .await?;
+                .error_for_status()?;
             // TODO Parse the output!!!
             // TODO add some debugging output
 
@@ -317,9 +315,7 @@ pub mod group {
                 .header("Authorization", format!("Bearer {}", shasta_token))
                 .send()
                 .await?
-                .error_for_status()?
-                .json()
-                .await?;
+                .error_for_status()?;
 
             // TODO Parse the output!!!
             // TODO add some debugging output
