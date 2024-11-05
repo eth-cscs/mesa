@@ -486,7 +486,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
             .is_some())
         && i <= max
     {
-        log::info!(
+        log::debug!(
             "Init container '{}' state:\n{:?}",
             git_clone_container.name,
             init_container_status

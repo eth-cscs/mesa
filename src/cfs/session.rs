@@ -1159,12 +1159,22 @@ pub mod mesa {
 
     pub mod http_client {
 
-        use crate::{cfs, error::Error};
+        use crate::{
+            cfs,
+            common::{
+                kubernetes::{self, print_cfs_session_logs},
+                vault::http_client::fetch_shasta_k8s_secrets,
+            },
+            error::Error,
+        };
 
         use super::{
             r#struct::v3::{CfsSessionGetResponse, CfsSessionPostRequest},
             wait_cfs_session_to_finish,
         };
+
+        use futures::TryStreamExt;
+        use tokio_stream::StreamExt;
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions ordered by start time.
@@ -1244,7 +1254,12 @@ pub mod mesa {
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
+            vault_base_url: &str,
+            vault_secret_path: &str,
+            vault_role_id: &str,
+            k8s_api_url: &str,
             session: &CfsSessionPostRequest,
+            watch_logs: bool,
         ) -> Result<CfsSessionGetResponse, Error> {
             let cfs_session: CfsSessionGetResponse = cfs::session::mesa::http_client::post(
                 shasta_token,
@@ -1256,14 +1271,31 @@ pub mod mesa {
 
             let cfs_session_name: String = cfs_session.name.unwrap();
 
-            // Wait till the CFS session finishes
-            wait_cfs_session_to_finish(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                &cfs_session_name,
-            )
-            .await;
+            // FIXME: refactor becase this code is duplicated in command `manta apply sat-file` and also in
+            // `manta logs`
+            if watch_logs {
+                log::info!("Fetching logs ...");
+                let shasta_k8s_secrets =
+                    fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id)
+                        .await;
+
+                let client =
+                    kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
+                        .await
+                        .unwrap();
+
+                let _ = print_cfs_session_logs(client, &cfs_session_name).await;
+            } else {
+                // User does not want the CFS logs but we still need to wayt the CFS session to
+                // finis. Wait till the CFS session finishes
+                wait_cfs_session_to_finish(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &cfs_session_name,
+                )
+                .await;
+            }
 
             // Get most recent CFS session status
             let cfs_session: CfsSessionGetResponse = get(
