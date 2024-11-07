@@ -475,7 +475,7 @@ pub mod v3 {
             cfs_configuration_name = configuration_yaml["name"].as_str().unwrap().to_string();
 
             for layer_yaml in configuration_yaml["layers"].as_sequence().unwrap() {
-                // println!("\n\n### Layer:\n{:#?}\n", layer_json);
+                // println!("DEBUG - ### Layer:\n{:#?}\n", layer_yaml);
 
                 if layer_yaml.get("git").is_some() {
                     // Git layer
@@ -576,6 +576,7 @@ pub mod v3 {
                     let product_name = layer_yaml["product"]["name"].as_str().unwrap();
                     let product_version = layer_yaml["product"]["version"].as_str().unwrap();
                     let product_branch_value_opt = layer_yaml["product"].get("branch");
+                    let product_commit_value_opt = layer_yaml["product"].get("commit");
 
                     let product = cray_product_catalog.get(product_name);
 
@@ -613,24 +614,28 @@ pub mod v3 {
                         .to_string()
                         .replace("vcs.cmn.alps.cscs.ch", "api-gw-service-nmn.local");
 
-                    let commit_id_opt = if product_branch_value_opt.is_some() {
-                        // If branch is provided, then ignore the commit id in the CRAY products table
-
-                        let commit = Some(
-                            gitea::http_client::get_commit_pointed_by_branch(
-                                gitea_base_url,
-                                gitea_token,
-                                shasta_root_cert,
-                                &repo_url,
-                                product_branch_value_opt.unwrap().as_str().unwrap(),
-                            )
-                            .await
-                            .unwrap(),
-                        );
-
-                        commit
+                    let commit_id_opt = if let Some(commit_value) = product_commit_value_opt {
+                        commit_value
+                            .clone()
+                            .as_str()
+                            .map(|commit_str| commit_str.to_string())
                     } else {
-                        Some(product_details["commit"].as_str().unwrap().to_string())
+                        if product_branch_value_opt.is_some() {
+                            // If branch is provided, then ignore the commit id in the CRAY products table
+                            Some(
+                                gitea::http_client::get_commit_pointed_by_branch(
+                                    gitea_base_url,
+                                    gitea_token,
+                                    shasta_root_cert,
+                                    &repo_url,
+                                    product_branch_value_opt.unwrap().as_str().unwrap(),
+                                )
+                                .await
+                                .unwrap(),
+                            )
+                        } else {
+                            Some(product_details["commit"].as_str().unwrap().to_string())
+                        }
                     };
 
                     // IMPORTANT: CSM won't allow CFS configuration layers with both commit id and
