@@ -17,8 +17,8 @@ pub fn validate_xname_format(xname: &str) -> bool {
 
 /// Validates a list of xnames.
 /// Checks xnames strings are valid
-/// If hsm_group_name if provided, then checks all xnames belongs to that hsm_group
-pub async fn validate_xnames(
+/// If hsm_group_name_opt provided, then checks all xnames belongs to that hsm_group
+pub async fn validate_xnames_format_and_membership_agaisnt_single_hsm(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -36,6 +36,39 @@ pub async fn validate_xnames(
     } else {
         Vec::new()
     };
+
+    if xnames.iter().any(|&xname| {
+        !validate_xname_format(xname)
+            || (!hsm_group_members.is_empty() && !hsm_group_members.contains(&xname.to_string()))
+    }) {
+        return false;
+    }
+
+    true
+}
+
+/// Validates a list of xnames.
+/// Checks xnames strings are valid
+/// If hsm_group_name_vec_opt provided, then checks all xnames belongs to those hsm_groups
+pub async fn validate_xnames_format_and_membership_agaisnt_multiple_hsm(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    xnames: &[&str],
+    hsm_group_name_vec_opt: Option<Vec<String>>,
+) -> bool {
+    let hsm_group_members: Vec<String> =
+        if let Some(hsm_group_name) = hsm_group_name_vec_opt.clone() {
+            hsm::group::utils::get_member_vec_from_hsm_name_vec(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                hsm_group_name,
+            )
+            .await
+        } else {
+            Vec::new()
+        };
 
     if xnames.iter().any(|&xname| {
         !validate_xname_format(xname)

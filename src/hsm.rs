@@ -107,9 +107,6 @@ pub mod group {
     }
 
     pub mod http_client {
-
-        use serde_json::Value;
-
         use crate::{
             error::Error,
             hsm::group::r#struct::{HsmGroup, Member, XnameId},
@@ -194,11 +191,11 @@ pub mod group {
                 }
             } else {
                 let payload = response
-                    .json::<Value>()
+                    .text()
                     .await
                     .map_err(|error| Error::NetError(error))?;
 
-                Err(Error::CsmError(payload))
+                Err(Error::Message(payload))
             }
         }
 
@@ -501,7 +498,7 @@ pub mod group {
                 http_client::{get, post_member},
                 r#struct::HsmGroup,
             },
-            node::utils::validate_xnames,
+            node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,
         };
 
         use super::http_client::{self, delete_member};
@@ -567,7 +564,7 @@ pub mod group {
             dryrun: bool,
         ) -> Result<Vec<String>, Error> {
             // Check nodes are valid xnames and they belong to parent HSM group
-            if !validate_xnames(
+            if !validate_xnames_format_and_membership_agaisnt_single_hsm(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -633,7 +630,7 @@ pub mod group {
             nodryrun: bool,
         ) -> Result<(Vec<String>, Vec<String>), Error> {
             // Check nodes are valid xnames and they belong to parent HSM group
-            if !validate_xnames(
+            if !validate_xnames_format_and_membership_agaisnt_single_hsm(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,

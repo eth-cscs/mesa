@@ -5,6 +5,8 @@ pub mod bootparameters {
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
 
+    use crate::error::Error;
+
     #[derive(Debug, Serialize, Deserialize, Default, Clone)]
     pub struct BootParameters {
         #[serde(default)]
@@ -132,7 +134,11 @@ pub mod bootparameters {
         /// Update boot image in kernel boot parameters and also in kernel and initrd fields if
         /// exists. Otherwise nothing is changed. This method updates both kernel params related to
         /// NCN and also CN
-        pub fn update_boot_image(&mut self, new_image_id: &str) {
+        /// Returns a boolean that indicates if kernel parameters have change:
+        ///  - kernel parameter value changed
+        ///  - number of kernel parameters have changed
+        pub fn update_boot_image(&mut self, new_image_id: &str) -> Result<bool, Error> {
+            let mut changed = false;
             // replace image id in 'root' kernel param
 
             // convert kernel params to a hashmap
@@ -143,19 +149,27 @@ pub mod bootparameters {
                 .collect();
 
             // Get `root` kernel parameter and split it by '/'
-            let mut root_kernel_param: Vec<&str> = params
-                .get("root")
-                .expect("The 'root' kernel param does not exists")
-                .split("/")
-                .collect();
+            let root_kernel_param_rslt = params.get("root");
+
+            let mut root_kernel_param: Vec<&str> = match root_kernel_param_rslt {
+                Some(root_kernel_param) => root_kernel_param.split("/").collect::<Vec<&str>>(),
+                None => {
+                    return Err(Error::Message(
+                        "ERROR - The 'root' kernel param is missing from user input".to_string(),
+                    ));
+                }
+            };
 
             // Replace image id in root kernel param with new image id
-            for substring in &mut root_kernel_param {
+            for current_image_id in &mut root_kernel_param {
                 // Look for any substring between '/' that matches an UUID formant and take it as
                 // the image id
-                if let Ok(_) = uuid::Uuid::try_parse(substring) {
+                if let Ok(_) = uuid::Uuid::try_parse(current_image_id) {
+                    if *current_image_id != new_image_id {
+                        changed = true;
+                    }
                     // Replace image id in `root` kernel parameter with new value
-                    *substring = new_image_id;
+                    *current_image_id = new_image_id;
                 }
             }
 
@@ -242,58 +256,16 @@ pub mod bootparameters {
             self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
 
             self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
+
+            Ok(changed)
         }
-
-        /* pub fn upsert_boot_image(&mut self, new_image_id: &str) {
-            let boot_image_kernel_param = format!("root=craycps-s3:s3://boot-images/{new_image_id}/rootfs:etag:dvs:api-gw-service-nmn.local:300:hsn0,nmn0:0 nmd_data=url=s3://boot-images/{new_image_id}/rootfs,etag=etag");
-            self.upsert_kernel_params(&boot_image_kernel_param);
-
-            /* self.params = self
-            .params
-            .split_whitespace()
-            .map(|kernel_param| {
-                if kernel_param.contains("metal.server=s3://boot-images/") {
-                    // NCN node
-                    let aux = kernel_param
-                        .trim_start_matches("metal.server=s3://boot-images/")
-                        .split_once('/')
-                        .unwrap()
-                        .1;
-
-                    format!("metal.server=s3://boot-images/{}/{}", new_image_id, aux)
-                } else if kernel_param.contains("root=craycps-s3:s3://boot-images/") {
-                    // CN node
-                    let aux = kernel_param
-                        .trim_start_matches("root=craycps-s3:s3://boot-images/")
-                        .split_once('/')
-                        .unwrap_or_default() // NCN has root=live:LABEL=SQFSRAID
-                        .1;
-
-                    format!("root=craycps-s3:s3://boot-images/{}/{}", new_image_id, aux)
-                } else if kernel_param.contains("nmd_data=") {
-                    // CN node
-                    let aux = kernel_param
-                        .trim_start_matches("nmd_data=url=s3://boot-images/")
-                        .split_once('/')
-                        .unwrap()
-                        .1;
-
-                    format!("nmd_data=url=s3://boot-images/{}/{}", new_image_id, aux)
-                } else {
-                    kernel_param.to_string()
-                }
-            })
-            .collect::<Vec<String>>()
-            .join(" "); */
-
-            self.kernel = format!("s3://boot-images/{}/kernel", new_image_id);
-
-            self.initrd = format!("s3://boot-images/{}/initrd", new_image_id);
-        } */
 
         /// Add kernel parameter. If kernel parameter already exists, then it will be added,
         /// otherwise nothing will change
-        pub fn add_kernel_params(&mut self, new_params: &str) {
+        /// Returns true if kernel params have change
+        pub fn add_kernel_params(&mut self, new_params: &str) -> bool {
+            let mut change = false;
+
             let new_params: Vec<(&str, &str)> = new_params
                 .split_whitespace()
                 .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
@@ -305,8 +277,37 @@ pub mod bootparameters {
                 .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
                 .collect();
 
-            for (key, new_value) in &new_params {
-                params.entry(key).and_modify(|value| *value = new_value);
+            for (new_key, new_value) in &new_params {
+                for (key, value) in params.iter_mut() {
+                    if *key == *new_key {
+                        log::debug!("key '{}' found", key);
+                        if value != new_value {
+                            log::info!("changing key {} from {} to {}", key, value, new_value);
+
+                            *value = new_value;
+                            change = true
+                        } else {
+                            log::debug!("key '{}' value does not change ({})", key, value);
+                        }
+                    }
+                }
+                /* params
+                .entry(key)
+                .and_modify(|value| {
+                    *value = new_value;
+                    if value != new_value {
+                        change = true;
+                    }
+                })
+                .or_insert(new_value); */
+            }
+
+            if change == false {
+                log::debug!("No value change in kernel params. Checking is either new params have been added or removed");
+                if new_params.len() != params.len() {
+                    log::info!("num kernel parameters have changed");
+                    change = true;
+                }
             }
 
             self.params = new_params
@@ -320,6 +321,8 @@ pub mod bootparameters {
                 })
                 .collect::<Vec<String>>()
                 .join(" ");
+
+            change
         }
 
         /// Add kernel parameter. If kernel parameter already exists, then it will be added,
