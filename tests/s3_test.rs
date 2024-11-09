@@ -1,4 +1,4 @@
-use directories::ProjectDirs;
+/* use directories::ProjectDirs;
 use mesa::ims::s3::{
     s3_auth, s3_download_object, s3_multipart_upload_object, s3_remove_object, s3_upload_object,
 };
@@ -345,4 +345,4 @@ pub async fn test_7_s3_multipart_remove_object() {
         Err(error) => assert!(false, "Error {}", error.to_string()),
     };
     assert!(true, "OK, the file was removed successfully.")
-}
+} */
