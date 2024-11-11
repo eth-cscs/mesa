@@ -32,22 +32,20 @@ pub mod http_client {
         gitea_token: &str,
         repo_name: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Vec<Value>, crate::error::Error> {
-        let client;
-
+    ) -> Result<Vec<Value>, Error> {
         let client_builder = reqwest::Client::builder()
             .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert).unwrap());
 
         // Build client
-        if std::env::var("SOCKS5").is_ok() {
+        let client = if std::env::var("SOCKS5").is_ok() {
             // socks5 proxy
             let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap()).unwrap();
 
             // rest client to authenticate
-            client = client_builder.proxy(socks5proxy).build().unwrap();
+            client_builder.proxy(socks5proxy).build().unwrap()
         } else {
-            client = client_builder.build().unwrap();
-        }
+            client_builder.build().unwrap()
+        };
 
         let api_url = format!(
             "{}/api/v1/repos/cray/{}/git/refs",
@@ -56,19 +54,26 @@ pub mod http_client {
 
         log::debug!("Get refs in gitea using through API call: {}", api_url);
 
-        let resp_rslt = client
+        let response = client
             .get(api_url)
             .header("Authorization", format!("token {}", gitea_token))
             .send()
-            .await?
-            .error_for_status()?
-            .json::<Vec<Value>>()
-            .await;
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        // .error_for_status()?
+        // .json::<Vec<Value>>()
+        // .await
 
+        if response.status().is_success() {
+            response.json().await.map_err(|e| Error::NetError(e))
+        } else {
+            Err(Error::Message(response.text().await?))
+        }
+        /*
         match resp_rslt {
             Ok(resp) => Ok(resp),
             Err(error) => Err(Error::NetError(error)),
-        }
+        } */
     }
 
     /// Get most commit id (sha) pointed by a branch
