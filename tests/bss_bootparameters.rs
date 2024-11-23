@@ -1,7 +1,37 @@
 // tests for BSS
 #[cfg(test)]
 mod tests {
-    use mesa::bss::bootparameters::BootParameters;
+    use mesa::bss::bootparameters::{utils::get_image_id_from_s3_path, BootParameters};
+
+    #[test]
+    fn test_get_image_id_from_s3_path() {
+        assert_eq!(
+            get_image_id_from_s3_path(
+                "s3://boot-images/59e0180a-3fdd-4936-bba7-14ba914ffd34/kernel",
+            ),
+            Some("59e0180a-3fdd-4936-bba7-14ba914ffd34")
+        );
+    }
+
+    #[test]
+    fn test_get_image_id_from_s3_path_2() {
+        assert_eq!(
+            get_image_id_from_s3_path(
+                "craycps-s3:s3://boot-images/59e0180a-3fdd-4936-bba7-14ba914ffd34/rootfs:3dfae8d1fa3bb2bfb18152b4f9940ad0-667:dvs:api-gw-service-nmn.local:300:nmn0,hsn0:0",
+            ),
+            Some("59e0180a-3fdd-4936-bba7-14ba914ffd34")
+        );
+    }
+
+    #[test]
+    fn test_get_image_id_from_s3_path_3() {
+        assert_eq!(
+            get_image_id_from_s3_path(
+                "url=s3://boot-images/59e0180a-3fdd-4936-bba7-14ba914ffd34/rootfs,etag=3dfae8d1fa3bb2bfb18152b4f9940ad0-667 bos_update_frequency=4h",
+            ),
+            Some("59e0180a-3fdd-4936-bba7-14ba914ffd34")
+        );
+    }
 
     #[test]
     fn test_update_boot_image_ncn() {
@@ -105,7 +135,7 @@ mod tests {
 
         let num_params = boot_parameters.get_num_kernel_params();
 
-        let changed = boot_parameters.add_kernel_param("test", "1");
+        let changed = boot_parameters.add_kernel_params("test=1");
 
         let param_value_opt = boot_parameters.get_kernel_param_value("test");
         let new_num_params = boot_parameters.get_num_kernel_params();
@@ -118,6 +148,39 @@ mod tests {
         let pass = changed
             && (new_num_params == num_params + 1)
             && param_value_opt == Some("1".to_string());
+
+        assert!(pass)
+    }
+
+    #[test]
+    fn test_add_kernel_param_2() {
+        let mut boot_parameters = BootParameters {
+            hosts: vec![],
+            macs: None,
+            nids: None,
+            params: "console=ttyS0,115200 bad_page=panic crashkernel=360M hugepagelist=2m-2g intel_iommu=off intel_pstate=disable iommu.passthrough=on numa_interleave_omit=headless oops=panic pageblock_order=14 rd.neednet=1 rd.retry=10 rd.shell dhcp quiet ksocklnd.skip_mr_route_setup=1 cxi_core.disable_default_svc=0 cxi_core.enable_fgfc=1 cxi_core.sct_pid_mask=0xf spire_join_token=${SPIRE_JOIN_TOKEN} root=craycps-s3:s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs:350a27edb711cbcd8cff27470711f841-317:dvs:api-gw-service-nmn.local:300:nmn0 nmd_data=url=s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs,etag=350a27edb711cbcd8cff27470711f841-317 bos_session_id=50c401a9-3324-4844-bf82-872adb0ebe6f".to_string(),
+            kernel: "s3://boot-images/6c644208-104a-473d-802c-410219026335/kernel".to_string(),
+            initrd: "s3://boot-images/6c644208-104a-473d-802c-410219026335/initrd".to_string(),
+            cloud_init: None,
+        };
+
+        let num_params = boot_parameters.get_num_kernel_params();
+
+        let changed = boot_parameters.add_kernel_params("test=1 test2=2");
+
+        let param_value_opt = boot_parameters.get_kernel_param_value("test");
+        let param_value_2_opt = boot_parameters.get_kernel_param_value("test2");
+        let new_num_params = boot_parameters.get_num_kernel_params();
+
+        println!("DEBUG - num kp: {}", num_params);
+        println!("DEBUG - new num kp: {}", new_num_params);
+        println!("DEBUG - changed: {}", changed);
+        println!("DEBUG - kernel param value: {:?}", param_value_opt);
+
+        let pass = changed
+            && (new_num_params == num_params + 2)
+            && param_value_opt == Some("1".to_string())
+            && param_value_2_opt == Some("2".to_string());
 
         assert!(pass)
     }
@@ -232,7 +295,7 @@ mod tests {
 
         let num_params = boot_parameters.get_num_kernel_params();
 
-        let changed = boot_parameters.delete_kernel_param("root");
+        let changed = boot_parameters.delete_kernel_params("root");
 
         let param_value_opt = boot_parameters.get_kernel_param_value("root");
         let new_num_params = boot_parameters.get_num_kernel_params();
@@ -243,6 +306,134 @@ mod tests {
         println!("DEBUG - kernel param value test: {:?}", param_value_opt);
 
         let pass = changed && (new_num_params == num_params - 1) && param_value_opt == None;
+
+        assert!(pass)
+    }
+
+    // Use delete_kernel_param function to remove all kernel params but 'root'
+    #[test]
+    fn test_delete_kernel_param_2() {
+        let mut boot_parameters = BootParameters {
+            hosts: vec![],
+            macs: None,
+            nids: None,
+            params: "console=ttyS0,115200 bad_page=panic crashkernel=360M hugepagelist=2m-2g intel_iommu=off intel_pstate=disable iommu.passthrough=on numa_interleave_omit=headless oops=panic pageblock_order=14 rd.neednet=1 rd.retry=10 rd.shell dhcp quiet ksocklnd.skip_mr_route_setup=1 cxi_core.disable_default_svc=0 cxi_core.enable_fgfc=1 cxi_core.sct_pid_mask=0xf spire_join_token=${SPIRE_JOIN_TOKEN} root=craycps-s3:s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs:350a27edb711cbcd8cff27470711f841-317:dvs:api-gw-service-nmn.local:300:nmn0 nmd_data=url=s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs,etag=350a27edb711cbcd8cff27470711f841-317 bos_session_id=50c401a9-3324-4844-bf82-872adb0ebe6f".to_string(),
+            kernel: "s3://boot-images/6c644208-104a-473d-802c-410219026335/kernel".to_string(),
+            initrd: "s3://boot-images/6c644208-104a-473d-802c-410219026335/initrd".to_string(),
+            cloud_init: None,
+        };
+
+        let num_params = boot_parameters.get_num_kernel_params();
+
+        let changed = boot_parameters.apply_kernel_params("root=test");
+
+        let param_value_opt = boot_parameters.get_kernel_param_value("root");
+        let new_num_params = boot_parameters.get_num_kernel_params();
+
+        println!("DEBUG - num kp: {}", num_params);
+        println!("DEBUG - new num kp: {}", new_num_params);
+        println!("DEBUG - changed: {}", changed);
+        println!("DEBUG - kernel param value test: {:?}", param_value_opt);
+
+        let pass = changed && (new_num_params == 1) && param_value_opt == Some("test".to_string());
+
+        assert!(pass)
+    }
+
+    // Use set_kernel_param function to change value of kernel param 'root'
+    #[test]
+    fn test_set_kernel_param() {
+        let mut boot_parameters = BootParameters {
+            hosts: vec![],
+            macs: None,
+            nids: None,
+            params: "console=ttyS0,115200 bad_page=panic crashkernel=360M hugepagelist=2m-2g intel_iommu=off intel_pstate=disable iommu.passthrough=on numa_interleave_omit=headless oops=panic pageblock_order=14 rd.neednet=1 rd.retry=10 rd.shell dhcp quiet ksocklnd.skip_mr_route_setup=1 cxi_core.disable_default_svc=0 cxi_core.enable_fgfc=1 cxi_core.sct_pid_mask=0xf spire_join_token=${SPIRE_JOIN_TOKEN} root=craycps-s3:s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs:350a27edb711cbcd8cff27470711f841-317:dvs:api-gw-service-nmn.local:300:nmn0 nmd_data=url=s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs,etag=350a27edb711cbcd8cff27470711f841-317 bos_session_id=50c401a9-3324-4844-bf82-872adb0ebe6f".to_string(),
+            kernel: "s3://boot-images/6c644208-104a-473d-802c-410219026335/kernel".to_string(),
+            initrd: "s3://boot-images/6c644208-104a-473d-802c-410219026335/initrd".to_string(),
+            cloud_init: None,
+        };
+
+        let num_params = boot_parameters.get_num_kernel_params();
+
+        let changed = boot_parameters.update_kernel_params("root=test");
+
+        let param_value_opt = boot_parameters.get_kernel_param_value("root");
+        let new_num_params = boot_parameters.get_num_kernel_params();
+
+        println!("DEBUG - num kp: {}", num_params);
+        println!("DEBUG - new num kp: {}", new_num_params);
+        println!("DEBUG - changed: {}", changed);
+        println!("DEBUG - kernel param value test: {:?}", param_value_opt);
+
+        let pass = changed
+            && (new_num_params == num_params)
+            && param_value_opt == Some("test".to_string());
+
+        assert!(pass)
+    }
+
+    // Use set_kernel_param function to change 2 kernel parameters 'root' and 'console'
+    #[test]
+    fn test_set_kernel_param_2() {
+        let mut boot_parameters = BootParameters {
+            hosts: vec![],
+            macs: None,
+            nids: None,
+            params: "console=ttyS0,115200 bad_page=panic crashkernel=360M hugepagelist=2m-2g intel_iommu=off intel_pstate=disable iommu.passthrough=on numa_interleave_omit=headless oops=panic pageblock_order=14 rd.neednet=1 rd.retry=10 rd.shell dhcp quiet ksocklnd.skip_mr_route_setup=1 cxi_core.disable_default_svc=0 cxi_core.enable_fgfc=1 cxi_core.sct_pid_mask=0xf spire_join_token=${SPIRE_JOIN_TOKEN} root=craycps-s3:s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs:350a27edb711cbcd8cff27470711f841-317:dvs:api-gw-service-nmn.local:300:nmn0 nmd_data=url=s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs,etag=350a27edb711cbcd8cff27470711f841-317 bos_session_id=50c401a9-3324-4844-bf82-872adb0ebe6f".to_string(),
+            kernel: "s3://boot-images/6c644208-104a-473d-802c-410219026335/kernel".to_string(),
+            initrd: "s3://boot-images/6c644208-104a-473d-802c-410219026335/initrd".to_string(),
+            cloud_init: None,
+        };
+
+        let num_params = boot_parameters.get_num_kernel_params();
+
+        let changed = boot_parameters.update_kernel_params("root=test console=test2");
+
+        let param_value_opt = boot_parameters.get_kernel_param_value("root");
+        let param_value_opt_2 = boot_parameters.get_kernel_param_value("console");
+        let new_num_params = boot_parameters.get_num_kernel_params();
+
+        println!("DEBUG - num kp: {}", num_params);
+        println!("DEBUG - new num kp: {}", new_num_params);
+        println!("DEBUG - changed: {}", changed);
+        println!("DEBUG - kernel param value test: {:?}", param_value_opt);
+        println!("DEBUG - kernel param 2 value test: {:?}", param_value_opt_2);
+
+        let pass = changed
+            && (new_num_params == num_params)
+            && param_value_opt == Some("test".to_string())
+            && param_value_opt_2 == Some("test2".to_string());
+
+        assert!(pass)
+    }
+
+    // Use set_kernel_param function to try to update a kernel param that does not exists. The end
+    // result is that the original kernel params are not modified
+    #[test]
+    fn test_set_kernel_param_3() {
+        let mut boot_parameters = BootParameters {
+            hosts: vec![],
+            macs: None,
+            nids: None,
+            params: "console=ttyS0,115200 bad_page=panic crashkernel=360M hugepagelist=2m-2g intel_iommu=off intel_pstate=disable iommu.passthrough=on numa_interleave_omit=headless oops=panic pageblock_order=14 rd.neednet=1 rd.retry=10 rd.shell dhcp quiet ksocklnd.skip_mr_route_setup=1 cxi_core.disable_default_svc=0 cxi_core.enable_fgfc=1 cxi_core.sct_pid_mask=0xf spire_join_token=${SPIRE_JOIN_TOKEN} root=craycps-s3:s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs:350a27edb711cbcd8cff27470711f841-317:dvs:api-gw-service-nmn.local:300:nmn0 nmd_data=url=s3://boot-images/6c644208-104a-473d-802c-410219026335/rootfs,etag=350a27edb711cbcd8cff27470711f841-317 bos_session_id=50c401a9-3324-4844-bf82-872adb0ebe6f".to_string(),
+            kernel: "s3://boot-images/6c644208-104a-473d-802c-410219026335/kernel".to_string(),
+            initrd: "s3://boot-images/6c644208-104a-473d-802c-410219026335/initrd".to_string(),
+            cloud_init: None,
+        };
+
+        let num_params = boot_parameters.get_num_kernel_params();
+
+        let changed = boot_parameters.update_kernel_params("test=1");
+
+        let param_value_opt = boot_parameters.get_kernel_param_value("test");
+        let new_num_params = boot_parameters.get_num_kernel_params();
+
+        println!("DEBUG - num kp: {}", num_params);
+        println!("DEBUG - new num kp: {}", new_num_params);
+        println!("DEBUG - changed: {}", changed);
+        println!("DEBUG - kernel param value test: {:?}", param_value_opt);
+
+        let pass = changed && (new_num_params == num_params) && param_value_opt == None;
 
         assert!(pass)
     }

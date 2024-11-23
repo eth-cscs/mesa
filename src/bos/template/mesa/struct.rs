@@ -562,6 +562,9 @@ pub mod v2 {
 
         /// Returns all images related to this BOS sessiontemplate
         pub fn get_image_vec(&self) -> Vec<String> {
+            // FIXME: Try to use a function in mesa boot parameters to get the image id from a
+            // CSM/S3 URI instead of calling
+            // tim_start_matches("s3://boot-images").trim_end_matches("/manifest.json")?
             self.boot_sets
                 .as_ref()
                 .unwrap()
