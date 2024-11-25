@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     bos,
-    bss::bootparameters::http_client::get_raw,
+    bss::http_client::get_raw,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::r#struct::Image, public_keys::http_client::v3::get},
 };
@@ -45,6 +45,12 @@ pub async fn get_fuzzy(
     Ok(image_available_vec.to_vec())
 }
 
+/// Just sorts images by creation time in ascendent order
+pub async fn filter(image_vec: &mut [Image]) {
+    // Sort images by creation time order ASC
+    image_vec.sort_by(|a, b| a.created.as_ref().unwrap().cmp(b.created.as_ref().unwrap()));
+}
+
 /// Returns a tuple like(Image sruct, cfs configuration name, list of target - either hsm group name
 /// or xnames, bool - indicates if image is used to boot a node or not)
 /// This method tries to filter by HSM group which means it will make use of:
@@ -55,7 +61,7 @@ pub async fn get_fuzzy(
 /// session nor BOS sessiontemplate)
 ///  - Image names with HSM group name included (This is a bad practice because this is a free text
 /// prone to human errors)
-pub async fn filter(
+pub async fn get_image_cfs_config_name_hsm_group_name(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -69,16 +75,12 @@ pub async fn filter(
     }
 
     // We need BOS session templates to find an image created by SAT
-    let mut bos_sessiontemplate_value_vec = crate::bos::template::mesa::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        None,
-    )
-    .await
-    .unwrap();
+    let mut bos_sessiontemplate_value_vec =
+        crate::bos::template::csm::v2::get(shasta_token, shasta_base_url, shasta_root_cert, None)
+            .await
+            .unwrap();
 
-    bos::template::mesa::utils::filter(
+    bos::template::utils::filter(
         &mut bos_sessiontemplate_value_vec,
         hsm_group_name_vec,
         &Vec::new(),
@@ -90,7 +92,7 @@ pub async fn filter(
     // We need CFS sessions to find images without a BOS session template (hopefully the CFS
     // session has not been deleted by CSCS staff, otherwise it will be technically impossible to
     // find unless we search images by HSM name and expect HSM name to be in image name...)
-    let mut cfs_session_vec = crate::cfs::session::mesa::http_client::get(
+    let mut cfs_session_vec = crate::cfs::session::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -103,7 +105,7 @@ pub async fn filter(
     .await
     .unwrap();
 
-    crate::cfs::session::mesa::utils::filter_by_hsm(
+    crate::cfs::session::utils::filter_by_hsm(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -114,7 +116,7 @@ pub async fn filter(
     .await;
 
     let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
-        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
+        crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_vec.clone(),
         );
 
@@ -122,7 +124,7 @@ pub async fn filter(
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
-        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
+        crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_vec,
         );
 
@@ -235,24 +237,20 @@ pub async fn get_image_available_vec(
     limit_number_opt: Option<&u8>,
 ) -> Vec<Image> {
     let mut image_vec: Vec<Image> =
-        super::mesa::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None)
+        super::csm::get(shasta_token, shasta_base_url, shasta_root_cert, None)
             .await
             .unwrap();
 
-    ims::image::mesa::utils::filter(&mut image_vec).await;
+    ims::image::utils::filter(&mut image_vec).await;
 
     // We need BOS session templates to find an image created by SAT
-    let mut bos_sessiontemplate_vec = bos::template::mesa::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        None,
-    )
-    .await
-    .unwrap();
+    let mut bos_sessiontemplate_vec =
+        bos::template::csm::v2::get(shasta_token, shasta_base_url, shasta_root_cert, None)
+            .await
+            .unwrap();
 
     // Filter BOS sessiontemplates to the ones the user has access to
-    bos::template::mesa::utils::filter(
+    bos::template::utils::filter(
         &mut bos_sessiontemplate_vec,
         hsm_name_available_vec,
         &Vec::new(),
@@ -261,7 +259,7 @@ pub async fn get_image_available_vec(
     .await;
 
     // We need CFS sessions to find images without a BOS session template
-    let mut cfs_session_vec = crate::cfs::session::mesa::http_client::get(
+    let mut cfs_session_vec = crate::cfs::session::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -275,7 +273,7 @@ pub async fn get_image_available_vec(
     .unwrap();
 
     // Filter CFS sessions to the ones the user has access to
-    crate::cfs::session::mesa::utils::filter_by_hsm(
+    crate::cfs::session::utils::filter_by_hsm(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -289,7 +287,7 @@ pub async fn get_image_available_vec(
         String,
         String,
         Vec<String>,
-    )> = crate::bos::template::mesa::utils::get_image_id_cfs_configuration_target_tuple_vec(
+    )> = crate::bos::template::utils::get_image_id_cfs_configuration_target_tuple_vec(
         bos_sessiontemplate_vec,
     );
 
@@ -297,7 +295,7 @@ pub async fn get_image_available_vec(
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
-        crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
+        crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_vec,
         );
 

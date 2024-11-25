@@ -98,19 +98,9 @@ pub async fn get_node_details(
         cfs_session_vec_rslt,
     ) = tokio::join!(
         // Get CFS component status
-        cfs::component::mesa::http_client::get_multiple(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            &xname_list,
-        ),
+        cfs::component::get_multiple(shasta_token, shasta_base_url, shasta_root_cert, &xname_list,),
         // Get boot params to get the boot image id for each node
-        crate::bss::bootparameters::http_client::get(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            &xname_list,
-        ),
+        bss::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, &xname_list,),
         // Get HSM component status (needed to get NIDS)
         hsm::component_status::http_client::get(
             shasta_token,
@@ -119,7 +109,7 @@ pub async fn get_node_details(
             &xname_list,
         ),
         // Get CFS sessions
-        crate::cfs::session::mesa::http_client::get(
+        cfs::session::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -190,12 +180,10 @@ pub async fn get_node_details(
         // boot with). the image in the bos sessiontemplate may be different i don't know why. need
         // to investigate
         let (image_id_in_kernel_params, kernel_params): (String, String) =
-            if let Some(node_boot_params) =
-                bss::bootparameters::utils::find_boot_params_related_to_node(
-                    &node_boot_params_vec_rslt.as_ref().unwrap(),
-                    &xname,
-                )
-            {
+            if let Some(node_boot_params) = bss::utils::find_boot_params_related_to_node(
+                &node_boot_params_vec_rslt.as_ref().unwrap(),
+                &xname,
+            ) {
                 (node_boot_params.get_boot_image(), node_boot_params.params)
             } else {
                 eprintln!("BSS boot parameters for node '{}' - NOT FOUND", xname);
@@ -204,24 +192,23 @@ pub async fn get_node_details(
 
         // Get CFS configuration related to image id
         let cfs_session_related_to_image_id_opt =
-            cfs::session::mesa::utils::find_cfs_session_related_to_image_id(
+            cfs::session::utils::find_cfs_session_related_to_image_id(
                 &cfs_session_vec_rslt.as_ref().unwrap(),
                 &image_id_in_kernel_params,
             );
 
-        let cfs_configuration_boot = if let Some(cfs_session_related_to_image_id) =
-            cfs_session_related_to_image_id_opt
-        {
-            cfs::session::mesa::utils::get_cfs_configuration_name(&cfs_session_related_to_image_id)
-                .unwrap()
-        } else {
-            log::warn!(
-                "No configuration found for node '{}' related to image id '{}'",
-                xname,
-                image_id_in_kernel_params
-            );
-            "Not found".to_string()
-        };
+        let cfs_configuration_boot =
+            if let Some(cfs_session_related_to_image_id) = cfs_session_related_to_image_id_opt {
+                cfs::session::utils::get_cfs_configuration_name(&cfs_session_related_to_image_id)
+                    .unwrap()
+            } else {
+                log::warn!(
+                    "No configuration found for node '{}' related to image id '{}'",
+                    xname,
+                    image_id_in_kernel_params
+                );
+                "Not found".to_string()
+            };
 
         node_details_map
             .entry(xname.clone())
