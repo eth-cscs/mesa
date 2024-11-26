@@ -225,7 +225,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
     image_detail_vec
 }
 
-/// Returns a tuple like (Image struct, cfs configuration, target groups) with the cfs
+/// Returns a list of images with the cfs
 /// configuration related to that image struct and the target groups booting that image
 /// This list is filtered by the HSM groups the user has access to
 /// Exception are images containing 'generic' in their names since those could be used by anyone
@@ -357,64 +357,4 @@ pub async fn get_image_available_vec(
     }
 
     image_available_vec
-}
-
-/// Register a new image in IMS --> https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/ims.md#post_v2_image
-pub async fn register_new_image(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    ims_image: &Image,
-) -> Result<Value, reqwest::Error> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-
-    let api_url = shasta_base_url.to_owned() + "/ims/v3/images";
-
-    client
-        .post(api_url)
-        .header("Authorization", format!("Bearer {}", shasta_token))
-        .json(&ims_image)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await
-}
-
-/// Returns the first user public key in IMS is can find
-pub async fn get_single(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    username_opt: &str,
-) -> Option<Value> {
-    if let Ok(public_key_value_list) = get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        Some(username_opt),
-    )
-    .await
-    {
-        if public_key_value_list.len() == 1 {
-            return public_key_value_list.first().cloned();
-        };
-    }
-
-    None
 }

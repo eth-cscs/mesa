@@ -3,6 +3,30 @@ pub mod http_client {
     pub mod v3 {
         use serde_json::Value;
 
+        /// Get one user public key in IMS is can find
+        /// Returns None if public key not found or multiple fould
+        pub async fn get_single(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            username_opt: &str,
+        ) -> Option<Value> {
+            if let Ok(public_key_value_list) = get(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                Some(username_opt),
+            )
+            .await
+            {
+                if public_key_value_list.len() == 1 {
+                    return public_key_value_list.first().cloned();
+                };
+            }
+
+            None
+        }
+
         /// Fetch IMS image ref --> https://apidocs.svc.cscs.ch/paas/ims/operation/get_v3_image/
         pub async fn get(
             shasta_token: &str,

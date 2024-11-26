@@ -67,7 +67,8 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
             .as_ref()
             .unwrap();
 
-        let path = bos_sessiontemplate
+        // FIXME: use BosSessionTemplate.get_image_vec() to get the list of image ids
+        let first_image_id = bos_sessiontemplate
             .get_path_vec()
             .first()
             .unwrap()
@@ -84,7 +85,7 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
         .concat();
 
         image_id_cfs_configuration_from_bos_sessiontemplate.push((
-            path.to_string(),
+            first_image_id.to_string(),
             cfs_configuration.to_string(),
             target,
         ));
