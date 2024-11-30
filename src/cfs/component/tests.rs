@@ -1,12 +1,12 @@
 #[cfg(test)]
 #[tokio::test]
 async fn update_desired_configuration() {
-    use crate::cfs::component::csm;
+    use crate::cfs::component::utils;
 
     let token = "--REDACTED--";
     let shasta_root_cert = "--REDACTED--".as_bytes();
 
-    csm::utils::update_component_desired_configuration(
+    utils::update_component_desired_configuration(
         token,
         "https://api.cmn.alps.cscs.ch/apis",
         shasta_root_cert,

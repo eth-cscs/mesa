@@ -1,6 +1,6 @@
 pub mod r#struct;
 
-use crate::{bos::template::csm::v1::r#struct::BosSessionTemplate, error::Error};
+use crate::{bos::template::http_client::v1::r#struct::BosSessionTemplate, error::Error};
 
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
 pub async fn get(

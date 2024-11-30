@@ -1,7 +1,9 @@
+pub mod r#struct;
+
 use serde_json::Value;
 
 use crate::{
-    cfs::configuration::csm::v3::r#struct::{
+    cfs::configuration::http_client::v3::r#struct::{
         cfs_configuration_request::CfsConfigurationRequest,
         cfs_configuration_response::{CfsConfigurationResponse, CfsConfigurationVecResponse},
     },
@@ -66,14 +68,17 @@ pub async fn get(
         }
     } else {
         let payload = response
-            .json::<Value>()
+            .text()
             .await
             .map_err(|error| Error::NetError(error))?;
 
-        Err(Error::CsmError(payload))
+        Err(Error::Message(payload))
     }
 }
 
+// This function enforces a new CFS configuration to be created. First, checks if CFS configuration
+// with same name already exists in CSM, if that is the case, it will return an error, otherwise
+// creates a new CFS configuration
 pub async fn put(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -81,6 +86,30 @@ pub async fn put(
     configuration: &CfsConfigurationRequest,
     configuration_name: &str,
 ) -> Result<CfsConfigurationResponse, Error> {
+    // Check if CFS configuration already exists
+    log::info!("Check CFS configuration '{}' exists", configuration_name);
+
+    let cfs_configuration_rslt = get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        Some(configuration_name),
+    )
+    .await;
+
+    // Check if CFS configuration already exists and throw an error is that is the case
+    if cfs_configuration_rslt.is_ok_and(|cfs_configuration_vec| !cfs_configuration_vec.is_empty()) {
+        return Err(Error::Message(format!(
+            "CFS configuration '{}' already exists.",
+            configuration_name
+        )));
+    }
+
+    log::info!(
+        "CFS configuration '{}' does not exists, creating new CFS configuration",
+        configuration_name
+    );
+
     log::info!("Create CFS configuration '{}'", configuration_name);
     log::debug!("Create CFS configuration request:\n{:#?}", configuration);
 
@@ -122,11 +151,11 @@ pub async fn put(
             .map_err(|error| Error::NetError(error))?)
     } else {
         let payload = response
-            .json::<Value>()
+            .text()
             .await
             .map_err(|error| Error::NetError(error))?;
 
-        Err(Error::CsmError(payload))
+        Err(Error::Message(payload))
     }
 }
 

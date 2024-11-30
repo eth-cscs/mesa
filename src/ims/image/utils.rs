@@ -1,10 +1,8 @@
-use serde_json::Value;
-
 use crate::{
     bos,
-    bss::http_client::get_raw,
+    bss::http_client::get,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
-    ims::{self, image::r#struct::Image, public_keys::http_client::v3::get},
+    ims::{self, image::http_client::r#struct::Image},
 };
 
 // Get Image using fuzzy finder, meaning returns any image which name contains a specific
@@ -75,10 +73,14 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
     }
 
     // We need BOS session templates to find an image created by SAT
-    let mut bos_sessiontemplate_value_vec =
-        crate::bos::template::csm::v2::get(shasta_token, shasta_base_url, shasta_root_cert, None)
-            .await
-            .unwrap();
+    let mut bos_sessiontemplate_value_vec = crate::bos::template::http_client::v2::get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        None,
+    )
+    .await
+    .unwrap();
 
     bos::template::utils::filter(
         &mut bos_sessiontemplate_value_vec,
@@ -142,7 +144,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
     )
     .await;
 
-    let boot_param_vec = get_raw(
+    let boot_param_vec = get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -237,7 +239,7 @@ pub async fn get_image_available_vec(
     limit_number_opt: Option<&u8>,
 ) -> Vec<Image> {
     let mut image_vec: Vec<Image> =
-        super::csm::get(shasta_token, shasta_base_url, shasta_root_cert, None)
+        super::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None)
             .await
             .unwrap();
 
@@ -245,7 +247,7 @@ pub async fn get_image_available_vec(
 
     // We need BOS session templates to find an image created by SAT
     let mut bos_sessiontemplate_vec =
-        bos::template::csm::v2::get(shasta_token, shasta_base_url, shasta_root_cert, None)
+        bos::template::http_client::v2::get(shasta_token, shasta_base_url, shasta_root_cert, None)
             .await
             .unwrap();
 

@@ -185,15 +185,6 @@ pub async fn get_raw(
     shasta_root_cert: &[u8],
     xnames: &[String],
 ) -> Result<Vec<BootParameters>, Error> {
-    /* log::info!(
-        "Get BSS bootparameters '{}'",
-        if xnames.is_empty() {
-            "all available".to_string()
-        } else {
-            xnames.join(",")
-        }
-    ); */
-
     let client;
 
     let client_builder = reqwest::Client::builder()

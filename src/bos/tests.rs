@@ -1,4 +1,4 @@
-use crate::cfs::session::csm::v3::r#struct::CfsSessionGetResponse;
+use crate::cfs::session::http_client::v3::r#struct::CfsSessionGetResponse;
 
 #[tokio::test]
 async fn test_bos_sessiontemplate_serde_json_to_struct_conversion() {

@@ -1,8 +1,8 @@
-pub mod csm;
+pub mod http_client;
 pub mod utils;
 
 use crate::cfs;
-use csm::v3::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
+use http_client::v3::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
 
 use crate::{
     common::{
@@ -25,7 +25,7 @@ pub async fn get(
     session_name_opt: Option<&String>,
     is_succeded_opt: Option<bool>,
 ) -> Result<Vec<CfsSessionGetResponse>, Error> {
-    let mut cfs_session_vec = cfs::session::csm::v3::http_client::get(
+    let mut cfs_session_vec = cfs::session::http_client::v3::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -77,13 +77,8 @@ pub async fn post(
     log::info!("Create CFS session '{}'", session.name);
     log::debug!("Create CFS session request payload:\n{:#?}", session);
 
-    cfs::session::csm::v3::http_client::post(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        session,
-    )
-    .await
+    cfs::session::http_client::v3::post(shasta_token, shasta_base_url, shasta_root_cert, session)
+        .await
 }
 
 pub async fn post_sync(

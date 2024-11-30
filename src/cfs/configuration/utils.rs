@@ -1,12 +1,12 @@
 use crate::{
-    bos::{self, template::csm::v2::r#struct::BosSessionTemplate},
+    bos::{self, template::http_client::v2::r#struct::BosSessionTemplate},
     cfs::{
-        self, component::csm::r#struct::v2::ComponentResponse,
-        configuration::csm::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
-        session::csm::v3::r#struct::CfsSessionGetResponse,
+        self, component::http_client::v2::r#struct::ComponentResponse,
+        configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
+        session::http_client::v3::r#struct::CfsSessionGetResponse,
     },
     common, hsm,
-    ims::image::r#struct::Image,
+    ims::image::http_client::r#struct::Image,
 };
 
 use globset::Glob;
@@ -169,14 +169,15 @@ pub async fn get_and_filter(
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
 ) -> Vec<CfsConfigurationResponse> {
-    let mut cfs_configuration_value_vec: Vec<CfsConfigurationResponse> = cfs::configuration::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        configuration_name,
-    )
-    .await
-    .unwrap_or_default();
+    let mut cfs_configuration_value_vec: Vec<CfsConfigurationResponse> =
+        cfs::configuration::http_client::v3::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            configuration_name,
+        )
+        .await
+        .unwrap_or_default();
 
     if configuration_name.is_none() {
         // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
@@ -209,38 +210,6 @@ pub async fn get_derivatives(
 ) {
     // List of image ids from CFS sessions and BOS sessiontemplates related to CFS configuration
     let mut image_id_vec: Vec<String> = Vec::new();
-
-    /* // Get CFS sessions related to CFS configuration
-    //
-    let mut cfs_sessions = cfs::session::mesa::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        None,
-        None,
-        None,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
-
-    // Get BOS sessiontemplate related to CFS configuration
-    //
-    let mut bos_sessiontemplates =
-        bos::template::mesa::http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
-            .await
-            .unwrap();
-
-    // Get Images from CFS sessions
-    //
-    let mut images = ims::image::mesa::http_client::get_all(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-    )
-    .await
-    .unwrap(); */
 
     let (_, cfs_sessions_opt, bos_sessiontemplates_opt, ims_images_opt) =
         common::utils::get_configurations_sessions_bos_sessiontemplates_images(

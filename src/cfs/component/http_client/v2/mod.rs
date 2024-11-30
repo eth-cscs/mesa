@@ -1,6 +1,8 @@
+pub mod r#struct;
+
 use serde_json::Value;
 
-use crate::{cfs::component::csm::r#struct::v2::ComponentRequest, error::Error};
+use crate::{cfs::component::http_client::v2::r#struct::ComponentRequest, error::Error};
 
 pub async fn get_single_component(
     shasta_token: &str,

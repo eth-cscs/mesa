@@ -1,6 +1,8 @@
+pub mod r#struct;
+
 use serde_json::Value;
 
-use crate::cfs::component::csm::r#struct::v3::Component;
+use crate::cfs::component::http_client::v3::r#struct::Component;
 
 pub async fn get_options(
     shasta_token: &str,

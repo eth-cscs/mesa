@@ -1,11 +1,14 @@
-pub mod csm;
+pub mod http_client;
+#[cfg(test)]
+pub mod tests;
+pub mod utils;
 
 use std::{sync::Arc, time::Instant};
 
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
-use crate::{cfs::component::csm::r#struct::v2::ComponentResponse, error::Error};
+use crate::{cfs::component::http_client::v2::r#struct::ComponentResponse, error::Error};
 
 pub async fn get_raw(
     shasta_token: &str,

@@ -2,7 +2,7 @@ pub mod r#struct;
 
 use serde_json::Value;
 
-use crate::{bos::template::csm::v2::r#struct::BosSessionTemplate, error::Error};
+use crate::{bos::template::http_client::v2::r#struct::BosSessionTemplate, error::Error};
 
 /// Get BOS session templates. Ref --> https://apidocs.svc.cscs.ch/paas/bos/operation/get_v1_sessiontemplates/
 pub async fn get(

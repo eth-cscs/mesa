@@ -3,13 +3,13 @@ use std::time::Instant;
 use tokio::task;
 
 use crate::{
-    bos::{self, template::csm::v2::r#struct::BosSessionTemplate},
+    bos::{self, template::http_client::v2::r#struct::BosSessionTemplate},
     cfs::{
-        self, component::csm::r#struct::v2::ComponentResponse,
-        configuration::csm::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
-        session::csm::v3::r#struct::CfsSessionGetResponse,
+        self, component::http_client::v2::r#struct::ComponentResponse,
+        configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
+        session::http_client::v3::r#struct::CfsSessionGetResponse,
     },
-    ims::{self, image::r#struct::Image},
+    ims::{self, image::http_client::r#struct::Image},
 };
 
 pub async fn get_configurations_sessions_bos_sessiontemplates_images(
@@ -34,7 +34,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            cfs::configuration::get(
+            cfs::configuration::http_client::v3::get(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -76,7 +76,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            bos::template::csm::v2::get_all(
+            bos::template::http_client::v2::get_all(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -94,7 +94,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            ims::image::csm::get_all(
+            ims::image::http_client::get_all(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -185,7 +185,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            cfs::configuration::get(
+            cfs::configuration::http_client::v3::get(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -227,7 +227,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            bos::template::csm::v2::get_all(
+            bos::template::http_client::v2::get_all(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -245,7 +245,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            ims::image::csm::get_all(
+            ims::image::http_client::get_all(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,

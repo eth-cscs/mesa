@@ -108,7 +108,7 @@ impl VCluster {
         )
         .await;
 
-        let hsm_group_node_boot_param_vec = crate::bss::http_client::get_raw(
+        let hsm_group_node_boot_param_vec = crate::bss::http_client::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
