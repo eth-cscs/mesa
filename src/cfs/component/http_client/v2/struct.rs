@@ -111,7 +111,7 @@ impl From<ComponentResponse> for ComponentRequest {
         ComponentRequest {
             id: component.id,
             state: Some(state_vec),
-            state_append: state_append,
+            state_append,
             desired_config: component.desired_config,
             error_count: component.error_count,
             retry_policy: component.retry_policy,

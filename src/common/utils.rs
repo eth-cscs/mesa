@@ -5,7 +5,7 @@ use tokio::task;
 use crate::{
     bos::{self, template::http_client::v2::r#struct::BosSessionTemplate},
     cfs::{
-        self, component::http_client::v2::r#struct::ComponentResponse,
+        self, component::http_client::v3::r#struct::Component,
         configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
         session::http_client::v3::r#struct::CfsSessionGetResponse,
     },
@@ -155,7 +155,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
     Option<Vec<CfsSessionGetResponse>>,
     Option<Vec<BosSessionTemplate>>,
     Option<Vec<Image>>,
-    Option<Vec<ComponentResponse>>,
+    Option<Vec<Component>>,
 ) {
     let start = Instant::now();
 
@@ -165,7 +165,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            cfs::component::get_raw(
+            cfs::component::http_client::v3::get(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,

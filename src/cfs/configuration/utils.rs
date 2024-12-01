@@ -1,7 +1,7 @@
 use crate::{
     bos::{self, template::http_client::v2::r#struct::BosSessionTemplate},
     cfs::{
-        self, component::http_client::v2::r#struct::ComponentResponse,
+        self, component::http_client::v3::r#struct::Component,
         configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
         session::http_client::v3::r#struct::CfsSessionGetResponse,
     },
@@ -27,7 +27,7 @@ pub async fn filter(
 ) -> Vec<CfsConfigurationResponse> {
     log::info!("Filter CFS configurations");
     // Fetch CFS components and filter by HSM group members
-    let cfs_component_vec: Vec<ComponentResponse> = if !hsm_group_name_vec.is_empty() {
+    let cfs_component_vec: Vec<Component> = if !hsm_group_name_vec.is_empty() {
         let hsm_group_members = hsm::group::utils::get_member_vec_from_hsm_name_vec(
             shasta_token,
             shasta_base_url,
@@ -38,11 +38,12 @@ pub async fn filter(
 
         // Note: nodes can be configured calling the component APi directly (bypassing BOS
         // session API)
-        cfs::component::get_multiple(
+        cfs::component::http_client::v3::get_multiple_components(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &hsm_group_members,
+            Some(&hsm_group_members.join(",")),
+            None,
         )
         .await
         .unwrap()
