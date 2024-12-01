@@ -1,10 +1,6 @@
-#![allow(dead_code, unused_imports)] // TODO: to avoid compiler from complaining about unused methods
-
 pub mod http_client {
 
-    use std::str::FromStr;
-
-    use crate::{config, error::Error};
+    use crate::error::Error;
     use serde_json::Value;
 
     /// Get all refs for a repository
