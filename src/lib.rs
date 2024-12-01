@@ -8,7 +8,7 @@ pub mod common;
 pub mod error;
 #[cfg(feature = "ochami")]
 pub mod hsm;
+pub mod iaas_ops;
 pub mod ims;
 pub mod node;
 pub mod pcs;
-pub mod power_ops;
