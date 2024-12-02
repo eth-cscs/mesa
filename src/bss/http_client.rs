@@ -51,7 +51,7 @@ pub async fn put(
     shasta_token: &str,
     shasta_root_cert: &[u8],
     boot_parameters: BootParameters,
-) -> Result<Vec<Value>, reqwest::Error> {
+) -> Result<Vec<Value>, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -76,15 +76,19 @@ pub async fn put(
         serde_json::to_string_pretty(&boot_parameters).unwrap()
     );
 
-    client
+    let response = client
         .put(api_url)
         .json(&boot_parameters)
         .bearer_auth(shasta_token)
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await
+        .map_err(|error| Error::NetError(error))?;
+
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
+        Err(Error::Message(response.text().await?))
+    }
 }
 
 pub async fn patch(
@@ -92,7 +96,7 @@ pub async fn patch(
     shasta_token: &str,
     shasta_root_cert: &[u8],
     boot_parameters: &BootParameters,
-) -> Result<Vec<Value>, reqwest::Error> {
+) -> Result<Vec<Value>, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -112,16 +116,19 @@ pub async fn patch(
 
     let api_url = format!("{}/bss/boot/v1/bootparameters", shasta_base_url);
 
-    client
+    let response = client
         .patch(api_url)
         .json(&boot_parameters)
-        // .json(&serde_json::json!({"hosts": xnames, "params": params, "kernel": kernel, "initrd": initrd})) // Encapsulating configuration.layers
         .bearer_auth(shasta_token)
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await
+        .map_err(|error| Error::NetError(error))?;
+
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
+        Err(Error::Message(response.text().await?))
+    }
 }
 
 pub async fn get(
@@ -129,7 +136,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     xnames: &[String],
-) -> Result<Vec<BootParameters>, reqwest::Error> {
+) -> Result<Vec<BootParameters>, Error> {
     let start = Instant::now();
 
     let chunk_size = 30;
