@@ -25,9 +25,9 @@ pub struct Component {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub desired_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_count: Option<String>,
+    pub error_count: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry_policy: Option<String>,
+    pub retry_policy: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

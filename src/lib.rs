@@ -5,11 +5,10 @@ pub mod capmc;
 pub mod cfs;
 pub mod cluster;
 pub mod common;
-pub mod csm;
+pub mod config;
 pub mod error;
 #[cfg(feature = "ochami")]
 pub mod hsm;
-pub mod iaas_ops;
 pub mod ims;
 pub mod node;
 pub mod pcs;
