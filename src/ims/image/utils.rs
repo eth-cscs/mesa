@@ -1,6 +1,6 @@
 use crate::{
     bos,
-    bss::http_client::get,
+    bss::http_client::get_multiple,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::http_client::r#struct::Image},
 };
@@ -144,7 +144,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
     )
     .await;
 
-    let boot_param_vec = get(
+    let boot_param_vec = get_multiple(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,

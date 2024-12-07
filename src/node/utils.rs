@@ -105,7 +105,12 @@ pub async fn get_node_details(
             &xname_list,
         ),
         // Get boot params to get the boot image id for each node
-        bss::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, &xname_list,),
+        bss::http_client::get_multiple(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &xname_list,
+        ),
         // Get HSM component status (needed to get NIDS)
         hsm::component_status::http_client::get(
             shasta_token,

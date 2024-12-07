@@ -51,7 +51,7 @@ pub async fn put(
     shasta_token: &str,
     shasta_root_cert: &[u8],
     boot_parameters: BootParameters,
-) -> Result<Vec<Value>, Error> {
+) -> Result<BootParameters, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -96,7 +96,7 @@ pub async fn patch(
     shasta_token: &str,
     shasta_root_cert: &[u8],
     boot_parameters: &BootParameters,
-) -> Result<Vec<Value>, Error> {
+) -> Result<Vec<BootParameters>, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -131,7 +131,7 @@ pub async fn patch(
     }
 }
 
-pub async fn get(
+pub async fn get_multiple(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -161,7 +161,7 @@ pub async fn get(
         tasks.spawn(async move {
             let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
 
-            get_raw(
+            get(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -186,7 +186,7 @@ pub async fn get(
 }
 
 /// Get node boot params, ref --> https://apidocs.svc.cscs.ch/iaas/bss/tag/bootparameters/paths/~1bootparameters/get/
-pub async fn get_raw(
+pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],

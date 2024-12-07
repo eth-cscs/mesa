@@ -113,10 +113,14 @@ impl infra_io::contracts::Boot for Config {
         &self,
         nodes: &[String],
     ) -> Result<Vec<infra_io::types::BootParameters>, infra_io::error::Error> {
-        let boot_parameter_vec =
-            bss::http_client::get(&self.auth_token, &self.base_url, &self.root_cert, nodes)
-                .await
-                .map_err(|e| infra_io::error::Error::Message(e.to_string()))?;
+        let boot_parameter_vec = bss::http_client::get_multiple(
+            &self.auth_token,
+            &self.base_url,
+            &self.root_cert,
+            nodes,
+        )
+        .await
+        .map_err(|e| infra_io::error::Error::Message(e.to_string()))?;
 
         let mut boot_parameter_infra_vec = vec![];
 
@@ -138,7 +142,7 @@ impl infra_io::contracts::Boot for Config {
     async fn update_bootparameters(
         &self,
         boot_parameter: &infra_io::types::BootParameters,
-    ) -> Result<Vec<serde_json::Value>, infra_io::error::Error> {
+    ) -> Result<infra_io::types::BootParameters, infra_io::error::Error> {
         let boot_parameters = bss::r#struct::BootParameters {
             hosts: boot_parameter.hosts.clone(),
             macs: boot_parameter.macs.clone(),
@@ -157,5 +161,14 @@ impl infra_io::contracts::Boot for Config {
         )
         .await
         .map_err(|e| infra_io::error::Error::Message(e.to_string()))
+        .map(|bp| infra_io::types::BootParameters {
+            hosts: bp.hosts,
+            macs: bp.macs,
+            nids: bp.nids,
+            params: bp.params,
+            kernel: bp.kernel,
+            initrd: bp.initrd,
+            cloud_init: bp.cloud_init,
+        })
     }
 }

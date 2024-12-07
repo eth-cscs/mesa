@@ -351,7 +351,7 @@ pub async fn print_cfs_session_logs(
         println!("{}", line);
     }
 
-    get_cfs_session_container_ansible_logs_stream(client, cfs_session_name).await;
+    let _ = get_cfs_session_container_ansible_logs_stream(client, cfs_session_name).await;
 
     Ok(())
 }
