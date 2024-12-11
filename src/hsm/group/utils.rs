@@ -349,6 +349,80 @@ pub fn get_member_vec_from_hsm_group(hsm_group: &HsmGroup) -> Vec<String> {
 /// tenant_a: [x1003c1s7b0n0, x1003c1s7b0n1]
 /// tenant_b: [x1003c1s7b1n0]
 /// Then calling this function with hsm_name_vec: &["tenant_a", "tenant_b"] should return [x1003c1s7b0n0, x1003c1s7b0n1, x1003c1s7b1n0]
+//FIXME: migrate all functions 'get_member_vec_from_hsm_vec' to 'get_member_vec_from_hsm_name_vec_2'
+//FIXME: rename function to 'get_hsm_members'
+pub async fn get_member_vec_from_hsm_name_vec_2(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    hsm_name_vec: Vec<String>,
+) -> Result<Vec<String>, Error> {
+    log::info!("Get xnames for HSM groups: {:?}", hsm_name_vec);
+
+    let start = Instant::now();
+
+    let mut hsm_group_member_vec: Vec<String> = Vec::new();
+
+    let pipe_size = 10;
+
+    let mut tasks = tokio::task::JoinSet::new();
+
+    let sem = Arc::new(Semaphore::new(pipe_size)); // CSM 1.3.1 higher number of concurrent tasks won't
+                                                   //
+    for hsm_name in hsm_name_vec {
+        let shasta_token_string = shasta_token.to_string();
+        let shasta_base_url_string = shasta_base_url.to_string();
+        let shasta_root_cert_vec = shasta_root_cert.to_vec();
+
+        let permit = Arc::clone(&sem).acquire_owned().await;
+
+        tasks.spawn(async move {
+            let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
+
+            get(
+                &shasta_token_string,
+                &shasta_base_url_string,
+                &shasta_root_cert_vec,
+                Some(&hsm_name),
+            )
+            .await
+        });
+    }
+
+    while let Some(message) = tasks.join_next().await {
+        match message {
+            Ok(Ok(hsm_group_vec)) => {
+                let mut hsm_grop_members = hsm_group_vec
+                    .first()
+                    .unwrap()
+                    .members
+                    .as_ref()
+                    .unwrap()
+                    .ids
+                    .clone()
+                    .unwrap();
+
+                hsm_group_member_vec.append(&mut hsm_grop_members);
+            }
+            Ok(Err(error)) => log::warn!("{error}"),
+            Err(error) => {
+                return Err(Error::Message(error.to_string()));
+            }
+        }
+    }
+
+    let duration = start.elapsed();
+    log::info!("Time elapsed to get HSM members is: {:?}", duration);
+
+    Ok(hsm_group_member_vec)
+}
+
+/// Get the list of xnames which are members of a list of HSM groups.
+/// eg:
+/// given following HSM groups:
+/// tenant_a: [x1003c1s7b0n0, x1003c1s7b0n1]
+/// tenant_b: [x1003c1s7b1n0]
+/// Then calling this function with hsm_name_vec: &["tenant_a", "tenant_b"] should return [x1003c1s7b0n0, x1003c1s7b0n1, x1003c1s7b1n0]
 pub async fn get_member_vec_from_hsm_name_vec(
     shasta_token: &str,
     shasta_base_url: &str,
