@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use infra::{
     self,
     contracts::BackendTrait,
@@ -212,7 +214,7 @@ impl BackendTrait for Csm {
         &self,
         auth_token: &str,
         boot_parameter: &BootParameters,
-    ) -> Result<BootParameters, Error> {
+    ) -> Result<(), Error> {
         let boot_parameters = bss::r#struct::BootParameters {
             hosts: boot_parameter.hosts.clone(),
             macs: boot_parameter.macs.clone(),
@@ -223,17 +225,28 @@ impl BackendTrait for Csm {
             cloud_init: boot_parameter.cloud_init.clone(),
         };
 
-        bss::http_client::put(&self.base_url, auth_token, &self.root_cert, boot_parameters)
-            .await
-            .map_err(|e| Error::Message(e.to_string()))
-            .map(|bp| BootParameters {
-                hosts: bp.hosts,
-                macs: bp.macs,
-                nids: bp.nids,
-                params: bp.params,
-                kernel: bp.kernel,
-                initrd: bp.initrd,
-                cloud_init: bp.cloud_init,
-            })
+        bss::http_client::patch(
+            &self.base_url,
+            auth_token,
+            &self.root_cert,
+            &boot_parameters,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_hsm_map_and_filter_by_hsm_name_vec(
+        &self,
+        auth_token: &str,
+        hsm_name_vec: Vec<&str>,
+    ) -> Result<HashMap<String, Vec<String>>, Error> {
+        hsm::group::utils::get_hsm_map_and_filter_by_hsm_name_vec(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            hsm_name_vec,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
     }
 }

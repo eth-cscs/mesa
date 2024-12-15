@@ -96,7 +96,7 @@ pub async fn patch(
     shasta_token: &str,
     shasta_root_cert: &[u8],
     boot_parameters: &BootParameters,
-) -> Result<Vec<BootParameters>, Error> {
+) -> Result<(), Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -125,7 +125,7 @@ pub async fn patch(
         .map_err(|error| Error::NetError(error))?;
 
     if response.status().is_success() {
-        Ok(response.json().await?)
+        Ok(())
     } else {
         Err(Error::Message(response.text().await?))
     }
