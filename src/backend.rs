@@ -6,7 +6,7 @@ use infra::{
 };
 use serde_json::Value;
 
-use crate::{bss, common::authentication, pcs};
+use crate::{bss, common::authentication, hsm, pcs};
 
 pub struct Csm {
     base_url: String,
@@ -41,8 +41,36 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    fn get_hsm_name_available(&self, token: &str) -> Result<Vec<String>, Error> {
-        crate::common::jwt_ops::get_hsm_name_available(token)
+    async fn get_hsm_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
+        // Get HSM groups/Keycloak roles the user has access to from JWT token
+        let mut realm_access_role_vec = crate::common::jwt_ops::get_hsm_name_available(auth_token)?;
+
+        // remove keycloak roles not related with HSM groups
+        realm_access_role_vec
+            .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
+
+        // Remove site wide HSM groups like 'alps', 'prealps', 'alpsm', etc because they pollute
+        // the roles to check if a user has access to individual compute nodes
+        //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
+        //wide operations instead of using roles
+        let mut realm_access_role_filtered_vec =
+            hsm::group::hacks::filter_system_hsm_group_names(realm_access_role_vec.clone());
+        realm_access_role_filtered_vec.sort();
+
+        if !realm_access_role_vec.is_empty() {
+            Ok(realm_access_role_vec)
+        } else {
+            let all_hsm_groups_rslt = self.get_all_hsm(auth_token).await;
+
+            let mut all_hsm_groups = all_hsm_groups_rslt?
+                .iter()
+                .map(|hsm_value| hsm_value.label.clone())
+                .collect::<Vec<String>>();
+
+            all_hsm_groups.sort();
+
+            Ok(all_hsm_groups)
+        }
     }
 
     // FIXME: rename function to 'get_hsm_group_members'

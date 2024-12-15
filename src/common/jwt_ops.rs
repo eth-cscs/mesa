@@ -17,26 +17,48 @@ fn get_claims_from_jwt_token(token: &str) -> Result<Value, Error> {
         .nth(1)
         .unwrap_or("JWT Token not valid");
 
-    let claims_u8 = decode(base64_claims).unwrap();
+    let claims_u8 = decode(base64_claims).map_err(|e| {
+        Error::Message(format!(
+            "ERROR - could not get claims in JWT token. Reason:\n{}",
+            e
+        ))
+    })?;
 
-    Ok(serde_json::from_str::<Value>(std::str::from_utf8(&claims_u8).unwrap()).unwrap())
+    let claims_str = std::str::from_utf8(&claims_u8).map_err(|_| {
+        Error::Message("ERROR - could not convert JWT claims to string".to_string())
+    })?;
+
+    serde_json::from_str::<Value>(claims_str).map_err(|_| {
+        Error::Message("ERROR - could not convert JWT claims to a JSON object".to_string())
+    })
 }
 
 // FIXME: replace Error to my own one
 pub fn get_name(token: &str) -> Result<String, Error> {
     let jwt_claims = get_claims_from_jwt_token(token).unwrap();
 
-    Ok(jwt_claims["name"].as_str().unwrap().to_string())
+    let jwt_name = jwt_claims["name"].as_str();
+
+    match jwt_name {
+        Some(name) => Ok(name.to_string()),
+        None => Err(Error::Message(
+            "ERROR - claim 'name' not found in JWT auth token".to_string(),
+        )),
+    }
 }
 
 // FIXME: replace Error to my own one
 pub fn get_preferred_username(token: &str) -> Result<String, Error> {
     let jwt_claims = get_claims_from_jwt_token(token).unwrap();
 
-    Ok(jwt_claims["preferred_username"]
-        .as_str()
-        .unwrap()
-        .to_string())
+    let jwt_preferred_username = jwt_claims["preferred_username"].as_str();
+
+    match jwt_preferred_username {
+        Some(name) => Ok(name.to_string()),
+        None => Err(Error::Message(
+            "ERROR - claim 'name' not found in JWT auth token".to_string(),
+        )),
+    }
 }
 
 /// Returns the list of available HSM groups in JWT user token. The list is filtered and system HSM
