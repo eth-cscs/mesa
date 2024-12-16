@@ -1,5 +1,5 @@
+use backend_dispatcher::error::Error;
 use base64::decode;
-use infra::error::Error;
 use serde_json::Value;
 
 use crate::hsm;

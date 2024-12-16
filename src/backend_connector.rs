@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use infra::{
-    self,
+use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
     types::{BootParameters, HsmGroup, Member},
