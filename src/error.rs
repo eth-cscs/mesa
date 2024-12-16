@@ -12,6 +12,12 @@ pub enum Error {
     SerdeError(#[from] serde_json::Error),
     #[error("ERROR - Net: {0}")]
     NetError(#[from] reqwest::Error),
+    #[error("ERROR - http request:\nresponse: {response}\npayload: {payload}")]
+    RequestError {
+        response: reqwest::Error,
+        payload: String, // NOTE: CSM/OCHAMI Apis either returns plain text or a json therefore, we
+                         // will just return a String
+    },
     #[error("ERROR - CSM: {0}")]
     CsmError(Value),
 }

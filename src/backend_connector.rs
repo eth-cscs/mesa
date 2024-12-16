@@ -44,7 +44,8 @@ impl BackendTrait for Csm {
 
     async fn get_hsm_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
         // Get HSM groups/Keycloak roles the user has access to from JWT token
-        let mut realm_access_role_vec = crate::common::jwt_ops::get_hsm_name_available(auth_token)?;
+        let mut realm_access_role_vec = crate::common::jwt_ops::get_hsm_name_available(auth_token)
+            .map_err(|e| Error::Message(e.to_string()))?;
 
         // remove keycloak roles not related with HSM groups
         realm_access_role_vec

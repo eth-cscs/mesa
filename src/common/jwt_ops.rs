@@ -1,4 +1,4 @@
-use backend_dispatcher::error::Error;
+use crate::error::Error;
 use base64::decode;
 use serde_json::Value;
 
@@ -33,7 +33,6 @@ fn get_claims_from_jwt_token(token: &str) -> Result<Value, Error> {
     })
 }
 
-// FIXME: replace Error to my own one
 pub fn get_name(token: &str) -> Result<String, Error> {
     let jwt_claims = get_claims_from_jwt_token(token).unwrap();
 
@@ -47,7 +46,6 @@ pub fn get_name(token: &str) -> Result<String, Error> {
     }
 }
 
-// FIXME: replace Error to my own one
 pub fn get_preferred_username(token: &str) -> Result<String, Error> {
     let jwt_claims = get_claims_from_jwt_token(token).unwrap();
 
@@ -63,7 +61,6 @@ pub fn get_preferred_username(token: &str) -> Result<String, Error> {
 
 /// Returns the list of available HSM groups in JWT user token. The list is filtered and system HSM
 /// groups (eg alps, alpsm, alpse, etc)
-// FIXME: replace Error to my own one
 pub fn get_hsm_name_available(token: &str) -> Result<Vec<String>, Error> {
     // If JWT does not have `/realm_access/roles` claim, then we will assume, user is admin
     let mut hsm_name_available_vec: Vec<String> = get_claims_from_jwt_token(token)
