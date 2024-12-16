@@ -22,23 +22,23 @@ pub async fn get_api_token(
     keycloak_base_url: &str,
     site_name: &str,
 ) -> Result<String, Error> {
-    let mut shasta_token: String;
+    // Look for authentication token in env vars
+    log::info!("Looking for CSM authentication token in env var 'MANTA_CSM_TOKEN'");
+    let shasta_token_opt: Option<String> = std::env::vars()
+        .find(|(env, _)| env.eq_ignore_ascii_case("MANTA_CSM_TOKEN"))
+        .and_then(|(_, value)| Some(value));
 
-    // Look for authentication token in environment variable
-    for (env, value) in std::env::vars() {
-        if env.eq_ignore_ascii_case("MANTA_CSM_TOKEN") {
-            log::info!(
-                "Looking for CSM authentication token in envonment variable 'MANTA_CSM_TOKEN'"
-            );
-
-            shasta_token = value;
-
-            match test_client_api(shasta_base_url, &shasta_token, shasta_root_cert).await {
-                Ok(_) => return Ok(shasta_token),
-                Err(_) => return Err(Error::Message("Authentication unsucessful".to_string())),
-            }
+    if let Some(shasta_token) = shasta_token_opt {
+        log::info!(
+            "Authentication token found in env var 'MANTA_CSM_TOKEN'. Check if it is still valid"
+        );
+        match test_client_api(shasta_base_url, &shasta_token, shasta_root_cert).await {
+            Ok(_) => return Ok(shasta_token),
+            Err(_) => return Err(Error::Message("Authentication unsucessful".to_string())),
         }
     }
+
+    let mut shasta_token: String;
 
     // Look for authentication token in fielsystem
     log::info!("Looking for CSM authentication token in filesystem file");
