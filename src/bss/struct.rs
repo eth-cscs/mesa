@@ -459,7 +459,6 @@ impl BootParameters {
             // how do we know if the key already exists or not
             if params.contains_key(key) {
                 log::info!("key '{}' already exists, the new kernel parameter won't be added since it already exists", key);
-                return changed;
             } else {
                 log::info!(
                     "key '{}' not found, adding new kernel param with value '{}'",
@@ -488,7 +487,10 @@ impl BootParameters {
 
     /// Delete kernel parameter. If kernel parameter exists, then it will be removed, otherwise
     /// nothing will be changed
-    pub fn delete_kernel_params(&mut self, key: &str) -> bool {
+    /// It accepts kernel params in format 'key=value' or just 'key'
+    /// Returns true if kernel params have change
+    pub fn delete_kernel_params(&mut self, kernel_params_to_delete: &str) -> bool {
+        let mut changed = false;
         let mut params: HashMap<&str, &str> = self
             .params
             .split_whitespace()
@@ -496,7 +498,14 @@ impl BootParameters {
             .map(|(key, value)| (key.trim(), value.trim()))
             .collect();
 
-        let changed = params.remove(key).is_some();
+        let kernel_params_to_delete_tuple: HashMap<&str, &str> = kernel_params_to_delete
+            .split_whitespace()
+            .map(|kernel_param| kernel_param.split_once('=').unwrap_or((kernel_param, "")))
+            .collect();
+
+        for (key, _value) in kernel_params_to_delete_tuple {
+            changed = changed | params.remove(key).is_some();
+        }
 
         self.params = params
             .iter()
