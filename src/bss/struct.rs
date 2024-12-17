@@ -260,6 +260,7 @@ impl BootParameters {
     /// Apply a str of kernel parameters:
     ///  - current kernel params will be ignored/removed and replaced by the new ones
     /// Returns true if kernel params have change
+    // FIXME: integrate fixed introduced in methods 'add_kernel_param' and 'delete_kernel_param'
     pub fn apply_kernel_params(&mut self, new_params: &str) -> bool {
         let mut change = false;
 
@@ -372,7 +373,7 @@ impl BootParameters {
     /// Note: This function won't make any change to params without values (eg: 'quiet') since
     /// they don't have values
     /// value. otherwise nothing will change
-    pub fn update_kernel_param(&mut self, key: &str, new_value: &str) -> bool {
+    pub fn update_kernel_param(&mut self, new_key: &str, new_value: &str) -> bool {
         let mut changed = false;
         // convert kernel params to a hashmap
         let mut params: HashMap<&str, &str> = self
@@ -385,10 +386,30 @@ impl BootParameters {
         // Update kernel param with new value
         // params.entry(key).and_modify(|value| *value = new_value);
         for (current_key, current_value) in params.iter_mut() {
-            if *current_key == key {
+            if *current_key == new_key {
+                log::debug!("key '{}' found", new_key);
+                if *current_value != new_value {
+                    log::info!(
+                        "changing key {} from {} to {}",
+                        new_key,
+                        current_value,
+                        new_value
+                    );
+
+                    *current_value = new_value;
+                    changed = true
+                } else {
+                    log::debug!(
+                        "key '{}' value does not change ({})",
+                        new_key,
+                        current_value
+                    );
+                }
+            }
+            /* if *current_key == new_key {
                 *current_value = new_value;
                 changed = true;
-            }
+            } */
         }
 
         // Create new kernel params as a string
