@@ -62,7 +62,7 @@ impl BackendTrait for Csm {
         if !realm_access_role_vec.is_empty() {
             Ok(realm_access_role_vec)
         } else {
-            let all_hsm_groups_rslt = self.get_all_hsm(auth_token).await;
+            let all_hsm_groups_rslt = self.get_all_hsm_group(auth_token).await;
 
             let mut all_hsm_groups = all_hsm_groups_rslt?
                 .iter()
@@ -81,7 +81,7 @@ impl BackendTrait for Csm {
         auth_token: &str,
         hsm_group_name_vec: Vec<String>,
     ) -> Result<Vec<String>, Error> {
-        crate::hsm::group::utils::get_member_vec_from_hsm_name_vec_2(
+        hsm::group::utils::get_member_vec_from_hsm_name_vec_2(
             auth_token,
             &self.base_url,
             &self.root_cert,
@@ -91,40 +91,71 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn get_all_hsm(&self, auth_token: &str) -> Result<Vec<HsmGroup>, Error> {
+    async fn get_all_hsm_group(&self, auth_token: &str) -> Result<Vec<HsmGroup>, Error> {
         // Get all HSM groups
         let hsm_group_backend_vec =
-            crate::hsm::group::http_client::get_all(auth_token, &self.base_url, &self.root_cert)
+            hsm::group::http_client::get_all(auth_token, &self.base_url, &self.root_cert)
                 .await
                 .map_err(|e| Error::Message(e.to_string()))?;
 
         // Convert all HSM groups from mesa to infra
-        let mut hsm_group_vec = Vec::new();
-
-        for hsm_group_backend in hsm_group_backend_vec {
-            let mut member_vec = Vec::new();
-            let member_vec_backend = hsm_group_backend.members.unwrap().ids.unwrap();
-
-            for member in member_vec_backend {
-                member_vec.push(member);
-            }
-
-            let members = Member {
-                ids: Some(member_vec),
-            };
-
-            let hsm_group = HsmGroup {
-                label: hsm_group_backend.label,
-                description: hsm_group_backend.description,
-                tags: hsm_group_backend.tags,
-                members: Some(members),
-                exclusive_group: hsm_group_backend.exclusive_group,
-            };
-
-            hsm_group_vec.push(hsm_group);
-        }
+        let hsm_group_vec = hsm_group_backend_vec
+            .into_iter()
+            .map(hsm::group::r#struct::HsmGroup::into)
+            .collect();
 
         Ok(hsm_group_vec)
+    }
+
+    async fn get_hsm_group(&self, auth_token: &str, hsm_name: &str) -> Result<HsmGroup, Error> {
+        // Get all HSM groups
+        let hsm_group_backend_vec = hsm::group::http_client::get(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            Some(&hsm_name.to_string()),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))?;
+
+        // Error if more than one HSM group found
+        if hsm_group_backend_vec.len() > 1 {
+            return Err(Error::Message(format!(
+                "ERROR - multiple HSM groups with name '{}' found. Exit",
+                hsm_name
+            )));
+        }
+
+        let hsm_group_backend = hsm_group_backend_vec.first().unwrap().to_owned();
+
+        let hsm_group: HsmGroup = hsm_group_backend.into();
+
+        Ok(hsm_group)
+    }
+
+    async fn add_hsm_group(
+        &self,
+        _auth_token: &str,
+        _hsm_name: HsmGroup,
+    ) -> Result<HsmGroup, Error> {
+        Err(Error::Message(
+            "Create HSM command not implemented for this backend".to_string(),
+        ))
+    }
+
+    async fn delete_hsm_group(
+        &self,
+        auth_token: &str,
+        hsm_group_label: &str,
+    ) -> Result<Value, Error> {
+        hsm::group::http_client::delete_hsm_group(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            &hsm_group_label.to_string(),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
     }
 
     async fn power_on_sync(&self, auth_token: &str, nodes: &[String]) -> Result<Value, Error> {

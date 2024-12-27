@@ -1,3 +1,5 @@
+use serde_json::Value;
+
 use crate::{
     error::Error,
     hsm::group::r#struct::{HsmGroup, Member, XnameId},
@@ -297,7 +299,7 @@ pub async fn delete_hsm_group(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name_opt: &String, // label in HSM
-) -> Result<String, reqwest::Error> {
+) -> Result<Value, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
