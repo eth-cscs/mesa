@@ -27,9 +27,8 @@ serde_json = "1.0"
 serde_yaml = "0.9.17"
 log = "0.4.17"
 log4rs = { version = "1.2.0", default-features = false }
-tokio = { version = "1" }
+tokio = { version = "1.14", features = ["full"] }
 tokio-rustls = { version = "0.24.0", default-features = false }
-# tokio-native-tls = "0.3.0" # used by kube-rs to configure client with socks proxy -- REMOVE
 tokio-util = "0.7.4"       # used by manta_console to create a read stream from container stdout
 tokio-stream = { version = "0.1.11", default-features = false }
 kube = { version = "0.87.2", features = ["ws"] }
