@@ -30,7 +30,13 @@ impl BackendTrait for Csm {
     }
 
     async fn get_api_token(&self, site_name: &str) -> Result<String, Error> {
-        let keycloak_base_url = self.base_url.clone() + "/keycloak";
+        // FIXME: this is not nice but authentication/authorization will potentially move out to an
+        // external crate since this is type of logic is external to each site ...
+        let base_url = self
+            .base_url
+            .strip_suffix("/apis")
+            .unwrap_or(&self.base_url);
+        let keycloak_base_url = base_url.to_string() + "/keycloak";
 
         authentication::get_api_token(
             &self.base_url,
