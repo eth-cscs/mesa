@@ -631,23 +631,36 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
     let mut attempt = 0;
     let max_attempts = 3;
 
-    while container_status.as_ref().unwrap().running.is_some() && attempt < max_attempts {
+    if container_status.as_ref().unwrap().terminated.is_some() {
+        // Print CFS session logs already terminated on screen
         let logs_stream_rslt =
             get_container_logs_stream(ansible_container, cfs_session_pod, &pods_api).await;
 
         if let Ok(mut logs_stream) = logs_stream_rslt {
-            while let Ok(line_opt) = logs_stream.try_next().await {
-                if let Some(line) = line_opt {
-                    println!("{}", line);
-                } else {
-                    attempt += 1;
-                }
+            while let Some(line) = logs_stream.try_next().await? {
+                println!("{}", line);
             }
-        } else {
-            attempt += 1;
         }
+    } else {
+        // Print current CFS session logs on screen
+        while container_status.as_ref().unwrap().running.is_some() && attempt < max_attempts {
+            let logs_stream_rslt =
+                get_container_logs_stream(ansible_container, cfs_session_pod, &pods_api).await;
 
-        container_status = get_container_status(cfs_session_pod, &ansible_container.name);
+            if let Ok(mut logs_stream) = logs_stream_rslt {
+                while let Ok(line_opt) = logs_stream.try_next().await {
+                    if let Some(line) = line_opt {
+                        println!("{}", line);
+                    } else {
+                        attempt += 1;
+                    }
+                }
+            } else {
+                attempt += 1;
+            }
+
+            container_status = get_container_status(cfs_session_pod, &ansible_container.name);
+        }
     }
 
     Ok(())
