@@ -285,6 +285,35 @@ pub async fn update_hsm_group_members(
     Ok(())
 }
 
+// Returns a HashMap with keys being the xnames and values the list of group names the xnames
+// belongs to
+pub async fn get_xname_map_and_filter_by_xname_vec(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    xname_vec: Vec<&str>,
+) -> Result<HashMap<String, Vec<String>>, Error> {
+    let hsm_group_vec =
+        http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
+
+    let mut xname_map: HashMap<String, Vec<String>> = HashMap::new();
+
+    for hsm_group in hsm_group_vec {
+        let label = hsm_group.label;
+        let members = hsm_group.members.unwrap().ids.unwrap();
+        for xname in members {
+            if xname_vec.contains(&xname.as_str()) {
+                xname_map
+                    .entry(xname)
+                    .and_modify(|group_vec| group_vec.push(label.clone()))
+                    .or_insert(vec![label.clone()]);
+            }
+        }
+    }
+
+    Ok(xname_map)
+}
+
 // Returns a HashMap with keys being the hsm names/labels the user has access a curated list of xnames
 // for each hsm name as values
 pub async fn get_hsm_map_and_filter_by_hsm_name_vec(
@@ -642,7 +671,7 @@ pub async fn get_hsm_group_from_xname(
 }
 
 /// Returns the list of HSM group names related to a list of nodes
-pub async fn get_hsm_group_vec_from_xname_vec(
+pub async fn get_hsm_group_name_vec_from_xname_vec(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -668,6 +697,32 @@ pub async fn get_hsm_group_vec_from_xname_vec(
         .iter()
         .map(|hsm_group_value| hsm_group_value.label.clone())
         .collect::<Vec<String>>()
+}
+
+/// Returns the list of HSM group related to a list of nodes
+pub async fn get_hsm_group_vec_from_xname_vec(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    xname_vec: &[&str],
+) -> Vec<HsmGroup> {
+    let mut hsm_group_vec = http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
+        .await
+        .unwrap();
+
+    hsm_group_vec.retain(|hsm_group_value| {
+        hsm_group_value
+            .members
+            .as_ref()
+            .unwrap()
+            .ids
+            .as_ref()
+            .unwrap_or(&Vec::new())
+            .iter()
+            .any(|hsm_group_member| xname_vec.contains(&hsm_group_member.as_str()))
+    });
+
+    hsm_group_vec
 }
 
 pub fn get_hsm_group_from_cfs_session_related_to_cfs_configuration(

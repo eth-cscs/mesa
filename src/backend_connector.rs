@@ -139,26 +139,27 @@ impl BackendTrait for Csm {
         Ok(hsm_group)
     }
 
-    async fn add_hsm_group(
-        &self,
-        _auth_token: &str,
-        _hsm_name: HsmGroup,
-    ) -> Result<HsmGroup, Error> {
-        Err(Error::Message(
-            "Create HSM command not implemented for this backend".to_string(),
-        ))
+    async fn add_hsm_group(&self, auth_token: &str, group: HsmGroup) -> Result<HsmGroup, Error> {
+        let group_csm = hsm::group::http_client::post(
+            &auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group.into(),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))?;
+
+        let group: HsmGroup = group_csm.into();
+
+        Ok(group)
     }
 
-    async fn delete_hsm_group(
-        &self,
-        auth_token: &str,
-        hsm_group_label: &str,
-    ) -> Result<Value, Error> {
+    async fn delete_hsm_group(&self, auth_token: &str, label: &str) -> Result<Value, Error> {
         hsm::group::http_client::delete_hsm_group(
             auth_token,
             &self.base_url,
             &self.root_cert,
-            &hsm_group_label.to_string(),
+            &label.to_string(),
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))

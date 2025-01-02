@@ -84,7 +84,7 @@ pub async fn filter_by_xname(
     limit_number_opt: Option<&u8>,
 ) {
     let hsm_group_name_from_xnames_vec: Vec<String> =
-        hsm::group::utils::get_hsm_group_vec_from_xname_vec(
+        hsm::group::utils::get_hsm_group_name_vec_from_xname_vec(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

@@ -25,6 +25,28 @@ pub struct XnameId {
     pub id: Option<String>,
 }
 
+impl HsmGroup {
+    pub fn new(label: &str, member_vec_opt: Option<Vec<&str>>) -> Self {
+        let members_opt = if let Some(member_vec) = member_vec_opt {
+            Some(Member {
+                ids: Some(member_vec.iter().map(|&id| id.to_string()).collect()),
+            })
+        } else {
+            None
+        };
+
+        let group = Self {
+            label: label.to_string(),
+            description: None,
+            tags: None,
+            members: members_opt,
+            exclusive_group: None,
+        };
+
+        group
+    }
+}
+
 impl From<backend_dispatcher::types::HsmGroup> for HsmGroup {
     fn from(value: backend_dispatcher::types::HsmGroup) -> Self {
         let mut member_vec = Vec::new();
