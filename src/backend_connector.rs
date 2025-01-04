@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
-    types::{BootParameters, HsmGroup, Member},
+    types::{BootParameters, HsmGroup},
 };
 use serde_json::Value;
 
@@ -50,8 +50,7 @@ impl BackendTrait for Csm {
 
     async fn get_hsm_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
         // Get HSM groups/Keycloak roles the user has access to from JWT token
-        let mut realm_access_role_vec = crate::common::jwt_ops::get_hsm_name_available(auth_token)
-            .map_err(|e| Error::Message(e.to_string()))?;
+        let mut realm_access_role_vec = crate::common::jwt_ops::get_roles(auth_token);
 
         // remove keycloak roles not related with HSM groups
         realm_access_role_vec
@@ -87,6 +86,7 @@ impl BackendTrait for Csm {
         auth_token: &str,
         hsm_group_name_vec: Vec<String>,
     ) -> Result<Vec<String>, Error> {
+        // FIXME: try to merge functions get_member_vec_from_hsm_name_vec_2 and get_member_vec_from_hsm_name_vec
         hsm::group::utils::get_member_vec_from_hsm_name_vec_2(
             auth_token,
             &self.base_url,
