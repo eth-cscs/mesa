@@ -183,14 +183,14 @@ pub async fn post(
         .map_err(|error| Error::NetError(error))
 }
 
-pub async fn post_member(
+pub async fn post_members(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name: &str,
-    member_id: &str,
+    members: Member,
 ) -> Result<(), reqwest::Error> {
-    log::info!("Add member {}/{}", hsm_group_name, member_id);
+    log::info!("Add members {}/{:?}", hsm_group_name, members);
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -211,14 +211,10 @@ pub async fn post_member(
     let api_url: String =
         shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name + "/members";
 
-    let xname = XnameId {
-        id: Some(member_id.to_owned()),
-    };
-
     client
         .post(api_url)
         .header("Authorization", format!("Bearer {}", shasta_token))
-        .json(&xname) // make sure this is not a string!
+        .json(&members) // make sure this is not a string!
         .send()
         .await?
         .error_for_status()?;

@@ -7,7 +7,12 @@ use backend_dispatcher::{
 };
 use serde_json::Value;
 
-use crate::{bss, common::authentication, hsm, pcs};
+use crate::{
+    bss,
+    common::authentication,
+    hsm::{self, group::r#struct::Member},
+    pcs,
+};
 
 pub struct Csm {
     base_url: String,
@@ -92,6 +97,81 @@ impl BackendTrait for Csm {
             &self.base_url,
             &self.root_cert,
             hsm_group_name_vec,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn post_members(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        xnames: &[&str],
+    ) -> Result<(), Error> {
+        let member = Member {
+            ids: Some(xnames.into_iter().map(|xname| xname.to_string()).collect()),
+        };
+
+        hsm::group::http_client::post_members(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            member,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn add_members_to_group(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        members: Vec<&str>,
+    ) -> Result<Vec<String>, Error> {
+        hsm::group::utils::add_hsm_members(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            members.to_vec(),
+            false,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn delete_member_from_group(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        xname: &str,
+    ) -> Result<(), Error> {
+        hsm::group::http_client::delete_member(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            xname,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn update_group_members(
+        &self,
+        auth_token: &str,
+        group_name: &str,
+        members_to_remove: &Vec<String>,
+        members_to_add: &Vec<String>,
+    ) -> Result<(), Error> {
+        hsm::group::utils::update_hsm_group_members(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_name,
+            members_to_remove,
+            members_to_add,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))

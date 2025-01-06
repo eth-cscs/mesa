@@ -16,7 +16,7 @@ publish = true
 
 [dependencies]
 # backend-dispatcher = { path = "../backend-dispatcher" } # Only for development purposes
-backend-dispatcher = "0.1.3"
+backend-dispatcher = "0.1.4"
 strum = { version = "0.25.0", default-features = false }
 strum_macros = "0.25"
 chrono = { version = "0.4.31", default-features = false }

@@ -10,14 +10,14 @@ use tokio::sync::Semaphore;
 use crate::{
     cfs::session::http_client::v3::r#struct::CfsSessionGetResponse,
     error::Error,
-    hsm::group::{
-        http_client::{get, post_member},
-        r#struct::HsmGroup,
-    },
+    hsm::group::{http_client::get, r#struct::HsmGroup},
     node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,
 };
 
-use super::http_client::{self, delete_member};
+use super::{
+    http_client::{self, delete_member, post_members},
+    r#struct::Member,
+};
 
 /// Add a list of xnames to target HSM group
 /// Returns the new list of nodes in target HSM group
@@ -56,12 +56,15 @@ pub async fn add_hsm_members(
         println!("dry-run enabled, changes not persisted.");
     } else {
         for xname in new_target_hsm_members {
-            let _ = post_member(
+            let member = Member {
+                ids: Some(vec![xname.to_string()]),
+            };
+            let _ = post_members(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 target_hsm_group_name,
-                xname,
+                member,
             )
             .await;
         }
@@ -222,12 +225,16 @@ pub async fn migrate_hsm_members(
         println!("dry-run enabled, changes not persisted.");
     } else {
         for xname in new_target_hsm_members {
-            let _ = post_member(
+            let member = Member {
+                ids: Some(vec![xname.to_string()]),
+            };
+
+            let _ = post_members(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 target_hsm_group_name,
-                xname,
+                member,
             )
             .await;
 
@@ -271,12 +278,16 @@ pub async fn update_hsm_group_members(
     // Add members
     for new_member in new_target_hsm_group_members {
         if !old_target_hsm_group_members.contains(new_member) {
-            let _ = post_member(
+            let member = Member {
+                ids: Some(vec![new_member.to_string()]),
+            };
+
+            let _ = post_members(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 hsm_group_name,
-                new_member,
+                member,
             )
             .await;
         }
