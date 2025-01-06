@@ -245,6 +245,27 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
+    // HSM/GROUP
+    async fn migrate_group_members(
+        &self,
+        shasta_token: &str,
+        target_hsm_group_name: &str,
+        parent_hsm_group_name: &str,
+        new_target_hsm_members: Vec<&str>,
+    ) -> Result<(Vec<String>, Vec<String>), Error> {
+        hsm::group::utils::migrate_hsm_members(
+            shasta_token,
+            &self.base_url,
+            &self.root_cert,
+            target_hsm_group_name,
+            parent_hsm_group_name,
+            new_target_hsm_members,
+            true,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     async fn power_on_sync(&self, auth_token: &str, nodes: &[String]) -> Result<Value, Error> {
         let operation = "on";
 
