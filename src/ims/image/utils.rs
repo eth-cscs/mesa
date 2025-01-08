@@ -2,7 +2,7 @@ use crate::{
     bos,
     bss::http_client::get_multiple,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
-    ims::{self, image::http_client::r#struct::Image},
+    ims::{self, image::http_client::types::Image},
 };
 
 // Get Image using fuzzy finder, meaning returns any image which name contains a specific

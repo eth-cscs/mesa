@@ -239,7 +239,7 @@ impl BackendTrait for Csm {
     }
 
     async fn delete_group(&self, auth_token: &str, label: &str) -> Result<Value, Error> {
-        hsm::group::http_client::delete_hsm_group(
+        hsm::group::http_client::delete_group(
             auth_token,
             &self.base_url,
             &self.root_cert,
@@ -358,7 +358,7 @@ impl BackendTrait for Csm {
         auth_token: &str,
         boot_parameter: &FrontEndBootParameters,
     ) -> Result<(), Error> {
-        let boot_parameters = bss::r#struct::BootParameters {
+        let boot_parameters = bss::types::BootParameters {
             hosts: boot_parameter.hosts.clone(),
             macs: boot_parameter.macs.clone(),
             nids: boot_parameter.nids.clone(),

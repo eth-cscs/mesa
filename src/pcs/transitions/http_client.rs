@@ -4,10 +4,10 @@ use serde_json::Value;
 
 use crate::{
     error::Error,
-    pcs::transitions::r#struct::{Location, Operation},
+    pcs::transitions::types::{Location, Operation},
 };
 
-use super::r#struct::Transition;
+use super::types::Transition;
 
 pub async fn get(
     shasta_base_url: &str,

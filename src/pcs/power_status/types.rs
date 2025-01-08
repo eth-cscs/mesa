@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::pcs::transitions::r#struct::Operation;
+use crate::pcs::transitions::types::Operation;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PowerState {

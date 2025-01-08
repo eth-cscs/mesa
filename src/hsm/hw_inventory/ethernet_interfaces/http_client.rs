@@ -1,4 +1,4 @@
-use super::r#struct::{ComponentEthernetInterface, IpAddressMapping};
+use super::types::{ComponentEthernetInterface, IpAddressMapping};
 
 // Get list of network interfaces
 // ref --> https://csm12-apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doCompEthInterfacesGetV2/

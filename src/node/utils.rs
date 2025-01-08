@@ -6,7 +6,7 @@ use tokio::sync::Semaphore;
 
 use crate::{bss, cfs, hsm};
 
-use super::r#struct::NodeDetails;
+use super::types::NodeDetails;
 
 /// Validate xname is correct (it uses regex taken from HPE Cray CSM docs)
 pub fn validate_xname_format(xname: &str) -> bool {

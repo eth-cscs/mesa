@@ -3,7 +3,7 @@ use serde_json::Value;
 use crate::error::Error;
 
 use super::{
-    r#struct::{JobPostRequest, SshContainer},
+    types::{JobPostRequest, SshContainer},
     utils::wait_ims_job_to_finish,
 };
 

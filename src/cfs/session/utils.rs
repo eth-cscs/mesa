@@ -1,7 +1,7 @@
 use crate::{cfs, hsm};
 use std::io::{self, Write};
 
-use super::http_client::v3::r#struct::CfsSessionGetResponse;
+use super::http_client::v3::types::CfsSessionGetResponse;
 
 /// Filter CFS sessions related to a list of HSM group names, how this works is, it will
 /// get the list of nodes within those HSM groups and filter all CFS sessions in the system

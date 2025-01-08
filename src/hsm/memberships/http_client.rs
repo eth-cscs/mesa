@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::error::Error;
 
-use super::r#struct::Membership;
+use super::types::Membership;
 
 pub async fn get_all(
     shasta_token: &str,

@@ -5,7 +5,7 @@ use std::{sync::Arc, time::Instant};
 
 use crate::error::Error;
 
-use super::r#struct::BootParameters;
+use super::types::BootParameters;
 
 pub fn post(
     base_url: &str,

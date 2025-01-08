@@ -1,6 +1,6 @@
 use crate::error::Error;
 
-use super::r#struct::Role;
+use super::types::Role;
 
 /// Get list of Roles
 pub async fn get(

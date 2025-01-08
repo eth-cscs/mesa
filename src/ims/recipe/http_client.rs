@@ -1,4 +1,4 @@
-use super::r#struct::RecipeGetResponse;
+use super::types::RecipeGetResponse;
 
 /// Create IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
 pub async fn get(

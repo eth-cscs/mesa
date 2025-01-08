@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::r#struct::BootParameters;
+use super::types::BootParameters;
 
 // Assumes s3 path looks like:
 // - s3://boot-images/59e0180a-3fdd-4936-bba7-14ba914ffd34/kernel

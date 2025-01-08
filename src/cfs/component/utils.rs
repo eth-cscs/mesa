@@ -1,4 +1,4 @@
-use crate::cfs::component::http_client::v3::r#struct::Component;
+use crate::cfs::component::http_client::v3::types::Component;
 
 pub async fn update_component_desired_configuration(
     shasta_token: &str,

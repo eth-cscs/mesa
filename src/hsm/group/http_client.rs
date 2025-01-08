@@ -224,7 +224,7 @@ pub async fn post_members(
     Ok(())
 }
 
-pub async fn delete(
+/* pub async fn delete(
     base_url: &str,
     auth_token: &str,
     root_cert: &[u8],
@@ -275,7 +275,7 @@ pub async fn delete(
         .json()
         .await
         .map_err(|error| Error::NetError(error))
-}
+} */
 
 pub async fn delete_member(
     shasta_token: &str,
@@ -321,7 +321,7 @@ pub async fn delete_member(
 }
 
 /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
-pub async fn create_new_hsm_group(
+pub async fn create_new_group(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -330,23 +330,7 @@ pub async fn create_new_hsm_group(
     exclusive: &str,
     description: &str,
     tags: &[String],
-) -> Result<Vec<Group>, reqwest::Error> {
-    let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
+) -> Result<Vec<Group>, Error> {
     // Example body to create a new group:
     // {
     //   "label": "blue",
@@ -372,7 +356,7 @@ pub async fn create_new_hsm_group(
         ids: Some(xnames.to_owned()),
     };
 
-    let hsm_group_json = Group {
+    let group = Group {
         label: hsm_group_name_opt.to_owned(),
         description: Option::from(description.to_string().clone()),
         tags: Option::from(tags.to_owned()),
@@ -380,7 +364,7 @@ pub async fn create_new_hsm_group(
         members: Some(myxnames),
     };
 
-    let hsm_group_json_body = match serde_json::to_string(&hsm_group_json) {
+    let hsm_group_json_body = match serde_json::to_string(&group) {
         Ok(m) => m,
         Err(_) => panic!(
             "Error parsing the JSON generated, one or more of the fields could have invalid chars."
@@ -389,6 +373,26 @@ pub async fn create_new_hsm_group(
 
     println!("{:#?}", &hsm_group_json_body);
 
+    post(shasta_token, shasta_base_url, shasta_root_cert, group)
+        .await
+        .map(|group| vec![group])
+
+    /* let client;
+
+    let client_builder = reqwest::Client::builder()
+        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+    // Build client
+    if std::env::var("SOCKS5").is_ok() {
+        // socks5 proxy
+        log::debug!("SOCKS5 enabled");
+        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+        // rest client to authenticate
+        client = client_builder.proxy(socks5proxy).build()?;
+    } else {
+        client = client_builder.build()?;
+    }
     let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
 
     client
@@ -399,10 +403,10 @@ pub async fn create_new_hsm_group(
         .await?
         .error_for_status()?
         .json()
-        .await
+        .await */
 }
 
-pub async fn delete_hsm_group(
+pub async fn delete_group(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],

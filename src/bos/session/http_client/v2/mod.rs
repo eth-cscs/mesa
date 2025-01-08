@@ -1,7 +1,7 @@
-pub mod r#struct;
+pub mod types;
 
-use r#struct::BosSession;
 use serde_json::Value;
+use types::BosSession;
 
 use crate::error::Error;
 

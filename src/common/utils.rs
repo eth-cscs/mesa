@@ -3,13 +3,13 @@ use std::time::Instant;
 use tokio::task;
 
 use crate::{
-    bos::{self, template::http_client::v2::r#struct::BosSessionTemplate},
+    bos::{self, template::http_client::v2::types::BosSessionTemplate},
     cfs::{
-        self, component::http_client::v3::r#struct::Component,
-        configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
-        session::http_client::v3::r#struct::CfsSessionGetResponse,
+        self, component::http_client::v3::types::Component,
+        configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
+        session::http_client::v3::types::CfsSessionGetResponse,
     },
-    ims::{self, image::http_client::r#struct::Image},
+    ims::{self, image::http_client::types::Image},
 };
 
 pub async fn get_configurations_sessions_bos_sessiontemplates_images(

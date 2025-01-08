@@ -1,8 +1,8 @@
-pub mod r#struct;
+pub mod types;
 
 use serde_json::Value;
 
-use r#struct::{Image, ImsImageRecord2Update};
+use types::{Image, ImsImageRecord2Update};
 
 pub async fn get(
     shasta_token: &str,

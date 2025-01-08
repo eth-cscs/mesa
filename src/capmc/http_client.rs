@@ -2,7 +2,7 @@ pub mod node_power_off {
 
     use serde_json::Value;
 
-    use crate::capmc::{self, r#struct::PowerStatus, utils::wait_nodes_to_power_off};
+    use crate::capmc::{self, types::PowerStatus, utils::wait_nodes_to_power_off};
 
     pub async fn post(
         shasta_token: &str,
@@ -84,7 +84,7 @@ pub mod node_power_on {
 
     use serde_json::Value;
 
-    use crate::capmc::{self, r#struct::PowerStatus, utils::wait_nodes_to_power_on};
+    use crate::capmc::{self, types::PowerStatus, utils::wait_nodes_to_power_on};
 
     pub async fn post(
         shasta_token: &str,
@@ -161,7 +161,7 @@ pub mod node_power_reset {
 
     use serde_json::Value;
 
-    use crate::capmc::{self, r#struct::PowerStatus};
+    use crate::capmc::{self, types::PowerStatus};
 
     pub async fn post(
         shasta_token: &str,
@@ -283,7 +283,7 @@ pub mod node_power_status {
 
     use serde_json::Value;
 
-    use crate::capmc::r#struct::NodeStatus;
+    use crate::capmc::types::NodeStatus;
 
     pub async fn post(
         shasta_token: &str,

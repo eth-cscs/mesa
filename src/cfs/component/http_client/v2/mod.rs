@@ -1,12 +1,12 @@
-pub mod r#struct;
+pub mod types;
 
 use std::{sync::Arc, time::Instant};
 
-use r#struct::ComponentResponse;
 use serde_json::Value;
 use tokio::sync::Semaphore;
+use types::ComponentResponse;
 
-use crate::{cfs::component::http_client::v2::r#struct::ComponentRequest, error::Error};
+use crate::{cfs::component::http_client::v2::types::ComponentRequest, error::Error};
 
 pub async fn get(
     shasta_token: &str,

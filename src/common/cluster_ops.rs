@@ -1,6 +1,6 @@
 use crate::cfs::{
-    configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
-    session::http_client::v3::r#struct::CfsSessionGetResponse,
+    configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
+    session::http_client::v3::types::CfsSessionGetResponse,
 };
 
 #[derive(Debug)]

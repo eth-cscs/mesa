@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::error::Error;
 
-use super::r#struct::PowerStatus;
+use super::types::PowerStatus;
 
 pub async fn get(
     shasta_base_url: &str,

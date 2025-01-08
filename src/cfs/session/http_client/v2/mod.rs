@@ -1,10 +1,10 @@
-pub mod r#struct;
+pub mod types;
 
 use serde_json::Value;
 
 use crate::error::Error;
 
-use super::v3::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
+use super::v3::types::{CfsSessionGetResponse, CfsSessionPostRequest};
 
 /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
 pub async fn get(

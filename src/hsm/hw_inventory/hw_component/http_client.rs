@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::error::Error;
 
-use super::r#struct::NodeSummary;
+use super::types::NodeSummary;
 
 pub async fn get(
     shasta_token: &str,

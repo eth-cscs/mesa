@@ -8,7 +8,7 @@ use serde_json::Value;
 use tokio::sync::Semaphore;
 
 use crate::{
-    cfs::session::http_client::v3::r#struct::CfsSessionGetResponse,
+    cfs::session::http_client::v3::types::CfsSessionGetResponse,
     error::Error,
     hsm::group::{http_client::get, types::Group},
     node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,

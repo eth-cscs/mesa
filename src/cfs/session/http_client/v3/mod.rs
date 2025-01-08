@@ -1,9 +1,9 @@
-pub mod r#struct;
+pub mod types;
 
 use serde_json::Value;
 
 use crate::{
-    cfs::session::http_client::v3::r#struct::{
+    cfs::session::http_client::v3::types::{
         CfsSessionGetResponse, CfsSessionGetResponseList, CfsSessionPostRequest,
     },
     error::Error,

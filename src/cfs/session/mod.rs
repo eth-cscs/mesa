@@ -2,7 +2,7 @@ pub mod http_client;
 pub mod utils;
 
 use crate::cfs;
-use http_client::v3::r#struct::{CfsSessionGetResponse, CfsSessionPostRequest};
+use http_client::v3::types::{CfsSessionGetResponse, CfsSessionPostRequest};
 
 use crate::{
     common::{

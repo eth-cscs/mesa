@@ -1,4 +1,4 @@
-use crate::bss::{r#struct::BootParameters, utils::get_image_id_from_s3_path};
+use crate::bss::{types::BootParameters, utils::get_image_id_from_s3_path};
 
 #[test]
 fn test_get_image_id_from_s3_path() {

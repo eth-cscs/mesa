@@ -1,12 +1,12 @@
 use crate::{
-    bos::{self, template::http_client::v2::r#struct::BosSessionTemplate},
+    bos::{self, template::http_client::v2::types::BosSessionTemplate},
     cfs::{
-        self, component::http_client::v3::r#struct::Component,
-        configuration::http_client::v3::r#struct::cfs_configuration_response::CfsConfigurationResponse,
-        session::http_client::v3::r#struct::CfsSessionGetResponse,
+        self, component::http_client::v3::types::Component,
+        configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
+        session::http_client::v3::types::CfsSessionGetResponse,
     },
     common, hsm,
-    ims::image::http_client::r#struct::Image,
+    ims::image::http_client::types::Image,
 };
 
 use globset::Glob;
