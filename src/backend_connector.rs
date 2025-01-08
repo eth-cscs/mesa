@@ -14,6 +14,7 @@ use crate::{
     pcs,
 };
 
+#[derive(Clone)]
 pub struct Csm {
     base_url: String,
     root_cert: Vec<u8>,
@@ -388,6 +389,17 @@ impl BackendTrait for Csm {
             &self.base_url,
             &self.root_cert,
             hsm_name_vec,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_member_hw_inventory(&self, auth_token: &str, xname: &str) -> Result<Value, Error> {
+        hsm::hw_inventory::hw_component::http_client::get_hw_inventory(
+            &auth_token,
+            &self.base_url,
+            &self.root_cert,
+            xname,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
