@@ -158,7 +158,8 @@ pub async fn filter(
             shasta_root_cert,
             hsm_group_name_vec.to_vec(),
         )
-        .await;
+        .await
+        .unwrap();
 
         // Note: nodes can be configured calling the component APi directly (bypassing BOS
         // session API)

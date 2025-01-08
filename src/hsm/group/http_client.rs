@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     error::Error,
-    hsm::group::r#struct::{HsmGroup, Member, XnameId},
+    hsm::group::types::{Group, Member},
 };
 
 use super::hacks::filter_system_hsm_groups;
@@ -51,7 +51,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     group_name_opt: Option<&String>,
-) -> Result<Vec<HsmGroup>, Error> {
+) -> Result<Vec<Group>, Error> {
     let response = get_raw(
         shasta_token,
         shasta_base_url,
@@ -63,7 +63,7 @@ pub async fn get(
     if response.status().is_success() {
         if group_name_opt.is_some() {
             let payload = response
-                .json::<HsmGroup>()
+                .json::<Group>()
                 .await
                 .map_err(|error| Error::NetError(error))?;
 
@@ -96,7 +96,7 @@ pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Vec<HsmGroup>, Error> {
+) -> Result<Vec<Group>, Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }
 
@@ -108,10 +108,10 @@ pub async fn get_hsm_group_vec(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name_opt: Option<&String>,
-) -> Result<Vec<HsmGroup>, Error> {
+) -> Result<Vec<Group>, Error> {
     let json_response = get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
 
-    let mut hsm_groups: Vec<HsmGroup> = Vec::new();
+    let mut hsm_groups: Vec<Group> = Vec::new();
 
     if let Some(hsm_group_name) = hsm_group_name_opt {
         for hsm_group in json_response {
@@ -128,8 +128,8 @@ pub async fn post(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    group: HsmGroup,
-) -> Result<HsmGroup, Error> {
+    group: Group,
+) -> Result<Group, Error> {
     log::info!("Add/Create HSM group");
     log::debug!("Add HSM group payload:\n{:#?}", group);
 
@@ -330,7 +330,7 @@ pub async fn create_new_hsm_group(
     exclusive: &str,
     description: &str,
     tags: &[String],
-) -> Result<Vec<HsmGroup>, reqwest::Error> {
+) -> Result<Vec<Group>, reqwest::Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -372,7 +372,7 @@ pub async fn create_new_hsm_group(
         ids: Some(xnames.to_owned()),
     };
 
-    let hsm_group_json = HsmGroup {
+    let hsm_group_json = Group {
         label: hsm_group_name_opt.to_owned(),
         description: Option::from(description.to_string().clone()),
         tags: Option::from(tags.to_owned()),

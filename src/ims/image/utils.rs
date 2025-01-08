@@ -142,7 +142,8 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         shasta_root_cert,
         hsm_group_name_vec.to_vec(),
     )
-    .await;
+    .await
+    .unwrap();
 
     let boot_param_vec = get_multiple(
         shasta_token,

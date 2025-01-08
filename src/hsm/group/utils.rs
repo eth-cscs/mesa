@@ -10,26 +10,70 @@ use tokio::sync::Semaphore;
 use crate::{
     cfs::session::http_client::v3::r#struct::CfsSessionGetResponse,
     error::Error,
-    hsm::group::{http_client::get, r#struct::HsmGroup},
+    hsm::group::{http_client::get, types::Group},
     node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,
 };
 
 use super::{
     http_client::{self, delete_member, post_members},
-    r#struct::Member,
+    types::Member,
 };
 
 /// Add a list of xnames to target HSM group
 /// Returns the new list of nodes in target HSM group
-pub async fn add_hsm_members(
+pub async fn add_members(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     target_hsm_group_name: &str,
     new_target_hsm_members: Vec<&str>,
-    dryrun: bool,
+    _dryrun: bool, // FIXME: clean this, "dryrun" functionalith should go to the cli client
 ) -> Result<Vec<String>, Error> {
-    // get list of target HSM group members
+    // Get HSM group from CSM
+    let group_vec = crate::hsm::group::http_client::get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        Some(&target_hsm_group_name.to_string()),
+    )
+    .await?;
+
+    // Check if HSM group found
+    if let Some(group) = group_vec.first().cloned().as_mut() {
+        // Update HSM group members by adding new elements
+        let members = group.add_xnames(
+            new_target_hsm_members
+                .iter()
+                .map(|xname| xname.to_string())
+                .collect::<Vec<String>>()
+                .as_slice(),
+        );
+
+        // Create Member struct
+        let member = crate::hsm::group::types::Member {
+            ids: Some(members.clone()),
+        };
+
+        // Update HSM group in CSM
+        let _ = crate::hsm::group::http_client::post_members(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            target_hsm_group_name,
+            member,
+        )
+        .await;
+
+        Ok(members)
+    } else {
+        // HSM group not found, throw an error
+        Err(Error::Message(format!(
+            "No HSM group '{}' found",
+            target_hsm_group_name
+        )))
+    }
+
+    /* // get list of target HSM group members
     let mut target_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
         shasta_token,
         shasta_base_url,
@@ -43,7 +87,7 @@ pub async fn add_hsm_members(
         .extend(new_target_hsm_members.iter().map(|xname| xname.to_string()));
 
     target_hsm_group_member_vec.sort();
-    target_hsm_group_member_vec.dedup();
+    target_hsm_sdgroup_member_vec.dedup();
 
     // *********************************************************************************************************
     // UPDATE HSM GROUP MEMBERS IN CSM
@@ -70,7 +114,7 @@ pub async fn add_hsm_members(
         }
     }
 
-    Ok(target_hsm_group_member_vec)
+    Ok(target_hsm_group_member_vec) */
 }
 
 /// Removes list of xnames from  HSM group
@@ -296,7 +340,7 @@ pub async fn update_hsm_group_members(
     Ok(())
 }
 
-// Returns a HashMap with keys being the xnames and values the list of group names the xnames
+// Returns a HashMap with keys being the xnames and values the list of group names each xname
 // belongs to
 pub async fn get_xname_map_and_filter_by_xname_vec(
     shasta_token: &str,
@@ -310,14 +354,14 @@ pub async fn get_xname_map_and_filter_by_xname_vec(
     let mut xname_map: HashMap<String, Vec<String>> = HashMap::new();
 
     for hsm_group in hsm_group_vec {
-        let label = hsm_group.label;
-        let members = hsm_group.members.unwrap().ids.unwrap();
-        for xname in members {
+        /* let label = hsm_group.label;
+        let members = hsm_group.members.unwrap().ids.unwrap(); */
+        for xname in hsm_group.get_members() {
             if xname_vec.contains(&xname.as_str()) {
                 xname_map
                     .entry(xname)
-                    .and_modify(|group_vec| group_vec.push(label.clone()))
-                    .or_insert(vec![label.clone()]);
+                    .and_modify(|group_vec| group_vec.push(hsm_group.label.clone()))
+                    .or_insert(vec![hsm_group.label.clone()]);
             }
         }
     }
@@ -343,18 +387,15 @@ pub async fn get_hsm_map_and_filter_by_hsm_name_vec(
 /// not in the Hsm group names and convert from HsmGroup struct to HashMap
 pub fn filter_and_convert_to_map(
     hsm_name_vec: Vec<&str>,
-    hsm_group_vec: Vec<HsmGroup>,
+    hsm_group_vec: Vec<Group>,
 ) -> HashMap<String, Vec<String>> {
     let mut hsm_group_map: HashMap<String, Vec<String>> = HashMap::new();
 
     for hsm_group in hsm_group_vec {
         if hsm_name_vec.contains(&hsm_group.label.as_str()) {
-            hsm_group_map.entry(hsm_group.label).or_insert(
-                hsm_group
-                    .members
-                    .and_then(|members| Some(members.ids.unwrap_or_default()))
-                    .unwrap(),
-            );
+            hsm_group_map
+                .entry(hsm_group.label)
+                .or_insert(hsm_group.members.and_then(|members| members.ids).unwrap());
         }
     }
 
@@ -371,16 +412,9 @@ pub fn get_member_vec_from_hsm_group_value(hsm_group: &Value) -> Vec<String> {
         .collect()
 }
 
-pub fn get_member_vec_from_hsm_group(hsm_group: &HsmGroup) -> Vec<String> {
+pub fn get_member_vec_from_hsm_group(hsm_group: &Group) -> Vec<String> {
     // Take all nodes for all hsm_groups found and put them in a Vec
-    hsm_group
-        .members
-        .as_ref()
-        .unwrap()
-        .ids
-        .as_ref()
-        .unwrap_or(&Vec::new())
-        .clone()
+    hsm_group.get_members()
 }
 
 /// Get the list of xnames which are members of a list of HSM groups.
@@ -389,9 +423,7 @@ pub fn get_member_vec_from_hsm_group(hsm_group: &HsmGroup) -> Vec<String> {
 /// tenant_a: [x1003c1s7b0n0, x1003c1s7b0n1]
 /// tenant_b: [x1003c1s7b1n0]
 /// Then calling this function with hsm_name_vec: &["tenant_a", "tenant_b"] should return [x1003c1s7b0n0, x1003c1s7b0n1, x1003c1s7b1n0]
-//FIXME: migrate all functions 'get_member_vec_from_hsm_vec' to 'get_member_vec_from_hsm_name_vec_2'
-//FIXME: rename function to 'get_hsm_members'
-pub async fn get_member_vec_from_hsm_name_vec_2(
+pub async fn get_member_vec_from_hsm_name_vec(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -432,15 +464,7 @@ pub async fn get_member_vec_from_hsm_name_vec_2(
     while let Some(message) = tasks.join_next().await {
         match message {
             Ok(Ok(hsm_group_vec)) => {
-                let mut hsm_grop_members = hsm_group_vec
-                    .first()
-                    .unwrap()
-                    .members
-                    .as_ref()
-                    .unwrap()
-                    .ids
-                    .clone()
-                    .unwrap();
+                let mut hsm_grop_members = hsm_group_vec.first().unwrap().get_members();
 
                 hsm_group_member_vec.append(&mut hsm_grop_members);
             }
@@ -457,7 +481,7 @@ pub async fn get_member_vec_from_hsm_name_vec_2(
     Ok(hsm_group_member_vec)
 }
 
-/// Get the list of xnames which are members of a list of HSM groups.
+/* /// Get the list of xnames which are members of a list of HSM groups.
 /// eg:
 /// given following HSM groups:
 /// tenant_a: [x1003c1s7b0n0, x1003c1s7b0n1]
@@ -517,15 +541,7 @@ pub async fn get_member_vec_from_hsm_name_vec(
     while let Some(message) = tasks.join_next().await {
         match message {
             Ok(Ok(hsm_group_vec)) => {
-                let mut hsm_grop_members = hsm_group_vec
-                    .first()
-                    .unwrap()
-                    .members
-                    .as_ref()
-                    .unwrap()
-                    .ids
-                    .clone()
-                    .unwrap();
+                let mut hsm_grop_members = hsm_group_vec.first().unwrap().get_members();
 
                 hsm_group_member_vec.append(&mut hsm_grop_members);
             }
@@ -537,13 +553,7 @@ pub async fn get_member_vec_from_hsm_name_vec(
         /* if let Ok(hsm_group_vec) = message {
             let mut hsm_grop_members = hsm_group_vec
                 .first()
-                .unwrap()
-                .members
-                .as_ref()
-                .unwrap()
-                .ids
-                .clone()
-                .unwrap();
+                .unwrap().get_members();
 
             hsm_group_member_vec.append(&mut hsm_grop_members);
         } */
@@ -553,7 +563,7 @@ pub async fn get_member_vec_from_hsm_name_vec(
     log::info!("Time elapsed to get HSM members is: {:?}", duration);
 
     hsm_group_member_vec
-}
+} */
 
 pub fn get_member_vec_from_hsm_group_value_vec(hsm_groups: &[Value]) -> HashSet<String> {
     hsm_groups
@@ -562,7 +572,7 @@ pub fn get_member_vec_from_hsm_group_value_vec(hsm_groups: &[Value]) -> HashSet<
         .collect()
 }
 
-pub fn get_member_vec_from_hsm_group_vec(hsm_groups: &[HsmGroup]) -> HashSet<String> {
+pub fn get_member_vec_from_hsm_group_vec(hsm_groups: &[Group]) -> HashSet<String> {
     hsm_groups
         .iter()
         .flat_map(get_member_vec_from_hsm_group)
@@ -605,11 +615,7 @@ pub async fn get_member_vec_from_hsm_group_name_opt(
     .unwrap()
     .first()
     .unwrap()
-    .members
-    .as_ref()
-    .unwrap()
-    .ids
-    .clone()
+    .get_members_opt()
 }
 
 pub async fn get_member_vec_from_hsm_group_name(
@@ -629,13 +635,7 @@ pub async fn get_member_vec_from_hsm_group_name(
     .unwrap()
     .first()
     .unwrap()
-    .members
-    .as_ref()
-    .unwrap()
-    .ids
-    .as_ref()
-    .unwrap_or(&Vec::new())
-    .clone()
+    .get_members()
 }
 
 pub async fn get_hsm_group_from_xname(
@@ -650,12 +650,7 @@ pub async fn get_hsm_group_from_xname(
 
     hsm_group_vec.retain(|hsm_group| {
         hsm_group
-            .members
-            .as_ref()
-            .unwrap()
-            .ids
-            .as_ref()
-            .unwrap_or(&Vec::new())
+            .get_members()
             .iter()
             .any(|hsm_group_member| hsm_group_member == xname)
     });
@@ -666,16 +661,7 @@ pub async fn get_hsm_group_from_xname(
         Some(
             hsm_group_vec
                 .iter()
-                .flat_map(|hsm_group| {
-                    hsm_group
-                        .members
-                        .as_ref()
-                        .unwrap()
-                        .ids
-                        .as_ref()
-                        .cloned()
-                        .unwrap()
-                })
+                .flat_map(|hsm_group| hsm_group.get_members())
                 .collect(),
         )
     }
@@ -694,12 +680,7 @@ pub async fn get_hsm_group_name_vec_from_xname_vec(
 
     hsm_group_vec.retain(|hsm_group_value| {
         hsm_group_value
-            .members
-            .as_ref()
-            .unwrap()
-            .ids
-            .as_ref()
-            .unwrap_or(&Vec::new())
+            .get_members()
             .iter()
             .any(|hsm_group_member| xname_vec.contains(&hsm_group_member.as_str()))
     });
@@ -716,19 +697,14 @@ pub async fn get_hsm_group_vec_from_xname_vec(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     xname_vec: &[&str],
-) -> Vec<HsmGroup> {
+) -> Vec<Group> {
     let mut hsm_group_vec = http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
         .await
         .unwrap();
 
     hsm_group_vec.retain(|hsm_group_value| {
         hsm_group_value
-            .members
-            .as_ref()
-            .unwrap()
-            .ids
-            .as_ref()
-            .unwrap_or(&Vec::new())
+            .get_members()
             .iter()
             .any(|hsm_group_member| xname_vec.contains(&hsm_group_member.as_str()))
     });

@@ -114,14 +114,7 @@ pub async fn get_details(
                     hsm_group_label: hsm_group_name.to_string(),
                     most_recent_cfs_configuration_name_created: cfs_configuration.clone(),
                     most_recent_cfs_session_name_created: most_recent_cfs_session,
-                    members: hsm_group
-                        .members
-                        .as_ref()
-                        .unwrap()
-                        .ids
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
+                    members: hsm_group.get_members(),
                 };
 
                 clusters_details.push(cluster_details);

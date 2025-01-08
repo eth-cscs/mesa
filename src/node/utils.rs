@@ -66,6 +66,7 @@ pub async fn validate_xnames_format_and_membership_agaisnt_multiple_hsm(
                 hsm_group_name,
             )
             .await
+            .unwrap()
         } else {
             Vec::new()
         };

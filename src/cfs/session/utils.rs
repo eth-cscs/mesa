@@ -23,7 +23,8 @@ pub async fn filter_by_hsm(
         shasta_root_cert,
         hsm_group_name_vec.to_vec(),
     )
-    .await;
+    .await
+    .unwrap();
 
     // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
     // hsm_group.members.ids

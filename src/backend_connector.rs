@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
-    types::{BootParameters, HsmGroup},
+    types::{BootParameters as FrontEndBootParameters, Group as FrontEndGroup},
 };
 use serde_json::Value;
 
 use crate::{
     bss,
     common::authentication,
-    hsm::{self, group::r#struct::Member},
+    hsm::{self, group::types::Member},
     pcs,
 };
 
@@ -53,7 +53,7 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn get_hsm_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
+    async fn get_group_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
         // Get HSM groups/Keycloak roles the user has access to from JWT token
         let mut realm_access_role_vec = crate::common::jwt_ops::get_roles(auth_token);
 
@@ -72,7 +72,7 @@ impl BackendTrait for Csm {
         if !realm_access_role_vec.is_empty() {
             Ok(realm_access_role_vec)
         } else {
-            let all_hsm_groups_rslt = self.get_all_hsm_group(auth_token).await;
+            let all_hsm_groups_rslt = self.get_all_groups(auth_token).await;
 
             let mut all_hsm_groups = all_hsm_groups_rslt?
                 .iter()
@@ -86,13 +86,13 @@ impl BackendTrait for Csm {
     }
 
     // FIXME: rename function to 'get_hsm_group_members'
-    async fn get_member_vec_from_hsm_name_vec(
+    async fn get_member_vec_from_group_name_vec(
         &self,
         auth_token: &str,
         hsm_group_name_vec: Vec<String>,
     ) -> Result<Vec<String>, Error> {
         // FIXME: try to merge functions get_member_vec_from_hsm_name_vec_2 and get_member_vec_from_hsm_name_vec
-        hsm::group::utils::get_member_vec_from_hsm_name_vec_2(
+        hsm::group::utils::get_member_vec_from_hsm_name_vec(
             auth_token,
             &self.base_url,
             &self.root_cert,
@@ -129,7 +129,7 @@ impl BackendTrait for Csm {
         group_label: &str,
         members: Vec<&str>,
     ) -> Result<Vec<String>, Error> {
-        hsm::group::utils::add_hsm_members(
+        hsm::group::utils::add_members(
             auth_token,
             &self.base_url,
             &self.root_cert,
@@ -177,7 +177,7 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn get_all_hsm_group(&self, auth_token: &str) -> Result<Vec<HsmGroup>, Error> {
+    async fn get_all_groups(&self, auth_token: &str) -> Result<Vec<FrontEndGroup>, Error> {
         // Get all HSM groups
         let hsm_group_backend_vec =
             hsm::group::http_client::get_all(auth_token, &self.base_url, &self.root_cert)
@@ -187,13 +187,13 @@ impl BackendTrait for Csm {
         // Convert all HSM groups from mesa to infra
         let hsm_group_vec = hsm_group_backend_vec
             .into_iter()
-            .map(hsm::group::r#struct::HsmGroup::into)
+            .map(hsm::group::types::Group::into)
             .collect();
 
         Ok(hsm_group_vec)
     }
 
-    async fn get_hsm_group(&self, auth_token: &str, hsm_name: &str) -> Result<HsmGroup, Error> {
+    async fn get_group(&self, auth_token: &str, hsm_name: &str) -> Result<FrontEndGroup, Error> {
         // Get all HSM groups
         let hsm_group_backend_vec = hsm::group::http_client::get(
             auth_token,
@@ -214,12 +214,16 @@ impl BackendTrait for Csm {
 
         let hsm_group_backend = hsm_group_backend_vec.first().unwrap().to_owned();
 
-        let hsm_group: HsmGroup = hsm_group_backend.into();
+        let hsm_group: FrontEndGroup = hsm_group_backend.into();
 
         Ok(hsm_group)
     }
 
-    async fn add_hsm_group(&self, auth_token: &str, group: HsmGroup) -> Result<HsmGroup, Error> {
+    async fn add_group(
+        &self,
+        auth_token: &str,
+        group: FrontEndGroup,
+    ) -> Result<FrontEndGroup, Error> {
         let group_csm = hsm::group::http_client::post(
             &auth_token,
             &self.base_url,
@@ -229,12 +233,12 @@ impl BackendTrait for Csm {
         .await
         .map_err(|e| Error::Message(e.to_string()))?;
 
-        let group: HsmGroup = group_csm.into();
+        let group: FrontEndGroup = group_csm.into();
 
         Ok(group)
     }
 
-    async fn delete_hsm_group(&self, auth_token: &str, label: &str) -> Result<Value, Error> {
+    async fn delete_group(&self, auth_token: &str, label: &str) -> Result<Value, Error> {
         hsm::group::http_client::delete_hsm_group(
             auth_token,
             &self.base_url,
@@ -326,7 +330,7 @@ impl BackendTrait for Csm {
         &self,
         auth_token: &str,
         nodes: &[String],
-    ) -> Result<Vec<BootParameters>, Error> {
+    ) -> Result<Vec<FrontEndBootParameters>, Error> {
         let boot_parameter_vec =
             bss::http_client::get_multiple(auth_token, &self.base_url, &self.root_cert, nodes)
                 .await
@@ -335,7 +339,7 @@ impl BackendTrait for Csm {
         let mut boot_parameter_infra_vec = vec![];
 
         for boot_parameter in boot_parameter_vec {
-            boot_parameter_infra_vec.push(BootParameters {
+            boot_parameter_infra_vec.push(FrontEndBootParameters {
                 hosts: boot_parameter.hosts,
                 macs: boot_parameter.macs,
                 nids: boot_parameter.nids,
@@ -352,7 +356,7 @@ impl BackendTrait for Csm {
     async fn update_bootparameters(
         &self,
         auth_token: &str,
-        boot_parameter: &BootParameters,
+        boot_parameter: &FrontEndBootParameters,
     ) -> Result<(), Error> {
         let boot_parameters = bss::r#struct::BootParameters {
             hosts: boot_parameter.hosts.clone(),
@@ -374,7 +378,7 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn get_hsm_map_and_filter_by_hsm_name_vec(
+    async fn get_group_map_and_filter_by_group_vec(
         &self,
         auth_token: &str,
         hsm_name_vec: Vec<&str>,

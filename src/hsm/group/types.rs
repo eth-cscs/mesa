@@ -1,7 +1,8 @@
+use backend_dispatcher::types::{Group as FrontEndGroup, Member as FrontEndMember};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct HsmGroup {
+pub struct Group {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -25,7 +26,7 @@ pub struct XnameId {
     pub id: Option<String>,
 }
 
-impl HsmGroup {
+impl Group {
     pub fn new(label: &str, member_vec_opt: Option<Vec<&str>>) -> Self {
         let members_opt = if let Some(member_vec) = member_vec_opt {
             Some(Member {
@@ -45,12 +46,41 @@ impl HsmGroup {
 
         group
     }
+
+    /// Get HSM group members
+    pub fn get_members(&self) -> Vec<String> {
+        // FIXME: try to improve this logic by introducing "smart pointers" or "lifetimes"
+        self.members
+            .as_ref()
+            .and_then(|members| members.ids.clone())
+            .unwrap_or(Vec::new())
+    }
+
+    /// Get HSM group members
+    pub fn get_members_opt(&self) -> Option<Vec<String>> {
+        // FIXME: try to improve this logic by introducing "smart pointers" or "lifetimes"
+        self.members
+            .as_ref()
+            .and_then(|members| members.ids.clone())
+    }
+
+    /// Add list of xnames to HSM group members
+    pub fn add_xnames(&mut self, xnames: &[String]) -> Vec<String> {
+        self.members.as_mut().and_then(|members| {
+            members
+                .ids
+                .as_mut()
+                .and_then(|ids| Some(ids.extend_from_slice(xnames)))
+        });
+
+        self.get_members()
+    }
 }
 
-impl From<backend_dispatcher::types::HsmGroup> for HsmGroup {
-    fn from(value: backend_dispatcher::types::HsmGroup) -> Self {
+impl From<FrontEndGroup> for Group {
+    fn from(value: FrontEndGroup) -> Self {
         let mut member_vec = Vec::new();
-        let member_vec_backend = value.members.unwrap().ids.unwrap();
+        let member_vec_backend = value.get_members();
 
         for member in member_vec_backend {
             member_vec.push(member);
@@ -60,7 +90,7 @@ impl From<backend_dispatcher::types::HsmGroup> for HsmGroup {
             ids: Some(member_vec),
         };
 
-        HsmGroup {
+        Group {
             label: value.label,
             description: value.description,
             tags: value.tags,
@@ -70,20 +100,20 @@ impl From<backend_dispatcher::types::HsmGroup> for HsmGroup {
     }
 }
 
-impl Into<backend_dispatcher::types::HsmGroup> for HsmGroup {
-    fn into(self) -> backend_dispatcher::types::HsmGroup {
+impl Into<FrontEndGroup> for Group {
+    fn into(self) -> FrontEndGroup {
         let mut member_vec = Vec::new();
-        let member_vec_backend = self.members.unwrap().ids.unwrap();
+        let member_vec_backend = self.get_members();
 
         for member in member_vec_backend {
             member_vec.push(member);
         }
 
-        let members = backend_dispatcher::types::Member {
+        let members = FrontEndMember {
             ids: Some(member_vec),
         };
 
-        backend_dispatcher::types::HsmGroup {
+        FrontEndGroup {
             label: self.label,
             description: self.description,
             tags: self.tags,

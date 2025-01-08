@@ -1,14 +1,14 @@
 use crate::error::Error;
 
-use super::r#struct::HsmGroup;
+use super::types::Group;
 
 pub fn filter_system_hsm_groups(
-    hsm_group_vec_rslt: Result<Vec<HsmGroup>, Error>,
-) -> Result<Vec<HsmGroup>, Error> {
+    hsm_group_vec_rslt: Result<Vec<Group>, Error>,
+) -> Result<Vec<Group>, Error> {
     //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
     //wide operations instead of using roles
     let hsm_group_to_ignore_vec = ["alps", "prealps", "alpse", "alpsb"];
-    let hsm_group_vec_filtered_rslt: Result<Vec<HsmGroup>, Error> =
+    let hsm_group_vec_filtered_rslt: Result<Vec<Group>, Error> =
         hsm_group_vec_rslt.and_then(|hsm_group_vec| {
             Ok(hsm_group_vec
                 .iter()
@@ -17,7 +17,7 @@ pub fn filter_system_hsm_groups(
                     !hsm_group_to_ignore_vec.contains(&label)
                 })
                 .cloned()
-                .collect::<Vec<HsmGroup>>())
+                .collect::<Vec<Group>>())
         });
 
     if let Ok([]) = hsm_group_vec_filtered_rslt.as_deref() {
