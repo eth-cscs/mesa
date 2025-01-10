@@ -167,7 +167,7 @@ pub async fn post(
     base_url: &str,
     root_cert: &[u8],
     component: ComponentArrayPostArray,
-) -> Result<(), Error> {
+) -> Result<ComponentArray, Error> {
     let client_builder =
         reqwest::Client::builder().add_root_certificate(reqwest::Certificate::from_pem(root_cert)?);
 
@@ -210,7 +210,10 @@ pub async fn post(
         }
     }
 
-    Ok(())
+    response
+        .json()
+        .await
+        .map_err(|error| Error::NetError(error))
 }
 
 pub async fn post_query(
@@ -377,8 +380,8 @@ pub async fn put(
 }
 
 pub async fn delete_one(
-    auth_token: &str,
     base_url: &str,
+    auth_token: &str,
     root_cert: &[u8],
     xname: &str,
 ) -> Result<Value, Error> {

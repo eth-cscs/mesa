@@ -236,7 +236,7 @@ impl From<FrontEndComponentArrayPostArray> for ComponentArrayPostArray {
         value
             .components
             .into_iter()
-            .for_each(|c| component_vec.push(ComponentCreate::from(c)));
+            .for_each(|c| component_vec.push(c.into()));
 
         ComponentArrayPostArray {
             components: component_vec,
