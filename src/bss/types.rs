@@ -1,3 +1,5 @@
+use backend_dispatcher::types::BootParameters as FrontEndBootParameters;
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -38,6 +40,34 @@ pub struct BootParameters {
     initrd,
     cloud_init_opt,
 ); */
+
+impl From<FrontEndBootParameters> for BootParameters {
+    fn from(value: FrontEndBootParameters) -> Self {
+        BootParameters {
+            hosts: value.hosts,
+            macs: value.macs,
+            nids: value.nids,
+            params: value.params,
+            kernel: value.kernel,
+            initrd: value.initrd,
+            cloud_init: value.cloud_init,
+        }
+    }
+}
+
+impl Into<FrontEndBootParameters> for BootParameters {
+    fn into(self) -> FrontEndBootParameters {
+        FrontEndBootParameters {
+            hosts: self.hosts,
+            macs: self.macs,
+            nids: self.nids,
+            params: self.params,
+            kernel: self.kernel,
+            initrd: self.initrd,
+            cloud_init: self.cloud_init,
+        }
+    }
+}
 
 impl BootParameters {
     pub fn new(

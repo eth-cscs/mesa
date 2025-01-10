@@ -3,14 +3,21 @@ use std::collections::HashMap;
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
-    types::{BootParameters as FrontEndBootParameters, Group as FrontEndGroup},
+    types::{
+        BootParameters as FrontEndBootParameters, ComponentArray as FrontEndComponentArray,
+        ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
+    },
 };
 use serde_json::Value;
 
 use crate::{
-    bss,
+    bss::{self, types::BootParameters},
     common::authentication,
-    hsm::{self, group::types::Member},
+    hsm::{
+        self,
+        component::types::{ComponentArray, ComponentArrayPostArray},
+        group::types::Member,
+    },
     pcs,
 };
 
@@ -337,7 +344,13 @@ impl BackendTrait for Csm {
                 .await
                 .map_err(|e| Error::Message(e.to_string()))?;
 
-        let mut boot_parameter_infra_vec = vec![];
+        let boot_parameter_infra_vec = boot_parameter_vec
+            .into_iter()
+            .map(|boot_parameter| boot_parameter.into())
+            .collect();
+
+        Ok(boot_parameter_infra_vec)
+        /* let mut boot_parameter_infra_vec = vec![];
 
         for boot_parameter in boot_parameter_vec {
             boot_parameter_infra_vec.push(FrontEndBootParameters {
@@ -351,7 +364,7 @@ impl BackendTrait for Csm {
             });
         }
 
-        Ok(boot_parameter_infra_vec)
+        Ok(boot_parameter_infra_vec) */
     }
 
     async fn update_bootparameters(
@@ -403,5 +416,26 @@ impl BackendTrait for Csm {
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn post_nodes(
+        &self,
+        auth_token: &str,
+        component: FrontEndComponentArrayPostArray,
+    ) -> Result<FrontEndComponentArray, Error> {
+        let component_backend: ComponentArrayPostArray = component.into();
+        let component_vec: ComponentArray = hsm::component::http_client::post(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            component_backend,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))?;
+
+        // let hsm_group_vec = hsm_group_backend_vec.into_iter().map(Group::into).collect();
+        let sol: FrontEndComponentArray = component_vec.into();
+
+        Ok(sol)
     }
 }

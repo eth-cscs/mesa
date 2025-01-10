@@ -1,3 +1,4 @@
+pub mod component;
 pub mod component_status;
 pub mod group;
 pub mod hw_inventory;
