@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{
     error::Error,
-    hsm::group::types::{Group, Member},
+    hsm::group::types::{Group, Member, Members},
 };
 
 use super::hacks::filter_system_hsm_groups;
@@ -183,45 +183,63 @@ pub async fn post(
         .map_err(|error| Error::NetError(error))
 }
 
-pub async fn post_members(
+pub async fn post_member(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name: &str,
-    members: Member,
-) -> Result<(), reqwest::Error> {
-    log::info!("Add members {}/{:?}", hsm_group_name, members);
-    let client;
-
+    member: Member,
+) -> Result<Value, Error> {
+    log::info!("Add members {}/{:?}", hsm_group_name, member);
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
-    if std::env::var("SOCKS5").is_ok() {
+    let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
         // socks5 proxy
         log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+        let socks5proxy = reqwest::Proxy::all(socks5_env)?;
 
         // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
+        client_builder.proxy(socks5proxy).build()?
     } else {
-        client = client_builder.build()?;
+        client_builder.build()?
+    };
+
+    let api_url: String = format!(
+        "{}/hsm/v2/groups/{}/members",
+        shasta_base_url, hsm_group_name
+    );
+
+    let response = client
+        .post(api_url)
+        .bearer_auth(shasta_token)
+        .json(&member)
+        .send()
+        .await?;
+
+    if let Err(e) = response.error_for_status_ref() {
+        match response.status() {
+            reqwest::StatusCode::UNAUTHORIZED => {
+                let error_payload = response.text().await?;
+                let error = Error::RequestError {
+                    response: e,
+                    payload: error_payload,
+                };
+                return Err(error);
+            }
+            _ => {
+                let error_payload = response.json::<Value>().await?;
+                let error = Error::CsmError(error_payload);
+                return Err(error);
+            }
+        }
     }
 
-    let api_url: String =
-        shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + hsm_group_name + "/members";
-
-    client
-        .post(api_url)
-        .header("Authorization", format!("Bearer {}", shasta_token))
-        .json(&members) // make sure this is not a string!
-        .send()
-        .await?
-        .error_for_status()?;
-    // TODO Parse the output!!!
-    // TODO add some debugging output
-
-    Ok(())
+    response
+        .json()
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
 }
 
 /* pub async fn delete(
@@ -352,7 +370,7 @@ pub async fn create_new_group(
     // Describe the JSON object
 
     // Create the variables that represent our JSON object
-    let myxnames = Member {
+    let myxnames = Members {
         ids: Some(xnames.to_owned()),
     };
 

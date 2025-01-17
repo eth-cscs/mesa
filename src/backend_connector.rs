@@ -4,20 +4,17 @@ use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
     types::{
-        BootParameters as FrontEndBootParameters, ComponentArray as FrontEndComponentArray,
+        BootParameters as FrontEndBootParameters,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
+        HWInventoryByLocationList as FrontEndHWInventoryByLocationList,
     },
 };
 use serde_json::Value;
 
 use crate::{
-    bss::{self, types::BootParameters},
+    bss::{self},
     common::authentication,
-    hsm::{
-        self,
-        component::types::{ComponentArray, ComponentArrayPostArray},
-        group::types::Member,
-    },
+    hsm::{self, component::types::ComponentArrayPostArray, group::types::Member},
     pcs,
 };
 
@@ -110,17 +107,17 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn post_members(
+    async fn post_member(
         &self,
         auth_token: &str,
         group_label: &str,
-        xnames: &[&str],
-    ) -> Result<(), Error> {
+        xname: &str,
+    ) -> Result<Value, Error> {
         let member = Member {
-            ids: Some(xnames.into_iter().map(|xname| xname.to_string()).collect()),
+            id: Some(xname.to_string()),
         };
 
-        hsm::group::http_client::post_members(
+        hsm::group::http_client::post_member(
             auth_token,
             &self.base_url,
             &self.root_cert,
@@ -135,18 +132,23 @@ impl BackendTrait for Csm {
         &self,
         auth_token: &str,
         group_label: &str,
-        members: Vec<&str>,
+        new_members: Vec<&str>,
     ) -> Result<Vec<String>, Error> {
-        hsm::group::utils::add_members(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_label,
-            members.to_vec(),
-            false,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
+        let mut sol: Vec<String> = Vec::new();
+
+        for new_member in new_members {
+            sol = hsm::group::utils::add_member(
+                auth_token,
+                &self.base_url,
+                &self.root_cert,
+                group_label,
+                new_member,
+            )
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?;
+        }
+
+        Ok(sol)
     }
 
     async fn delete_member_from_group(
@@ -407,7 +409,16 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn get_member_hw_inventory(&self, auth_token: &str, xname: &str) -> Result<Value, Error> {
+    async fn get_inventory_hardware_query(
+        &self,
+        auth_token: &str,
+        xname: &str,
+        r#_type: Option<&str>,
+        _children: Option<bool>,
+        _parents: Option<bool>,
+        _partition: Option<&str>,
+        _format: Option<&str>,
+    ) -> Result<Value, Error> {
         hsm::hw_inventory::hw_component::http_client::get_hw_inventory(
             &auth_token,
             &self.base_url,
@@ -418,24 +429,41 @@ impl BackendTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
+    async fn post_inventory_hardware(
+        &self,
+        auth_token: &str,
+        hw_inventory: FrontEndHWInventoryByLocationList,
+    ) -> Result<Value, Error> {
+        hsm::hw_inventory::hw_component::http_client::post(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            hw_inventory.into(),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     async fn post_nodes(
         &self,
         auth_token: &str,
         component: FrontEndComponentArrayPostArray,
-    ) -> Result<FrontEndComponentArray, Error> {
+    ) -> Result<(), Error> {
         let component_backend: ComponentArrayPostArray = component.into();
-        let component_vec: ComponentArray = hsm::component::http_client::post(
+
+        hsm::component::http_client::post(
             auth_token,
             &self.base_url,
             &self.root_cert,
             component_backend,
         )
         .await
-        .map_err(|e| Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))
+    }
 
-        // let hsm_group_vec = hsm_group_backend_vec.into_iter().map(Group::into).collect();
-        let sol: FrontEndComponentArray = component_vec.into();
-
-        Ok(sol)
+    async fn delete_node(&self, auth_token: &str, id: &str) -> Result<Value, Error> {
+        hsm::component::http_client::delete_one(auth_token, &self.base_url, &self.root_cert, id)
+            .await
+            .map_err(|e| Error::Message(e.to_string()))
     }
 }

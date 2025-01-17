@@ -15,102 +15,86 @@ use crate::{
 };
 
 use super::{
-    http_client::{self, delete_member, post_members},
+    http_client::{self, delete_member, post_member},
     types::Member,
 };
 
 /// Add a list of xnames to target HSM group
 /// Returns the new list of nodes in target HSM group
-pub async fn add_members(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    target_hsm_group_name: &str,
-    new_target_hsm_members: Vec<&str>,
-    _dryrun: bool, // FIXME: clean this, "dryrun" functionalith should go to the cli client
+pub async fn add_member(
+    auth_token: &str,
+    base_url: &str,
+    root_cert: &[u8],
+    group_label: &str,
+    new_member: &str,
 ) -> Result<Vec<String>, Error> {
     // Get HSM group from CSM
     let group_vec = crate::hsm::group::http_client::get(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        Some(&target_hsm_group_name.to_string()),
+        base_url,
+        auth_token,
+        root_cert,
+        Some(&group_label.to_string()),
     )
     .await?;
 
     // Check if HSM group found
     if let Some(group) = group_vec.first().cloned().as_mut() {
-        // Update HSM group members by adding new elements
-        let members = group.add_xnames(
-            new_target_hsm_members
-                .iter()
-                .map(|xname| xname.to_string())
-                .collect::<Vec<String>>()
-                .as_slice(),
-        );
-
+        // Update HSM group with new memebers
         // Create Member struct
+        let new_member = new_member.to_string();
         let member = crate::hsm::group::types::Member {
-            ids: Some(members.clone()),
+            id: Some(new_member.clone()),
         };
 
         // Update HSM group in CSM
-        let _ = crate::hsm::group::http_client::post_members(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            target_hsm_group_name,
+        let _ = crate::hsm::group::http_client::post_member(
+            auth_token,
+            base_url,
+            root_cert,
+            group_label,
             member,
         )
-        .await;
+        .await?;
 
-        Ok(members)
+        // Generate list of updated group members
+        group.get_members().push(new_member);
+
+        Ok(group.get_members())
     } else {
         // HSM group not found, throw an error
         Err(Error::Message(format!(
             "No HSM group '{}' found",
-            target_hsm_group_name
+            group_label
         )))
     }
 
     /* // get list of target HSM group members
-    let mut target_hsm_group_member_vec: Vec<String> = get_member_vec_from_hsm_group_name(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        target_hsm_group_name,
-    )
-    .await;
+    let mut target_hsm_group_member_vec: Vec<String> =
+        hsm::group::http_client::get_members(base_url, auth_token, root_cert, group_label)
+            .await
+            .map(|member| member.ids.unwrap())?;
 
     // merge HSM group list with the list of xnames provided by the user
-    target_hsm_group_member_vec
-        .extend(new_target_hsm_members.iter().map(|xname| xname.to_string()));
+    target_hsm_group_member_vec.extend(members.iter().map(|xname| xname.to_string()));
 
     target_hsm_group_member_vec.sort();
-    target_hsm_sdgroup_member_vec.dedup();
+    target_hsm_group_member_vec.dedup();
 
     // *********************************************************************************************************
     // UPDATE HSM GROUP MEMBERS IN CSM
     if dryrun {
         println!(
             "Add following nodes to HSM group {}:\n{:?}",
-            target_hsm_group_name, new_target_hsm_members
+            group_label, members
         );
 
         println!("dry-run enabled, changes not persisted.");
     } else {
-        for xname in new_target_hsm_members {
+        for xname in members {
             let member = Member {
                 ids: Some(vec![xname.to_string()]),
             };
-            let _ = post_members(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                target_hsm_group_name,
-                member,
-            )
-            .await;
+            let _ = post_members(auth_token, base_url, root_cert, group_label, member).await;
         }
     }
 
@@ -270,10 +254,10 @@ pub async fn migrate_hsm_members(
     } else {
         for xname in new_target_hsm_members {
             let member = Member {
-                ids: Some(vec![xname.to_string()]),
+                id: Some(xname.to_string()),
             };
 
-            let _ = post_members(
+            let _ = post_member(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -323,10 +307,10 @@ pub async fn update_hsm_group_members(
     for new_member in new_target_hsm_group_members {
         if !old_target_hsm_group_members.contains(new_member) {
             let member = Member {
-                ids: Some(vec![new_member.to_string()]),
+                id: Some(new_member.to_string()),
             };
 
-            let _ = post_members(
+            let _ = post_member(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
