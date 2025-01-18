@@ -242,66 +242,13 @@ pub async fn post_member(
         .map_err(|e| Error::Message(e.to_string()))
 }
 
-/* pub async fn delete(
-    base_url: &str,
-    auth_token: &str,
-    root_cert: &[u8],
-    group_label: &str,
-) -> Result<Value, Error> {
-    let client_builder =
-        reqwest::Client::builder().add_root_certificate(reqwest::Certificate::from_pem(root_cert)?);
-
-    // Build client
-    let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(socks5_env)?;
-
-        // rest client to authenticate
-        client_builder.proxy(socks5proxy).build()?
-    } else {
-        client_builder.build()?
-    };
-
-    let api_url: String = format!("{}/{}/{}", base_url, "/smd/hsm/v2/groups/", group_label);
-
-    let response = client
-        .delete(api_url)
-        .bearer_auth(auth_token)
-        .send()
-        .await?;
-
-    if let Err(e) = response.error_for_status_ref() {
-        match response.status() {
-            reqwest::StatusCode::UNAUTHORIZED => {
-                let error_payload = response.text().await?;
-                let error = Error::RequestError {
-                    response: e,
-                    payload: error_payload,
-                };
-                return Err(error);
-            }
-            _ => {
-                let error_payload = response.json::<Value>().await?;
-                let error = Error::CsmError(error_payload);
-                return Err(error);
-            }
-        }
-    }
-
-    response
-        .json()
-        .await
-        .map_err(|error| Error::NetError(error))
-} */
-
 pub async fn delete_member(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name: &str,
     member_id: &str,
-) -> Result<(), reqwest::Error> {
+) -> Result<(), Error> {
     log::info!("Delete member {}/{}", hsm_group_name, member_id);
     let client;
 
@@ -326,16 +273,22 @@ pub async fn delete_member(
         + "/members/"
         + member_id;
 
-    client
+    let response = client
         .delete(api_url)
         .header("Authorization", format!("Bearer {}", shasta_token))
         .send()
-        .await?
-        .error_for_status()?;
+        .await
+        .map_err(|error| Error::NetError(error))?;
 
-    // TODO Parse the output!!!
-    // TODO add some debugging output
-    Ok(())
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
+    }
 }
 
 /// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
@@ -429,7 +382,7 @@ pub async fn delete_group(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name: &String, // label in HSM
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     log::info!("Delete HSM group '{}'", hsm_group_name);
 
     let client_builder = reqwest::Client::builder()
@@ -449,12 +402,23 @@ pub async fn delete_group(
 
     let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name;
 
-    client
+    let response = client
         .delete(url_api)
         .header("Authorization", format!("Bearer {}", shasta_token))
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await
+        .map_err(|error| Error::NetError(error))?;
+
+    if response.status().is_success() {
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
+    }
 }

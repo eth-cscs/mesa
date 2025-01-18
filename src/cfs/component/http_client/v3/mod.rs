@@ -12,7 +12,7 @@ pub async fn get_options(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -30,13 +30,25 @@ pub async fn get_options(
 
     let api_url = shasta_base_url.to_owned() + "/cfs/v3/options";
 
-    client
+    let response = client
         .get(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?
-        .json()
         .await
+        .map_err(|error| Error::NetError(error))?;
+
+    if response.status().is_success() {
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
+    }
 }
 
 pub async fn get(
@@ -72,7 +84,11 @@ pub async fn get(
         .map_err(|error| Error::NetError(error))?;
 
     if response.status().is_success() {
-        Ok(response.json::<ComponentVec>().await?.components)
+        response
+            .json::<ComponentVec>()
+            .await
+            .map(|component_vec| component_vec.components)
+            .map_err(|e| Error::NetError(e))
     } else {
         let payload = response
             .text()
@@ -228,7 +244,7 @@ pub async fn get_query(
 
     let api_url = shasta_base_url.to_owned() + "/cfs/v3/components";
 
-    let response_rslt = client
+    let response = client
         .get(api_url)
         .query(&[
             ("ids", components_ids),
@@ -238,14 +254,20 @@ pub async fn get_query(
         ])
         .bearer_auth(shasta_token)
         .send()
-        .await;
+        .await
+        .map_err(|error| Error::NetError(error))?;
 
-    match response_rslt {
-        Ok(response) => {
-            let component_vec = &response.json::<ComponentVec>().await?;
-            Ok(component_vec.components.clone())
-        }
-        Err(e) => Err(Error::NetError(e)),
+    if response.status().is_success() {
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
     }
 }
 
@@ -254,7 +276,7 @@ pub async fn patch_component(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     component: Component,
-) -> Result<Vec<Value>, reqwest::Error> {
+) -> Result<Vec<Value>, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -273,16 +295,25 @@ pub async fn patch_component(
     let api_url =
         shasta_base_url.to_owned() + "/cfs/v3/components/" + &component.clone().id.unwrap();
 
-    let response_rslt = client
+    let response = client
         .patch(api_url)
         .bearer_auth(shasta_token)
         .json(&component)
         .send()
-        .await;
+        .await
+        .map_err(|error| Error::NetError(error))?;
 
-    match response_rslt {
-        Ok(response) => response.json::<Vec<Value>>().await,
-        Err(error) => Err(error),
+    if response.status().is_success() {
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
     }
 }
 
@@ -291,7 +322,7 @@ pub async fn patch_component_list(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     component_list: Vec<Component>,
-) -> Result<Vec<Value>, reqwest::Error> {
+) -> Result<Vec<Value>, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -309,16 +340,25 @@ pub async fn patch_component_list(
 
     let api_url = shasta_base_url.to_owned() + "/cfs/v3/components";
 
-    let response_rslt = client
+    let response = client
         .patch(api_url)
         .bearer_auth(shasta_token)
         .json(&component_list)
         .send()
-        .await;
+        .await
+        .map_err(|error| Error::NetError(error))?;
 
-    match response_rslt {
-        Ok(response) => response.json::<Vec<Value>>().await,
-        Err(error) => Err(error),
+    if response.status().is_success() {
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
     }
 }
 
