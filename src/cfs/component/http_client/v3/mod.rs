@@ -8,6 +8,8 @@ use types::ComponentVec;
 
 use crate::{cfs::component::http_client::v3::types::Component, error::Error};
 
+/// Get CFS options
+/// Retutns a JSON object with the options available in the CFS API
 pub async fn get_options(
     shasta_token: &str,
     shasta_base_url: &str,

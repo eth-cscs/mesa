@@ -1085,8 +1085,7 @@ pub struct HWInvByLocProcessor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub populated_fru: Option<HWInvByFRUProcessor>,
     #[serde(rename(serialize = "ProcessorLocationInfo"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub processor_location_info: Option<RedfishProcessorLocationInfo>,
+    pub processor_location_info: RedfishProcessorLocationInfo,
 }
 
 impl From<FrontEndHWInvByLocProcessor> for HWInvByLocProcessor {
@@ -1098,7 +1097,9 @@ impl From<FrontEndHWInvByLocProcessor> for HWInvByLocProcessor {
             status: value.status.map(|v| v),
             hw_inventory_by_location_type: value.hw_inventory_by_location_type,
             populated_fru: value.populated_fru.map(HWInvByFRUProcessor::from),
-            processor_location_info: None, // FIXME: Implement From and Into traits for this field/type
+            processor_location_info: RedfishProcessorLocationInfo::from(
+                value.processor_location_info,
+            ),
         }
     }
 }
@@ -1112,7 +1113,7 @@ impl Into<FrontEndHWInvByLocProcessor> for HWInvByLocProcessor {
             status: self.status.map(|v| v),
             hw_inventory_by_location_type: self.hw_inventory_by_location_type,
             populated_fru: self.populated_fru.map(|v| v.into()),
-            processor_location_info: None, // FIXME: Implement From and Into traits for this field/type
+            processor_location_info: self.processor_location_info.into(),
         }
     }
 }
@@ -1301,9 +1302,8 @@ pub struct HWInvByLocMemory {
     #[serde(rename(serialize = "PopulatedFRU"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub populated_fru: Option<HWInvByFRUMemory>,
-    #[serde(rename(serialize = "DriveLocationInfo"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory_location_info: Option<RedfishMemoryLocationInfo>,
+    #[serde(rename(serialize = "MemoryLocationInfo"))]
+    pub memory_location_info: RedfishMemoryLocationInfo,
 }
 
 impl From<FrontEndHWInvByLocMemory> for HWInvByLocMemory {
@@ -1315,9 +1315,7 @@ impl From<FrontEndHWInvByLocMemory> for HWInvByLocMemory {
             status: value.status.map(|v| v),
             hw_inventory_by_location_type: value.hw_inventory_by_location_type,
             populated_fru: value.populated_fru.map(HWInvByFRUMemory::from),
-            memory_location_info: value
-                .memory_location_info
-                .map(RedfishMemoryLocationInfo::from),
+            memory_location_info: RedfishMemoryLocationInfo::from(value.memory_location_info),
         }
     }
 }
@@ -1331,7 +1329,7 @@ impl Into<FrontEndHWInvByLocMemory> for HWInvByLocMemory {
             status: self.status.map(|v| v),
             hw_inventory_by_location_type: self.hw_inventory_by_location_type,
             populated_fru: self.populated_fru.map(|v| v.into()),
-            memory_location_info: self.memory_location_info.map(|v| v.into()),
+            memory_location_info: self.memory_location_info.into(),
         }
     }
 }
@@ -1420,9 +1418,10 @@ pub struct HWInvByLocHSNNIC {
     #[serde(rename(serialize = "PopulatedFRU"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub populated_fru: Option<HWInvByFRUHSNNIC>,
-    #[serde(rename(serialize = "HSNNICLocationInfo"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hsn_nic_location_info: Option<HSNNICLocationInfo>,
+    /* #[serde(rename = "NodeHsnNicLocationInfo")]
+    pub node_hsn_nic_location_info: HSNNICLocationInfo, */
+    #[serde(rename = "HSNNICLocationInfo")]
+    pub hsn_nic_location_info: HSNNICLocationInfo,
 }
 
 impl From<FrontEndHWInvByLocHSNNIC> for HWInvByLocHSNNIC {
@@ -1434,7 +1433,7 @@ impl From<FrontEndHWInvByLocHSNNIC> for HWInvByLocHSNNIC {
             status: value.status.map(|v| v),
             hw_inventory_by_location_type: value.hw_inventory_by_location_type,
             populated_fru: value.populated_fru.map(HWInvByFRUHSNNIC::from),
-            hsn_nic_location_info: value.hsn_nic_location_info.map(HSNNICLocationInfo::from),
+            hsn_nic_location_info: HSNNICLocationInfo::from(value.hsn_nic_location_info),
         }
     }
 }
@@ -1448,7 +1447,7 @@ impl Into<FrontEndHWInvByLocHSNNIC> for HWInvByLocHSNNIC {
             status: self.status.map(|v| v),
             hw_inventory_by_location_type: self.hw_inventory_by_location_type,
             populated_fru: self.populated_fru.map(|v| v.into()),
-            hsn_nic_location_info: self.hsn_nic_location_info.map(|v| v.into()),
+            hsn_nic_location_info: self.hsn_nic_location_info.into(),
         }
     }
 }
@@ -1787,6 +1786,36 @@ pub struct HWInvByLocRouterBMC {
     pub router_bmc_location_info: Option<RedfishManagerLocationInfo>,
 }
 
+/* #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct HWInventoryList {
+    #[serde(rename = "Hardware")]
+    pub hw_inventory: Vec<HWInventory>,
+}
+
+impl From<FrontEndHWInventoryList> for HWInventoryList {
+    fn from(value: FrontEndHWInventoryList) -> Self {
+        HWInventoryList {
+            hw_inventory: value
+                .hw_inventory
+                .into_iter()
+                .map(HWInventory::from)
+                .collect(),
+        }
+    }
+}
+
+impl Into<FrontEndHWInventoryList> for HWInventoryList {
+    fn into(self) -> FrontEndHWInventoryList {
+        FrontEndHWInventoryList {
+            hw_inventory: self
+                .hw_inventory
+                .into_iter()
+                .map(|hw_inventory| hw_inventory.into())
+                .collect(),
+        }
+    }
+} */
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HWInventory {
     #[serde(rename(serialize = "XName"))]
@@ -2105,395 +2134,59 @@ impl Into<FrontEndNodeLocationInfo> for NodeLocationInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct HWInventoryByLocation {
-    #[serde(rename = "ID")]
-    pub id: String,
-    #[serde(rename = "Type")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<String>,
-    #[serde(rename = "Ordinal")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ordinal: Option<u32>,
-    #[serde(rename = "Status")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>,
-    #[serde(rename = "NodeLocationInfo")]
-    pub node_location_info: NodeLocationInfo,
-    #[serde(rename = "HWInventoryByLocationType")]
-    pub hw_inventory_by_location_type: String,
-    #[serde(rename = "PopulatedFRU")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub populated_fru: Option<HWInvByFRUNode>, // FIXME: I think the type of 'populated_fru' field
-    // should be dynamically assigned depending on the target of the hw inentory. In this case I am
-    // hardcoding it to HWInvByFRUNode because I am mostly creating 'nodes' but this should also be
-    // 'HWInvByFRUProcessor', 'HWInvByFRUMemory', etc
-    #[serde(rename = "Cabinets")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cabinets: Option<Vec<HWInvByLocCabinet>>,
-    #[serde(rename = "Chassis")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chassis: Option<Vec<HWInvByLocChassis>>,
-    #[serde(rename = "ComputeModules")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compute_modules: Option<Vec<HWInvByLocComputeModule>>,
-    #[serde(rename = "RouterModules")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub router_modules: Option<Vec<HWInvByLocRouterModule>>,
-    #[serde(rename = "NodeEnclosures")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_enclosures: Option<Vec<HWInvByLocNodeEnclosure>>,
-    #[serde(rename = "HSNBoards")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hsn_boards: Option<Vec<HWInvByLocHSNBoard>>,
-    #[serde(rename = "MgmtSwitches")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mgmt_switches: Option<Vec<HWInvByLocMgmtSwitch>>,
-    #[serde(rename = "MgmtHLSwitches")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mgmt_hl_switches: Option<Vec<HWInvByLocMgmtHLSwitch>>,
-    #[serde(rename = "CDUMgmtSwitches")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cdu_mgmt_switches: Option<Vec<HWInvByLocCDUMgmtSwitch>>,
-    #[serde(rename = "Nodes")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub nodes: Option<Vec<HWInvByLocNode>>,
-    #[serde(rename = "Processors")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub processors: Option<Vec<HWInvByLocProcessor>>,
-    #[serde(rename = "NodeAccels")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_accels: Option<Vec<HWInvByLocNodeAccel>>,
-    #[serde(rename = "Drives")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub drives: Option<Vec<HWInvByLocDrive>>,
-    #[serde(rename = "Memory")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory: Option<Vec<HWInvByLocMemory>>,
-    #[serde(rename = "CabinetPDUs")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cabinet_pdus: Option<Vec<HWInvByLocPDU>>,
-    #[serde(rename = "CabinetPDUPowerConnectors")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cabinet_pdu_power_connectors: Option<Vec<HWInvByLocOutlet>>,
-    #[serde(rename = "CMMRectifiers")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cmm_rectifiers: Option<Vec<HWInvByLocCMMRectifier>>,
-    #[serde(rename = "NodeAccelRisers")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_accel_risers: Option<Vec<HWInvByLocNodeAccelRiser>>,
-    #[serde(rename = "NodeHsnNICs")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_hsn_nics: Option<Vec<HWInvByLocHSNNIC>>,
-    #[serde(rename = "NodeEnclosurePowerSupplies")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_enclosure_power_supplies: Option<Vec<HWInvByLocNodePowerSupply>>,
-    #[serde(rename = "NodeBMC")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_bmc: Option<Vec<HWInvByLocNodeBMC>>,
-    #[serde(rename = "RouterBMC")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub router_bmc: Option<Vec<HWInvByLocRouterBMC>>,
+#[serde(untagged)] // <-- this is important. More info https://serde.rs/enum-representations.html#untagged
+pub enum HWInventoryByLocation {
+    HWInvByLocNode(HWInvByLocNode),
+    HWInvByLocProcessor(HWInvByLocProcessor),
+    HWInvByLocNodeAccel(HWInvByLocNodeAccel),
+    HWInvByLocMemory(HWInvByLocMemory),
+    HWInvByLocHSNNIC(HWInvByLocHSNNIC),
 }
 
 impl From<FrontEndHWInventoryByLocation> for HWInventoryByLocation {
-    // Get processors and check if value is defined
-    fn from(value: FrontEndHWInventoryByLocation) -> Self {
-        /* let processor_count = value
-            .processors
-            .clone()
-            .map(|processor_vec| processor_vec.len() as u32);
-
-        // Get procesor model (we assume all processors have same model)
-        let processor_model = value.processors.clone().and_then(|processor_vec| {
-            processor_vec.first().and_then(|processor_1| {
-                processor_1.populated_fru.clone().and_then(|populated_fru| {
-                    populated_fru
-                        .processor_fru_info
-                        .and_then(|processor_fru_info| processor_fru_info.model)
-                })
-            })
-        });
-
-        let processor_summary = ProcessorSummary {
-            count: processor_count,
-            model: processor_model,
-        };
-
-        /* let processors: Vec<FrontEndHWInvByLocProcessor> = value
-            .processors
-            .clone()
-            .ok_or(Error::Message("Field 'processors' not defined".to_string()))?;
-
-        let processor_summary = ProcessorSummary {
-            count: processors.len().try_into().ok(),
-            model: processors
-                .first()
-                .ok_or(Error::Message("Field 'processors' is empty".to_string()))?
-                .populated_fru
-                .clone()
-                .ok_or(Error::Message(
-                    "Field 'PopulatedFRU' not defined".to_string(),
-                ))?
-                .processor_fru_info
-                .ok_or(Error::Message(
-                    "Field 'ProcessorFRUInfo' not defined".to_string(),
-                ))?
-                .model,
-        }; */
-
-        // FIXME: Implement Into trait for struct FrontEndMemorySummary and move the code below to its own 'into' function
-        let memory_capacity: Option<usize> = if let Some(memory_vec) = value.memory.clone() {
-            memory_vec
-                .into_iter()
-                .map(|memory| {
-                    memory.populated_fru.and_then(|populated_fru| {
-                        populated_fru
-                            .memory_fru_info
-                            .and_then(|memory_fru_info| memory_fru_info.capacity_mib)
-                    })
-                })
-                .sum()
-        } else {
-            None
-        };
-
-        let memory_summary = MemorySummary {
-            total_system_memory_gib: memory_capacity.map(|value| value as u32),
-        };
-
-        /* let memory_capacity: Result<usize, Error> = value
-            .memory
-            .clone()
-            .ok_or(Error::Message("Field 'Memory' not defined".to_string()))?
-            .into_iter()
-            .map(|memory| {
-                memory
-                    .populated_fru
-                    .clone()
-                    .ok_or(Error::Message(
-                        "Field 'PopulatedFRU' not defined".to_string(),
-                    ))?
-                    .memory_fru_info
-                    .ok_or(Error::Message(
-                        "Field 'MemoryFRUInfo' not defined".to_string(),
-                    ))?
-                    .capacity_mib
-                    .ok_or(Error::Message(
-                        "Field 'CapacityMiB' not defined".to_string(),
-                    ))
-            })
-            .sum();
-
-        let memory_summary = MemorySummary {
-            total_system_memory_gib: memory_capacity.map(|value| value as u32).ok(),
-        }; */
-
-        let node_location_info = NodeLocationInfo {
-            id: value.id.clone(),
-            name: None,
-            description: None,
-            hostname: None,
-            processor_summary: Some(processor_summary),
-            memory_summary: Some(memory_summary),
-        }; */
-
-        HWInventoryByLocation {
-            id: value.id,
-            r#type: value.r#type,
-            ordinal: value.ordinal,
-            status: value.status,
-            node_location_info: NodeLocationInfo::from(value.node_location_info),
-            hw_inventory_by_location_type: value.hw_inventory_by_location_type,
-            populated_fru: value
-                .populated_fru
-                .map(|populated_fru| populated_fru.into()), // FIXME: Implement From and Into traits for this field/type
-            cabinets: None, // FIXME: Implement From and Into traits for this field/type
-            chassis: None,  // FIXME: Implement From and Into traits for this field/type
-            compute_modules: None, // FIXME: Implement From and Into traits for this field/type
-            router_modules: None, // FIXME: Implement From and Into traits for this field/type
-            node_enclosures: None, // FIXME: Implement From and Into traits for this field/type
-            hsn_boards: None, // FIXME: Implement From and Into traits for this field/type
-            mgmt_switches: None, // FIXME: Implement From and Into traits for this field/type
-            mgmt_hl_switches: None, // FIXME: Implement From and Into traits for this field/type
-            cdu_mgmt_switches: None, // FIXME: Implement From and Into traits for this field/type
-            nodes: None,
-            processors: value.processors.map(|processor_vec| {
-                processor_vec
-                    .into_iter()
-                    .map(|processor| processor.into())
-                    .collect()
-            }),
-            node_accels: value.node_accels.map(|node_accel_vec| {
-                node_accel_vec
-                    .into_iter()
-                    .map(|node_accel| node_accel.into())
-                    .collect()
-            }), // FIXME: Implement From and Into traits for this field/type
-            drives: None,
-            memory: value
-                .memory
-                .map(|memory_vec| memory_vec.into_iter().map(|memory| memory.into()).collect()), // FIXME: Implement From and Into traits for this field/type
-            cabinet_pdus: None, // FIXME: Implement From and Into traits for this field/type
-            cabinet_pdu_power_connectors: None, // FIXME: Implement From and Into traits for this field/type
-            cmm_rectifiers: None, // FIXME: Implement From and Into traits for this field/type
-            node_accel_risers: None,
-            node_hsn_nics: value.node_hsn_nics.map(|hsn_nic_vec| {
-                hsn_nic_vec
-                    .into_iter()
-                    .map(|hsn_nic| hsn_nic.into())
-                    .collect()
-            }), // FIXME: Implement From and Into traits for this field/type
-            node_enclosure_power_supplies: None, // FIXME: Implement From and Into traits for this field/type
-            node_bmc: None,
-            router_bmc: None, // FIXME: Implement From and Into traits for this field/type
+    fn from(f: FrontEndHWInventoryByLocation) -> Self {
+        match f {
+            FrontEndHWInventoryByLocation::HWInvByLocNode(hwinv_by_loc_nnode) => {
+                HWInventoryByLocation::HWInvByLocNode(HWInvByLocNode::from(hwinv_by_loc_nnode))
+            }
+            FrontEndHWInventoryByLocation::HWInvByLocProcessor(hwinv_by_loc_processor) => {
+                HWInventoryByLocation::HWInvByLocProcessor(HWInvByLocProcessor::from(
+                    hwinv_by_loc_processor,
+                ))
+            }
+            FrontEndHWInventoryByLocation::HWInvByLocNodeAccel(hwinv_by_node_accel) => {
+                HWInventoryByLocation::HWInvByLocNodeAccel(HWInvByLocNodeAccel::from(
+                    hwinv_by_node_accel,
+                ))
+            }
+            FrontEndHWInventoryByLocation::HWInvByLocMemory(hwinv_by_loc_memory) => {
+                HWInventoryByLocation::HWInvByLocMemory(HWInvByLocMemory::from(hwinv_by_loc_memory))
+            }
+            FrontEndHWInventoryByLocation::HWInvByLocHSNNIC(hwinv_by_loc_hsnnic) => {
+                HWInventoryByLocation::HWInvByLocHSNNIC(HWInvByLocHSNNIC::from(hwinv_by_loc_hsnnic))
+            }
         }
     }
 }
 
 impl Into<FrontEndHWInventoryByLocation> for HWInventoryByLocation {
     fn into(self) -> FrontEndHWInventoryByLocation {
-        /* // FIXME: Implement Into trait for struct FrontEndProcessSummary and move the code below to its own 'into' function
-        // Get number of processors
-        let processor_count = self
-            .processors
-            .clone()
-            .map(|processor_vec| processor_vec.len() as u32);
-
-        // Get procesor model (we assume all processors have same model)
-        let processor_model = self.processors.clone().and_then(|processor_vec| {
-            processor_vec.first().and_then(|processor_1| {
-                processor_1.populated_fru.clone().and_then(|populated_fru| {
-                    populated_fru
-                        .processor_fru_info
-                        .and_then(|processor_fru_info| processor_fru_info.model)
-                })
-            })
-        });
-
-        let processor_summary = FrontEndProcessorSummary {
-            count: processor_count,
-            model: processor_model,
-        };
-
-        // FIXME: Implement Into trait for struct FrontEndMemorySummary and move the code below to its own 'into' function
-        let memory_capacity: Option<usize> = if let Some(memory_vec) = self.memory.clone() {
-            memory_vec
-                .into_iter()
-                .map(|memory| {
-                    memory.populated_fru.and_then(|populated_fru| {
-                        populated_fru
-                            .memory_fru_info
-                            .and_then(|memory_fru_info| memory_fru_info.capacity_mib)
-                    })
-                })
-                .sum()
-        } else {
-            None
-        };
-
-        let memory_summary = FrontEndMemorySummary {
-            total_system_memory_gib: memory_capacity.map(|value| value as u32),
-        };
-
-        /* let memory_capacity_vec_opt = self.memory.clone().and_then(|memory_vec| {
-            memory_vec.into_iter().map(|memory| {
-                memory.populated_fru.and_then(|populated_fru| {
-                    populated_fru
-                        .memory_fru_info
-                        .map(|memory_fru_info| memory_fru_info.capacity_mib)
-                })
-            })
-        });
-
-        let memory_capacity: Option<usize> =
-            memory_capacity_vec_opt.map(|mem_capacity_vec| mem_capacity_vec.into_iter().sum()); */
-
-        /* let memory_capacity: Result<usize, Error> = self
-        .memory
-        .clone()
-        .ok_or(Error::Message("Field 'Memory' not defined".to_string()))?
-        .iter()
-        .map(|memory| {
-            memory
-                .populated_fru
-                .clone()
-                .ok_or(Error::Message(
-                    "Field 'PopulatedFRU' not defined".to_string(),
-                ))?
-                .memory_fru_info
-                .ok_or(Error::Message(
-                    "Field 'MemoryFRUInfo' not defined".to_string(),
-                ))?
-                .capacity_mib
-                .ok_or(Error::Message(
-                    "Field 'CapacityMiB' not defined".to_string(),
-                ))
-        })
-        .sum();
-
-        let memory_summary = FrontEndMemorySummary {
-            total_system_memory_gib: memory_capacity.map(|value| value as u32).ok(),
-        }; */
-
-        // FIXME: Implement Into trait for struct FrontEndNodeLocationInfo and move the code below to its own 'into' function
-        let node_location_info = FrontEndNodeLocationInfo {
-            id: self.id.clone(),
-            name: None,
-            description: None,
-            hostname: None,
-            processor_summary: Some(processor_summary.into()),
-            memory_summary: Some(memory_summary.into()),
-        }; */
-
-        FrontEndHWInventoryByLocation {
-            id: self.id,
-            r#type: Some(self.r#type.clone().unwrap()),
-            ordinal: None,
-            status: None,
-            node_location_info: self.node_location_info.into(),
-            hw_inventory_by_location_type: self
-                .r#type
-                .expect("ERROR - HWInventoryByLocationType field has no value"),
-            populated_fru: self.populated_fru.map(|value| value.into()),
-            cabinets: None,
-            chassis: None,
-            compute_modules: None,
-            router_modules: None,
-            node_enclosures: None,
-            hsn_boards: None,        // FIXME: implement!
-            mgmt_switches: None,     // FIXME: implement!
-            mgmt_hl_switches: None,  // FIXME: implement!
-            cdu_mgmt_switches: None, // FIXME: implement!
-            nodes: None,             // FIXME: implement!
-            processors: self.processors.map(|processor_vec| {
-                processor_vec
-                    .into_iter()
-                    .map(|processor| processor.into())
-                    .collect()
-            }), // FIXME: implement!
-            node_accels: self.node_accels.map(|node_accel_vec| {
-                node_accel_vec
-                    .into_iter()
-                    .map(|node_accel| node_accel.into())
-                    .collect()
-            }), // FIXME: implement!
-            drives: None,            // FIXME: implement!
-            memory: self
-                .memory
-                .map(|memory_vec| memory_vec.into_iter().map(|memory| memory.into()).collect()), // FIXME: implement!
-            cabinet_pdus: None,                 // FIXME: implement!
-            cabinet_pdu_power_connectors: None, // FIXME: implement!
-            cmm_rectifiers: None,               // FIXME: implement!
-            node_accel_risers: None,            // FIXME: implement!
-            node_hsn_nics: self.node_hsn_nics.map(|hsn_nic_vec| {
-                hsn_nic_vec
-                    .into_iter()
-                    .map(|node_hsn_nic| node_hsn_nic.into())
-                    .collect()
-            }), // FIXME: implement!
-            node_enclosure_power_supplies: None, // FIXME: implement!
-            node_bmc: None,
-            router_bmc: None, // FIXME: implement!
+        match self {
+            HWInventoryByLocation::HWInvByLocNode(f) => {
+                FrontEndHWInventoryByLocation::HWInvByLocNode(f.into())
+            }
+            HWInventoryByLocation::HWInvByLocProcessor(f) => {
+                FrontEndHWInventoryByLocation::HWInvByLocProcessor(f.into())
+            }
+            HWInventoryByLocation::HWInvByLocNodeAccel(f) => {
+                FrontEndHWInventoryByLocation::HWInvByLocNodeAccel(f.into())
+            }
+            HWInventoryByLocation::HWInvByLocMemory(f) => {
+                FrontEndHWInventoryByLocation::HWInvByLocMemory(f.into())
+            }
+            HWInventoryByLocation::HWInvByLocHSNNIC(hwinv_by_loc_hsnnic) => {
+                FrontEndHWInventoryByLocation::HWInvByLocHSNNIC(hwinv_by_loc_hsnnic.into())
+            }
         }
     }
 }
