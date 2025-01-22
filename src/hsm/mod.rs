@@ -1,3 +1,5 @@
+pub mod component;
+
 pub mod service {
 
     pub mod values {

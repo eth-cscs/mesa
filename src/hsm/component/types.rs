@@ -1,28 +1,20 @@
-use backend_dispatcher::types::{
-    Component as FrontEndComponent, ComponentArray as FrontEndComponentArray,
-    ComponentArrayPostArray as FrontEndComponentArrayPostArray,
-    ComponentCreate as FrontEndComponentCreate,
-};
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentArray {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Components"))]
+    #[serde(rename = "Components")]
     pub components: Option<Vec<Component>>,
 }
 
-impl From<FrontEndComponentArray> for ComponentArray {
-    fn from(value: FrontEndComponentArray) -> Self {
+/* impl From<ComponentArray> for ComponentArray {
+    fn from(value: ComponentArray) -> Self {
         let component_vec_opt: Option<Vec<Component>> = if let Some(components) = value.components {
             let mut component_vec: Vec<Component> = Vec::with_capacity(components.len());
 
             components
                 .into_iter()
-                .for_each(|component: FrontEndComponent| {
-                    component_vec.push(Component::from(component))
-                });
+                .for_each(|component: Component| component_vec.push(Component::from(component)));
 
             Some(component_vec)
         } else {
@@ -35,12 +27,10 @@ impl From<FrontEndComponentArray> for ComponentArray {
     }
 }
 
-impl Into<FrontEndComponentArray> for ComponentArray {
-    fn into(self) -> FrontEndComponentArray {
-        let component_vec_opt: Option<Vec<FrontEndComponent>> = if let Some(components) =
-            self.components
-        {
-            let mut component_vec: Vec<FrontEndComponent> = Vec::with_capacity(components.len());
+impl Into<ComponentArray> for ComponentArray {
+    fn into(self) -> ComponentArray {
+        let component_vec_opt: Option<Vec<Component>> = if let Some(components) = self.components {
+            let mut component_vec: Vec<Component> = Vec::with_capacity(components.len());
 
             components
                 .into_iter()
@@ -51,63 +41,63 @@ impl Into<FrontEndComponentArray> for ComponentArray {
             None
         };
 
-        FrontEndComponentArray {
+        ComponentArray {
             components: component_vec_opt,
         }
     }
-}
+} */
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Component {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "ID"))]
+    #[serde(rename = "ID")]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Type"))]
+    #[serde(rename = "Type")]
     pub r#type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "State"))]
+    #[serde(rename = "State")]
     pub state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Flag"))]
+    #[serde(rename = "Flag")]
     pub flag: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Enabled"))]
+    #[serde(rename = "Enabled")]
     pub enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "SoftwareStatus"))]
+    #[serde(rename = "SoftwareStatus")]
     pub software_status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Role"))]
+    #[serde(rename = "Role")]
     pub role: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "SubRole"))]
+    #[serde(rename = "SubRole")]
     pub sub_role: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "NID"))]
+    #[serde(rename = "NID")]
     pub nid: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Subtype"))]
+    #[serde(rename = "Subtype")]
     pub subtype: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "NetType"))]
+    #[serde(rename = "NetType")]
     pub net_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Arch"))]
+    #[serde(rename = "Arch")]
     pub arch: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Class"))]
+    #[serde(rename = "Class")]
     pub class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "ReservationDisabled"))]
+    #[serde(rename = "ReservationDisabled")]
     pub reservation_disabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename(serialize = "Locked"))]
+    #[serde(rename = "Locked")]
     pub locked: Option<bool>,
 }
 
-impl From<FrontEndComponent> for Component {
-    fn from(value: FrontEndComponent) -> Self {
+/* impl From<Component> for Component {
+    fn from(value: Component) -> Self {
         Component {
             id: value.id,
             r#type: value.r#type,
@@ -128,9 +118,9 @@ impl From<FrontEndComponent> for Component {
     }
 }
 
-impl Into<FrontEndComponent> for Component {
-    fn into(self) -> FrontEndComponent {
-        FrontEndComponent {
+impl Into<Component> for Component {
+    fn into(self) -> Component {
+        Component {
             id: self.id,
             r#type: self.r#type,
             state: self.state,
@@ -148,7 +138,7 @@ impl Into<FrontEndComponent> for Component {
             locked: self.locked,
         }
     }
-}
+} */
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentArrayPostQuery {
@@ -229,8 +219,8 @@ pub struct ComponentArrayPostArray {
     pub force: Option<bool>,
 }
 
-impl From<FrontEndComponentArrayPostArray> for ComponentArrayPostArray {
-    fn from(value: FrontEndComponentArrayPostArray) -> Self {
+/* impl From<ComponentArrayPostArray> for ComponentArrayPostArray {
+    fn from(value: ComponentArrayPostArray) -> Self {
         let mut component_vec: Vec<ComponentCreate> = Vec::with_capacity(value.components.len());
 
         value
@@ -245,21 +235,20 @@ impl From<FrontEndComponentArrayPostArray> for ComponentArrayPostArray {
     }
 }
 
-impl Into<FrontEndComponentArrayPostArray> for ComponentArrayPostArray {
-    fn into(self) -> FrontEndComponentArrayPostArray {
-        let mut component_vec: Vec<FrontEndComponentCreate> =
-            Vec::with_capacity(self.components.len());
+impl Into<ComponentArrayPostArray> for ComponentArrayPostArray {
+    fn into(self) -> ComponentArrayPostArray {
+        let mut component_vec: Vec<ComponentCreate> = Vec::with_capacity(self.components.len());
 
         self.components
             .into_iter()
             .for_each(|c| component_vec.push(c.into()));
 
-        FrontEndComponentArrayPostArray {
+        ComponentArrayPostArray {
             components: component_vec,
             force: self.force,
         }
     }
-}
+} */
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentCreate {
@@ -299,8 +288,8 @@ pub struct ComponentCreate {
     class: Option<String>,
 }
 
-impl From<FrontEndComponentCreate> for ComponentCreate {
-    fn from(value: FrontEndComponentCreate) -> Self {
+/* impl From<ComponentCreate> for ComponentCreate {
+    fn from(value: ComponentCreate) -> Self {
         ComponentCreate {
             id: value.id,
             state: value.state,
@@ -318,9 +307,9 @@ impl From<FrontEndComponentCreate> for ComponentCreate {
     }
 }
 
-impl Into<FrontEndComponentCreate> for ComponentCreate {
-    fn into(self) -> FrontEndComponentCreate {
-        FrontEndComponentCreate {
+impl Into<ComponentCreate> for ComponentCreate {
+    fn into(self) -> ComponentCreate {
+        ComponentCreate {
             id: self.id,
             state: self.state,
             flag: self.flag,
@@ -335,7 +324,7 @@ impl Into<FrontEndComponentCreate> for ComponentCreate {
             class: self.class,
         }
     }
-}
+} */
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentPut {
