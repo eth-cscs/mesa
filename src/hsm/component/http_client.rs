@@ -222,7 +222,8 @@ pub async fn post(
     base_url: &str,
     root_cert: &[u8],
     component: ComponentArrayPostArray,
-) -> Result<ComponentArray, Error> {
+    // ) -> Result<ComponentArray, Error> {
+) -> Result<(), Error> {
     let client_builder =
         reqwest::Client::builder().add_root_certificate(reqwest::Certificate::from_pem(root_cert)?);
 
@@ -268,10 +269,12 @@ pub async fn post(
         }
     }
 
-    response
-        .json()
-        .await
-        .map_err(|error| Error::NetError(error))
+    /* response
+    .json()
+    .await
+    .map_err(|error| Error::NetError(error)) */
+
+    Ok(())
 }
 
 pub async fn post_query(

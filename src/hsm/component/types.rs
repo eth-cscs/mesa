@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use backend_dispatcher::types::{
+    Component as FrontEndComponent, ComponentArray as FrontEndComponentArray,
+    ComponentArrayPostArray as FrontEndComponentArrayPostArray,
+    ComponentCreate as FrontEndComponentCreate,
+};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentArray {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -7,14 +13,16 @@ pub struct ComponentArray {
     pub components: Option<Vec<Component>>,
 }
 
-/* impl From<ComponentArray> for ComponentArray {
-    fn from(value: ComponentArray) -> Self {
+impl From<FrontEndComponentArray> for ComponentArray {
+    fn from(value: FrontEndComponentArray) -> Self {
         let component_vec_opt: Option<Vec<Component>> = if let Some(components) = value.components {
             let mut component_vec: Vec<Component> = Vec::with_capacity(components.len());
 
             components
                 .into_iter()
-                .for_each(|component: Component| component_vec.push(Component::from(component)));
+                .for_each(|component: FrontEndComponent| {
+                    component_vec.push(Component::from(component))
+                });
 
             Some(component_vec)
         } else {
@@ -27,10 +35,12 @@ pub struct ComponentArray {
     }
 }
 
-impl Into<ComponentArray> for ComponentArray {
-    fn into(self) -> ComponentArray {
-        let component_vec_opt: Option<Vec<Component>> = if let Some(components) = self.components {
-            let mut component_vec: Vec<Component> = Vec::with_capacity(components.len());
+impl Into<FrontEndComponentArray> for ComponentArray {
+    fn into(self) -> FrontEndComponentArray {
+        let component_vec_opt: Option<Vec<FrontEndComponent>> = if let Some(components) =
+            self.components
+        {
+            let mut component_vec: Vec<FrontEndComponent> = Vec::with_capacity(components.len());
 
             components
                 .into_iter()
@@ -41,11 +51,11 @@ impl Into<ComponentArray> for ComponentArray {
             None
         };
 
-        ComponentArray {
+        FrontEndComponentArray {
             components: component_vec_opt,
         }
     }
-} */
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Component {
@@ -96,8 +106,8 @@ pub struct Component {
     pub locked: Option<bool>,
 }
 
-/* impl From<Component> for Component {
-    fn from(value: Component) -> Self {
+impl From<FrontEndComponent> for Component {
+    fn from(value: FrontEndComponent) -> Self {
         Component {
             id: value.id,
             r#type: value.r#type,
@@ -118,9 +128,9 @@ pub struct Component {
     }
 }
 
-impl Into<Component> for Component {
-    fn into(self) -> Component {
-        Component {
+impl Into<FrontEndComponent> for Component {
+    fn into(self) -> FrontEndComponent {
+        FrontEndComponent {
             id: self.id,
             r#type: self.r#type,
             state: self.state,
@@ -138,7 +148,7 @@ impl Into<Component> for Component {
             locked: self.locked,
         }
     }
-} */
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentArrayPostQuery {
@@ -219,8 +229,8 @@ pub struct ComponentArrayPostArray {
     pub force: Option<bool>,
 }
 
-/* impl From<ComponentArrayPostArray> for ComponentArrayPostArray {
-    fn from(value: ComponentArrayPostArray) -> Self {
+impl From<FrontEndComponentArrayPostArray> for ComponentArrayPostArray {
+    fn from(value: FrontEndComponentArrayPostArray) -> Self {
         let mut component_vec: Vec<ComponentCreate> = Vec::with_capacity(value.components.len());
 
         value
@@ -235,20 +245,21 @@ pub struct ComponentArrayPostArray {
     }
 }
 
-impl Into<ComponentArrayPostArray> for ComponentArrayPostArray {
-    fn into(self) -> ComponentArrayPostArray {
-        let mut component_vec: Vec<ComponentCreate> = Vec::with_capacity(self.components.len());
+impl Into<FrontEndComponentArrayPostArray> for ComponentArrayPostArray {
+    fn into(self) -> FrontEndComponentArrayPostArray {
+        let mut component_vec: Vec<FrontEndComponentCreate> =
+            Vec::with_capacity(self.components.len());
 
         self.components
             .into_iter()
             .for_each(|c| component_vec.push(c.into()));
 
-        ComponentArrayPostArray {
+        FrontEndComponentArrayPostArray {
             components: component_vec,
             force: self.force,
         }
     }
-} */
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentCreate {
@@ -288,8 +299,8 @@ pub struct ComponentCreate {
     class: Option<String>,
 }
 
-/* impl From<ComponentCreate> for ComponentCreate {
-    fn from(value: ComponentCreate) -> Self {
+impl From<FrontEndComponentCreate> for ComponentCreate {
+    fn from(value: FrontEndComponentCreate) -> Self {
         ComponentCreate {
             id: value.id,
             state: value.state,
@@ -307,9 +318,9 @@ pub struct ComponentCreate {
     }
 }
 
-impl Into<ComponentCreate> for ComponentCreate {
-    fn into(self) -> ComponentCreate {
-        ComponentCreate {
+impl Into<FrontEndComponentCreate> for ComponentCreate {
+    fn into(self) -> FrontEndComponentCreate {
+        FrontEndComponentCreate {
             id: self.id,
             state: self.state,
             flag: self.flag,
@@ -324,7 +335,7 @@ impl Into<ComponentCreate> for ComponentCreate {
             class: self.class,
         }
     }
-} */
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentPut {
