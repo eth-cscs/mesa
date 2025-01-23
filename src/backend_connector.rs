@@ -9,6 +9,8 @@ use backend_dispatcher::{
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList,
     },
 };
+use hostlist_parser::parse;
+use regex::Regex;
 use serde_json::Value;
 
 use crate::{
@@ -465,5 +467,145 @@ impl BackendTrait for Csm {
         hsm::component::http_client::delete_one(auth_token, &self.base_url, &self.root_cert, id)
             .await
             .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_hsm_map_and_filter_by_hsm_name_vec(
+        &self,
+        shasta_token: &str,
+        hsm_name_vec: Vec<&str>,
+    ) -> Result<HashMap<String, Vec<String>>, Error> {
+        hsm::group::utils::get_hsm_map_and_filter_by_hsm_name_vec(
+            shasta_token,
+            &self.base_url,
+            &self.root_cert,
+            hsm_name_vec,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    /// Get list of xnames from NIDs
+    /// The list of NIDs can be:
+    ///     - comma separated list of NIDs (eg: nid000001,nid000002,nid000003)
+    ///     - regex (eg: nid00000.*)
+    ///     - hostlist (eg: nid0000[01-15])
+    async fn nid_to_xname(
+        &self,
+        shasta_token: &str,
+        user_input_nid: &str,
+        is_regex: bool,
+    ) -> Result<Vec<String>, Error> {
+        if is_regex {
+            log::debug!("Regex found, getting xnames from NIDs");
+            // Get list of regex
+            let regex_vec: Vec<Regex> = user_input_nid
+                .split(",")
+                .map(|regex_str| Regex::new(regex_str.trim()))
+                .collect::<Result<Vec<Regex>, regex::Error>>()
+                .map_err(|e| Error::Message(e.to_string()))?;
+
+            // Get all HSM components (list of xnames + nids)
+            let hsm_component_vec = hsm::component::http_client::get_all_nodes(
+                &self.base_url,
+                shasta_token,
+                &self.root_cert,
+                Some("true"),
+            )
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?
+            .components
+            .unwrap_or_default();
+
+            let mut xname_vec: Vec<String> = vec![];
+
+            // Get list of xnames the user is asking for
+            for hsm_component in hsm_component_vec {
+                let nid_long = format!("nid{:06}", &hsm_component.nid.expect("No NID found"));
+                for regex in &regex_vec {
+                    if regex.is_match(&nid_long) {
+                        log::debug!(
+                            "Nid '{}' IS included in regex '{}'",
+                            nid_long,
+                            regex.as_str()
+                        );
+                        xname_vec.push(hsm_component.id.clone().expect("No XName found"));
+                    }
+                }
+            }
+
+            return Ok(xname_vec);
+        } else {
+            log::debug!("No regex found, getting xnames from list of NIDs or NIDs hostlist");
+            let nid_hostlist_expanded_vec_rslt = parse(user_input_nid);
+
+            let nid_hostlist_expanded_vec = match nid_hostlist_expanded_vec_rslt {
+                Ok(xname_requested_vec) => xname_requested_vec,
+                Err(e) => {
+                    println!(
+                        "Could not parse list of nodes as a hostlist. Reason:\n{}Exit",
+                        e
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            log::debug!("hostlist: {}", user_input_nid);
+            log::debug!("hostlist expanded: {:?}", nid_hostlist_expanded_vec);
+
+            let nid_short = nid_hostlist_expanded_vec
+                .iter()
+                .map(|nid_long| {
+                    nid_long
+                        .strip_prefix("nid")
+                        .expect(
+                            format!("Nid '{}' not valid, 'nid' prefix missing", nid_long).as_str(),
+                        )
+                        .trim_start_matches("0")
+                })
+                .collect::<Vec<&str>>()
+                .join(",");
+
+            log::debug!("short NID list: {}", nid_short);
+
+            let hsm_components = hsm::component::http_client::get(
+                &self.base_url,
+                shasta_token,
+                &self.root_cert,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(&nid_short),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some("true"),
+            )
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?;
+
+            // Get list of xnames from HSM components
+            let xname_vec: Vec<String> = hsm_components
+                .components
+                .unwrap_or_default()
+                .iter()
+                .map(|component| component.id.clone().unwrap())
+                .collect();
+
+            log::debug!("xname list:\n{:#?}", xname_vec);
+
+            return Ok(xname_vec);
+        };
     }
 }

@@ -16,12 +16,13 @@ publish = true
 
 [dependencies]
 # backend-dispatcher = { path = "../backend-dispatcher" } # Only for development purposes
-backend-dispatcher = "0.1.10"
+backend-dispatcher = "0.1.11"
 strum = { version = "0.25.0", default-features = false }
 strum_macros = "0.25"
 chrono = { version = "0.4.31", default-features = false }
 anyhow = { version = "1.0.44", default-features = false }
 thiserror = "1.0.56"
+hostlist-parser = "0.1.6"
 reqwest = { version = "0.11", default-features = false }
 serde = { version = "1.0.145", default-features = false }
 serde_json = "1.0"
