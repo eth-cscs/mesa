@@ -9,12 +9,12 @@ use super::types::{
 
 pub async fn get_all(
     base_url: &str,
-    auth_token: &str,
     root_cert: &[u8],
+    auth_token: &str,
     nid_only: Option<&str>,
 ) -> Result<ComponentArray, Error> {
     get(
-        base_url, auth_token, root_cert, None, None, None, None, None, None, None, None, None,
+        base_url, root_cert, auth_token, None, None, None, None, None, None, None, None, None,
         None, None, None, None, None, None, None, None, None, None, nid_only,
     )
     .await
@@ -22,14 +22,14 @@ pub async fn get_all(
 
 pub async fn get_all_nodes(
     base_url: &str,
-    auth_token: &str,
     root_cert: &[u8],
+    auth_token: &str,
     nid_only: Option<&str>,
 ) -> Result<ComponentArray, Error> {
     get(
         base_url,
-        auth_token,
         root_cert,
+        auth_token,
         None,
         Some("Node"),
         None,
@@ -59,8 +59,8 @@ pub async fn get_all_nodes(
 /// valid values
 pub async fn get(
     base_url: &str,
-    auth_token: &str,
     root_cert: &[u8],
+    auth_token: &str,
     id: Option<&str>,
     r#type: Option<&str>,
     state: Option<&str>,
