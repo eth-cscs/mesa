@@ -67,10 +67,7 @@ pub async fn get_api_token(
         String::new()
     };
 
-    while !test_client_api(shasta_base_url, &shasta_token, shasta_root_cert)
-        .await
-        .unwrap()
-        && attempts < 3
+    while !test_client_api(shasta_base_url, &shasta_token, shasta_root_cert).await? && attempts < 3
     {
         println!(
             "Please type your {}Keycloak credentials{}",
@@ -111,12 +108,12 @@ pub async fn get_api_token(
     }
 }
 
-pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, reqwest::Error> {
+pub fn get_token_from_local_file(path: &std::ffi::OsStr) -> Result<String, Error> {
     let mut shasta_token = String::new();
     File::open(path)
         .unwrap()
-        .read_to_string(&mut shasta_token)
-        .unwrap();
+        .read_to_string(&mut shasta_token)?;
+
     Ok(shasta_token.to_string())
 }
 
@@ -130,7 +127,7 @@ pub async fn test_connectivity_to_backend(shasta_base_url: &str) -> bool {
 
     let api_url = shasta_base_url.to_owned() + "/cfs/healthz";
 
-    log::info!("Validate Shasta token against {}", api_url);
+    log::info!("Validate CSM token against {}", api_url);
 
     let resp_rslt = client.get(api_url).send().await;
 
@@ -144,27 +141,25 @@ pub async fn test_client_api(
     shasta_base_url: &str,
     shasta_token: &str,
     shasta_root_cert: &[u8],
-) -> Result<bool, reqwest::Error> {
-    let client;
-
+) -> Result<bool, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
     // Build client
-    if std::env::var("SOCKS5").is_ok() {
+    let client = if std::env::var("SOCKS5").is_ok() {
         // socks5 proxy
         log::debug!("SOCKS5 enabled");
         let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
 
         // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
+        client_builder.proxy(socks5proxy).build()?
     } else {
-        client = client_builder.build()?;
-    }
+        client_builder.build()?
+    };
 
     let api_url = shasta_base_url.to_owned() + "/cfs/healthz";
 
-    log::info!("Validate Shasta token against {}", api_url);
+    log::info!("Validate CSM token against {}", api_url);
 
     let resp_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
 
@@ -179,11 +174,7 @@ pub async fn test_client_api(
                 return Ok(false);
             }
         }
-        Err(error) => {
-            eprintln!("Error connecting to Shasta API. Reason:\n{:?}. Exit", error);
-            log::debug!("Response:\n{:#?}", error);
-            std::process::exit(1);
-        }
+        Err(error) => Err(Error::NetError(error)),
     }
 }
 
