@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use backend_dispatcher::types::{
-    Component as FrontEndComponent, ComponentArray as FrontEndComponentArray,
-    ComponentArrayPostArray as FrontEndComponentArrayPostArray,
-    ComponentCreate as FrontEndComponentCreate,
+    Component as FrontEndComponent, ComponentArrayPostArray as FrontEndComponentArrayPostArray,
+    ComponentCreate as FrontEndComponentCreate, HardwareMetadataArray as FrontEndComponentArray,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

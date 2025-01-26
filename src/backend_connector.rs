@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
-    interfaces::hsm::Component as ComponentTrait,
+    interfaces::hsm::HardwareMetadata as ComponentTrait,
     types::{
-        BootParameters as FrontEndBootParameters, ComponentArray,
+        BootParameters as FrontEndBootParameters,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
-        HWInventoryByLocationList as FrontEndHWInventoryByLocationList,
+        HWInventoryByLocationList as FrontEndHWInventoryByLocationList, HardwareMetadataArray,
     },
 };
 use hostlist_parser::parse;
@@ -41,7 +41,7 @@ impl ComponentTrait for Csm {
         &self,
         auth_token: &str,
         nid_only: Option<&str>,
-    ) -> Result<ComponentArray, Error> {
+    ) -> Result<HardwareMetadataArray, Error> {
         hsm::component::http_client::get(
             &self.base_url,
             &self.root_cert,
@@ -95,7 +95,7 @@ impl ComponentTrait for Csm {
         flag_only: Option<&str>,
         role_only: Option<&str>,
         nid_only: Option<&str>,
-    ) -> Result<ComponentArray, Error> {
+    ) -> Result<HardwareMetadataArray, Error> {
         hsm::component::http_client::get(
             &self.base_url,
             &self.root_cert,
