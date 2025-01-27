@@ -7,7 +7,7 @@ use futures::TryStreamExt;
 use futures::{io::Lines, AsyncBufReadExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
-use k8s_openapi::api::core::v1::{ConfigMap, Container, Pod};
+use k8s_openapi::api::core::v1::{ConfigMap, Container, ContainerState, Pod};
 use kube::api::DeleteParams;
 use kube::{
     api::{AttachParams, AttachedProcess},
@@ -345,13 +345,13 @@ pub async fn print_cfs_session_logs(
     cfs_session_name: &str,
 ) -> Result<(), Box<dyn Error + std::marker::Send + Sync>> {
     let mut logs_stream =
-        get_cfs_session_container_git_clone_logs_stream(client.clone(), cfs_session_name).await?;
+        print_cfs_session_container_git_clone_logs_stream(client.clone(), cfs_session_name).await?;
 
     while let Some(line) = logs_stream.try_next().await.unwrap() {
         println!("{}", line);
     }
 
-    let _ = get_cfs_session_container_ansible_logs_stream(client, cfs_session_name).await;
+    let _ = print_cfs_session_container_ansible_logs_stream(client, cfs_session_name).await;
 
     Ok(())
 }
@@ -379,7 +379,7 @@ pub async fn get_configmap(
     configmap_data.clone()
 }
 
-pub async fn get_cfs_session_container_git_clone_logs_stream(
+pub async fn print_cfs_session_container_git_clone_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
 ) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + std::marker::Send + Sync>> {
@@ -538,7 +538,7 @@ pub async fn get_cfs_session_container_git_clone_logs_stream(
     get_init_container_logs_stream(git_clone_container, cfs_session_pod, &pods_api).await
 }
 
-pub async fn get_cfs_session_container_ansible_logs_stream(
+pub async fn print_cfs_session_container_ansible_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
 ) -> Result<(), Box<dyn Error + Sync + Send>> {
@@ -666,7 +666,100 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
     Ok(())
 }
 
-fn get_container_status(
+pub async fn get_cfs_session_container_ansible_logs_details(
+    client: kube::Client,
+    cfs_session_name: &str,
+) -> Result<(Container, Pod, Api<Pod>), Box<dyn Error + Sync + Send>> {
+    let container_name = "ansible";
+
+    let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
+
+    let params = kube::api::ListParams::default()
+        .limit(1)
+        .labels(format!("cfsession={}", cfs_session_name).as_str());
+
+    let mut pods = pods_api.list(&params).await?;
+
+    let mut i = 0;
+    let max = 30;
+    let delay_secs = 2;
+
+    // Waiting for pod to start
+    while pods.items.is_empty() && i <= max {
+        println!(
+            "Waiting k8s to create pod/container for cfs session '{}'. Trying again in {} secs. Attempt {} of {}",
+            cfs_session_name,
+            delay_secs,
+            i + 1,
+            max
+        );
+        i += 1;
+        tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
+        pods = pods_api.list(&params).await?;
+    }
+
+    if pods.items.is_empty() {
+        return Err(format!(
+            "Pod for cfs session '{}' not created. Aborting operation.",
+            cfs_session_name
+        )
+        .into());
+    }
+
+    let cfs_session_pod = pods.items[0].clone();
+
+    let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
+    log::info!("Pod name: {}", cfs_session_pod_name);
+
+    let mut containers = cfs_session_pod.spec.as_ref().unwrap().containers.iter();
+
+    log::debug!(
+        "Containers found in pod {}: {:#?}",
+        cfs_session_pod_name,
+        containers
+    );
+
+    let ansible_container: &Container = containers
+        .find(|container| container.name.eq(container_name))
+        .unwrap();
+
+    let mut container_status = get_container_status(&cfs_session_pod, &ansible_container.name);
+
+    let mut i = 0;
+    let max = 300;
+
+    // Waiting for container ansible-x to start
+    while container_status.as_ref().is_none()
+        || container_status.as_ref().unwrap().waiting.is_some() && i <= max
+    {
+        println!(
+            "Container ({}) status missing or 'waiting'. Checking again in 2 secs. Attempt {} of {}",
+            ansible_container.name,
+            i + 1,
+            max
+        );
+        i += 1;
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
+        let pods = pods_api.list(&params).await?;
+        container_status = get_container_status(&pods.items[0], &ansible_container.name);
+        log::debug!(
+            "Container status:\n{:#?}",
+            container_status.as_ref().unwrap()
+        );
+    }
+
+    if container_status.as_ref().unwrap().waiting.is_some() {
+        return Err(format!(
+            "Container ({}) status is waiting. Aborting operation.",
+            ansible_container.name
+        )
+        .into());
+    }
+
+    Ok((ansible_container.clone(), cfs_session_pod.clone(), pods_api))
+}
+
+pub fn get_container_status(
     pod: &k8s_openapi::api::core::v1::Pod,
     container_name: &String,
 ) -> Option<k8s_openapi::api::core::v1::ContainerState> {

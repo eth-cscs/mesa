@@ -3,7 +3,7 @@ use serde_json::Value;
 use crate::common::csm;
 use crate::error::Error;
 
-pub async fn health_check(
+pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
