@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
-    interfaces::hsm::HardwareMetadata as ComponentTrait,
+    interfaces::hsm::{GroupTrait, HardwareMetadataTrait},
     types::{
         BootParameters as FrontEndBootParameters,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
@@ -36,7 +36,21 @@ impl Csm {
     }
 }
 
-impl ComponentTrait for Csm {
+impl GroupTrait for Csm {
+    async fn get_group_available(&self, auth_token: &str) -> Result<Vec<FrontEndGroup>, Error> {
+        let mut group_vec = self
+            .get_all_groups(auth_token)
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?;
+        let available_groups_name = self.get_group_name_available(auth_token).await?;
+
+        group_vec.retain(|group| available_groups_name.contains(&group.label));
+
+        Ok(group_vec)
+    }
+}
+
+impl HardwareMetadataTrait for Csm {
     async fn get_all_nodes(
         &self,
         auth_token: &str,

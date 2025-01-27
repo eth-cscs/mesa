@@ -7,7 +7,7 @@ use futures::TryStreamExt;
 use futures::{io::Lines, AsyncBufReadExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
-use k8s_openapi::api::core::v1::{ConfigMap, Container, ContainerState, Pod};
+use k8s_openapi::api::core::v1::{ConfigMap, Container, Pod};
 use kube::api::DeleteParams;
 use kube::{
     api::{AttachParams, AttachedProcess},
