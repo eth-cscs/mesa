@@ -49,6 +49,46 @@ impl GroupTrait for Csm {
         Ok(group_vec)
     }
 
+    async fn get_group_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
+        log::debug!("Get HSM names available from JWT or all");
+
+        const ADMIN_ROLE_NAME: &str = "pa_admin";
+
+        // Get HSM groups/Keycloak roles the user has access to from JWT token
+        let mut realm_access_role_vec = crate::common::jwt_ops::get_roles(auth_token);
+
+        if !realm_access_role_vec.contains(&ADMIN_ROLE_NAME.to_string()) {
+            log::debug!("User is not admin, getting HSM groups available from JWT");
+
+            // remove keycloak roles not related with HSM groups
+            realm_access_role_vec
+                .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
+
+            // Remove site wide HSM groups like 'alps', 'prealps', 'alpsm', etc because they pollute
+            // the roles to check if a user has access to individual compute nodes
+            //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
+            //wide operations instead of using roles
+            let mut realm_access_role_filtered_vec =
+                hsm::group::hacks::filter_system_hsm_group_names(realm_access_role_vec.clone());
+
+            realm_access_role_filtered_vec.sort();
+
+            Ok(realm_access_role_vec)
+        } else {
+            log::debug!("User is admin, getting all HSM groups in the system");
+            let all_hsm_groups_rslt = self.get_all_groups(auth_token).await;
+
+            let mut all_hsm_groups = all_hsm_groups_rslt?
+                .iter()
+                .map(|hsm_value| hsm_value.label.clone())
+                .collect::<Vec<String>>();
+
+            all_hsm_groups.sort();
+
+            Ok(all_hsm_groups)
+        }
+    }
+
     async fn add_group(
         &self,
         auth_token: &str,
@@ -98,163 +138,6 @@ impl GroupTrait for Csm {
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
-    }
-}
-
-impl HardwareMetadataTrait for Csm {
-    async fn get_all_nodes(
-        &self,
-        auth_token: &str,
-        nid_only: Option<&str>,
-    ) -> Result<HardwareMetadataArray, Error> {
-        hsm::component::http_client::get(
-            &self.base_url,
-            &self.root_cert,
-            auth_token,
-            None,
-            Some("Node"),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            nid_only,
-        )
-        .await
-        .map(|c| c.into())
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn get(
-        &self,
-        auth_token: &str,
-        id: Option<&str>,
-        r#type: Option<&str>,
-        state: Option<&str>,
-        flag: Option<&str>,
-        role: Option<&str>,
-        subrole: Option<&str>,
-        enabled: Option<&str>,
-        software_status: Option<&str>,
-        subtype: Option<&str>,
-        arch: Option<&str>,
-        class: Option<&str>,
-        nid: Option<&str>,
-        nid_start: Option<&str>,
-        nid_end: Option<&str>,
-        partition: Option<&str>,
-        group: Option<&str>,
-        state_only: Option<&str>,
-        flag_only: Option<&str>,
-        role_only: Option<&str>,
-        nid_only: Option<&str>,
-    ) -> Result<HardwareMetadataArray, Error> {
-        hsm::component::http_client::get(
-            &self.base_url,
-            &self.root_cert,
-            auth_token,
-            id,
-            r#type,
-            state,
-            flag,
-            role,
-            subrole,
-            enabled,
-            software_status,
-            subtype,
-            arch,
-            class,
-            nid,
-            nid_start,
-            nid_end,
-            partition,
-            group,
-            state_only,
-            flag_only,
-            role_only,
-            nid_only,
-        )
-        .await
-        .map(|c| c.into())
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-}
-
-impl BackendTrait for Csm {
-    fn test_backend_trait(&self) -> String {
-        println!("in mesa backend");
-        "in mesa backend".to_string()
-    }
-
-    async fn get_api_token(&self, site_name: &str) -> Result<String, Error> {
-        // FIXME: this is not nice but authentication/authorization will potentially move out to an
-        // external crate since this is type of logic is external to each site ...
-        let base_url = self
-            .base_url
-            .strip_suffix("/apis")
-            .unwrap_or(&self.base_url);
-        let keycloak_base_url = base_url.to_string() + "/keycloak";
-
-        authentication::get_api_token(
-            &self.base_url,
-            &self.root_cert,
-            &keycloak_base_url,
-            site_name,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn get_group_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
-        log::debug!("Get HSM names available from JWT or all");
-
-        const ADMIN_ROLE_NAME: &str = "pa_admin";
-
-        // Get HSM groups/Keycloak roles the user has access to from JWT token
-        let mut realm_access_role_vec = crate::common::jwt_ops::get_roles(auth_token);
-
-        if !realm_access_role_vec.contains(&ADMIN_ROLE_NAME.to_string()) {
-            log::debug!("User is not admin, getting HSM groups available from JWT");
-
-            // remove keycloak roles not related with HSM groups
-            realm_access_role_vec
-                .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
-
-            // Remove site wide HSM groups like 'alps', 'prealps', 'alpsm', etc because they pollute
-            // the roles to check if a user has access to individual compute nodes
-            //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
-            //wide operations instead of using roles
-            let mut realm_access_role_filtered_vec =
-                hsm::group::hacks::filter_system_hsm_group_names(realm_access_role_vec.clone());
-
-            realm_access_role_filtered_vec.sort();
-
-            Ok(realm_access_role_vec)
-        } else {
-            log::debug!("User is admin, getting all HSM groups in the system");
-            let all_hsm_groups_rslt = self.get_all_groups(auth_token).await;
-
-            let mut all_hsm_groups = all_hsm_groups_rslt?
-                .iter()
-                .map(|hsm_value| hsm_value.label.clone())
-                .collect::<Vec<String>>();
-
-            all_hsm_groups.sort();
-
-            Ok(all_hsm_groups)
-        }
     }
 
     async fn post_member(
@@ -406,6 +289,123 @@ impl BackendTrait for Csm {
             parent_hsm_group_name,
             new_target_hsm_members,
             true,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl HardwareMetadataTrait for Csm {
+    async fn get_all_nodes(
+        &self,
+        auth_token: &str,
+        nid_only: Option<&str>,
+    ) -> Result<HardwareMetadataArray, Error> {
+        hsm::component::http_client::get(
+            &self.base_url,
+            &self.root_cert,
+            auth_token,
+            None,
+            Some("Node"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            nid_only,
+        )
+        .await
+        .map(|c| c.into())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get(
+        &self,
+        auth_token: &str,
+        id: Option<&str>,
+        r#type: Option<&str>,
+        state: Option<&str>,
+        flag: Option<&str>,
+        role: Option<&str>,
+        subrole: Option<&str>,
+        enabled: Option<&str>,
+        software_status: Option<&str>,
+        subtype: Option<&str>,
+        arch: Option<&str>,
+        class: Option<&str>,
+        nid: Option<&str>,
+        nid_start: Option<&str>,
+        nid_end: Option<&str>,
+        partition: Option<&str>,
+        group: Option<&str>,
+        state_only: Option<&str>,
+        flag_only: Option<&str>,
+        role_only: Option<&str>,
+        nid_only: Option<&str>,
+    ) -> Result<HardwareMetadataArray, Error> {
+        hsm::component::http_client::get(
+            &self.base_url,
+            &self.root_cert,
+            auth_token,
+            id,
+            r#type,
+            state,
+            flag,
+            role,
+            subrole,
+            enabled,
+            software_status,
+            subtype,
+            arch,
+            class,
+            nid,
+            nid_start,
+            nid_end,
+            partition,
+            group,
+            state_only,
+            flag_only,
+            role_only,
+            nid_only,
+        )
+        .await
+        .map(|c| c.into())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl BackendTrait for Csm {
+    fn test_backend_trait(&self) -> String {
+        println!("in mesa backend");
+        "in mesa backend".to_string()
+    }
+
+    async fn get_api_token(&self, site_name: &str) -> Result<String, Error> {
+        // FIXME: this is not nice but authentication/authorization will potentially move out to an
+        // external crate since this is type of logic is external to each site ...
+        let base_url = self
+            .base_url
+            .strip_suffix("/apis")
+            .unwrap_or(&self.base_url);
+        let keycloak_base_url = base_url.to_string() + "/keycloak";
+
+        authentication::get_api_token(
+            &self.base_url,
+            &self.root_cert,
+            &keycloak_base_url,
+            site_name,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
