@@ -5,7 +5,9 @@ use backend_dispatcher::{
     error::Error,
     interfaces::{
         bss::BootParametersTrait,
-        hsm::{component::ComponentTrait, group::GroupTrait},
+        hsm::{
+            component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
+        },
         pcs::PCSTrait,
     },
     types::{
@@ -207,6 +209,144 @@ impl GroupTrait for Csm {
             &self.base_url,
             &self.root_cert,
             hsm_name_vec,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn post_member(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        xname: &str,
+    ) -> Result<Value, Error> {
+        let member = Member {
+            id: Some(xname.to_string()),
+        };
+
+        hsm::group::http_client::post_member(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            member,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn add_members_to_group(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        new_members: Vec<&str>,
+    ) -> Result<Vec<String>, Error> {
+        let mut sol: Vec<String> = Vec::new();
+
+        for new_member in new_members {
+            sol = hsm::group::utils::add_member(
+                auth_token,
+                &self.base_url,
+                &self.root_cert,
+                group_label,
+                new_member,
+            )
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?;
+        }
+
+        Ok(sol)
+    }
+
+    async fn delete_member_from_group(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        xname: &str,
+    ) -> Result<(), Error> {
+        hsm::group::http_client::delete_member(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            xname,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn update_group_members(
+        &self,
+        auth_token: &str,
+        group_name: &str,
+        members_to_remove: &Vec<String>,
+        members_to_add: &Vec<String>,
+    ) -> Result<(), Error> {
+        hsm::group::utils::update_hsm_group_members(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_name,
+            members_to_remove,
+            members_to_add,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    // HSM/GROUP
+    async fn migrate_group_members(
+        &self,
+        shasta_token: &str,
+        target_hsm_group_name: &str,
+        parent_hsm_group_name: &str,
+        new_target_hsm_members: Vec<&str>,
+    ) -> Result<(Vec<String>, Vec<String>), Error> {
+        hsm::group::utils::migrate_hsm_members(
+            shasta_token,
+            &self.base_url,
+            &self.root_cert,
+            target_hsm_group_name,
+            parent_hsm_group_name,
+            new_target_hsm_members,
+            true,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl HardwareInventory for Csm {
+    async fn get_inventory_hardware_query(
+        &self,
+        auth_token: &str,
+        xname: &str,
+        r#_type: Option<&str>,
+        _children: Option<bool>,
+        _parents: Option<bool>,
+        _partition: Option<&str>,
+        _format: Option<&str>,
+    ) -> Result<Value, Error> {
+        hsm::hw_inventory::hw_component::http_client::get_hw_inventory(
+            &auth_token,
+            &self.base_url,
+            &self.root_cert,
+            xname,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn post_inventory_hardware(
+        &self,
+        auth_token: &str,
+        hw_inventory: FrontEndHWInventoryByLocationList,
+    ) -> Result<Value, Error> {
+        hsm::hw_inventory::hw_component::http_client::post(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            hw_inventory.into(),
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
@@ -450,142 +590,6 @@ impl BackendTrait for Csm {
             &self.root_cert,
             &keycloak_base_url,
             site_name,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn post_member(
-        &self,
-        auth_token: &str,
-        group_label: &str,
-        xname: &str,
-    ) -> Result<Value, Error> {
-        let member = Member {
-            id: Some(xname.to_string()),
-        };
-
-        hsm::group::http_client::post_member(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_label,
-            member,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn add_members_to_group(
-        &self,
-        auth_token: &str,
-        group_label: &str,
-        new_members: Vec<&str>,
-    ) -> Result<Vec<String>, Error> {
-        let mut sol: Vec<String> = Vec::new();
-
-        for new_member in new_members {
-            sol = hsm::group::utils::add_member(
-                auth_token,
-                &self.base_url,
-                &self.root_cert,
-                group_label,
-                new_member,
-            )
-            .await
-            .map_err(|e| Error::Message(e.to_string()))?;
-        }
-
-        Ok(sol)
-    }
-
-    async fn delete_member_from_group(
-        &self,
-        auth_token: &str,
-        group_label: &str,
-        xname: &str,
-    ) -> Result<(), Error> {
-        hsm::group::http_client::delete_member(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_label,
-            xname,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn update_group_members(
-        &self,
-        auth_token: &str,
-        group_name: &str,
-        members_to_remove: &Vec<String>,
-        members_to_add: &Vec<String>,
-    ) -> Result<(), Error> {
-        hsm::group::utils::update_hsm_group_members(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_name,
-            members_to_remove,
-            members_to_add,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    // HSM/GROUP
-    async fn migrate_group_members(
-        &self,
-        shasta_token: &str,
-        target_hsm_group_name: &str,
-        parent_hsm_group_name: &str,
-        new_target_hsm_members: Vec<&str>,
-    ) -> Result<(Vec<String>, Vec<String>), Error> {
-        hsm::group::utils::migrate_hsm_members(
-            shasta_token,
-            &self.base_url,
-            &self.root_cert,
-            target_hsm_group_name,
-            parent_hsm_group_name,
-            new_target_hsm_members,
-            true,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn get_inventory_hardware_query(
-        &self,
-        auth_token: &str,
-        xname: &str,
-        r#_type: Option<&str>,
-        _children: Option<bool>,
-        _parents: Option<bool>,
-        _partition: Option<&str>,
-        _format: Option<&str>,
-    ) -> Result<Value, Error> {
-        hsm::hw_inventory::hw_component::http_client::get_hw_inventory(
-            &auth_token,
-            &self.base_url,
-            &self.root_cert,
-            xname,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn post_inventory_hardware(
-        &self,
-        auth_token: &str,
-        hw_inventory: FrontEndHWInventoryByLocationList,
-    ) -> Result<Value, Error> {
-        hsm::hw_inventory::hw_component::http_client::post(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            hw_inventory.into(),
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
