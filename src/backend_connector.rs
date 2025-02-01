@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
-    interfaces::{group::GroupTrait, hardware_metadata::HardwareMetadataTrait},
+    interfaces::{
+        bss::BootParametersTrait,
+        hsm::{component::ComponentTrait, group::GroupTrait},
+        pcs::PCSTrait,
+    },
     types::{
         BootParameters as FrontEndBootParameters,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
@@ -140,86 +144,6 @@ impl GroupTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn post_member(
-        &self,
-        auth_token: &str,
-        group_label: &str,
-        xname: &str,
-    ) -> Result<Value, Error> {
-        let member = Member {
-            id: Some(xname.to_string()),
-        };
-
-        hsm::group::http_client::post_member(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_label,
-            member,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn add_members_to_group(
-        &self,
-        auth_token: &str,
-        group_label: &str,
-        new_members: Vec<&str>,
-    ) -> Result<Vec<String>, Error> {
-        let mut sol: Vec<String> = Vec::new();
-
-        for new_member in new_members {
-            sol = hsm::group::utils::add_member(
-                auth_token,
-                &self.base_url,
-                &self.root_cert,
-                group_label,
-                new_member,
-            )
-            .await
-            .map_err(|e| Error::Message(e.to_string()))?;
-        }
-
-        Ok(sol)
-    }
-
-    async fn delete_member_from_group(
-        &self,
-        auth_token: &str,
-        group_label: &str,
-        xname: &str,
-    ) -> Result<(), Error> {
-        hsm::group::http_client::delete_member(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_label,
-            xname,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn update_group_members(
-        &self,
-        auth_token: &str,
-        group_name: &str,
-        members_to_remove: &Vec<String>,
-        members_to_add: &Vec<String>,
-    ) -> Result<(), Error> {
-        hsm::group::utils::update_hsm_group_members(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            group_name,
-            members_to_remove,
-            members_to_add,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
     async fn get_all_groups(&self, auth_token: &str) -> Result<Vec<FrontEndGroup>, Error> {
         // Get all HSM groups
         let hsm_group_backend_vec =
@@ -273,29 +197,23 @@ impl GroupTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    // HSM/GROUP
-    async fn migrate_group_members(
+    async fn get_hsm_map_and_filter_by_hsm_name_vec(
         &self,
         shasta_token: &str,
-        target_hsm_group_name: &str,
-        parent_hsm_group_name: &str,
-        new_target_hsm_members: Vec<&str>,
-    ) -> Result<(Vec<String>, Vec<String>), Error> {
-        hsm::group::utils::migrate_hsm_members(
+        hsm_name_vec: Vec<&str>,
+    ) -> Result<HashMap<String, Vec<String>>, Error> {
+        hsm::group::utils::get_hsm_map_and_filter_by_hsm_name_vec(
             shasta_token,
             &self.base_url,
             &self.root_cert,
-            target_hsm_group_name,
-            parent_hsm_group_name,
-            new_target_hsm_members,
-            true,
+            hsm_name_vec,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
     }
 }
 
-impl HardwareMetadataTrait for Csm {
+impl ComponentTrait for Csm {
     async fn get_all_nodes(
         &self,
         auth_token: &str,
@@ -384,33 +302,32 @@ impl HardwareMetadataTrait for Csm {
         .map(|c| c.into())
         .map_err(|e| Error::Message(e.to_string()))
     }
-}
 
-impl BackendTrait for Csm {
-    fn test_backend_trait(&self) -> String {
-        println!("in mesa backend");
-        "in mesa backend".to_string()
-    }
+    async fn post_nodes(
+        &self,
+        auth_token: &str,
+        component: FrontEndComponentArrayPostArray,
+    ) -> Result<(), Error> {
+        let component_backend: ComponentArrayPostArray = component.into();
 
-    async fn get_api_token(&self, site_name: &str) -> Result<String, Error> {
-        // FIXME: this is not nice but authentication/authorization will potentially move out to an
-        // external crate since this is type of logic is external to each site ...
-        let base_url = self
-            .base_url
-            .strip_suffix("/apis")
-            .unwrap_or(&self.base_url);
-        let keycloak_base_url = base_url.to_string() + "/keycloak";
-
-        authentication::get_api_token(
+        hsm::component::http_client::post(
+            auth_token,
             &self.base_url,
             &self.root_cert,
-            &keycloak_base_url,
-            site_name,
+            component_backend,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
     }
 
+    async fn delete_node(&self, auth_token: &str, id: &str) -> Result<Value, Error> {
+        hsm::component::http_client::delete_one(auth_token, &self.base_url, &self.root_cert, id)
+            .await
+            .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl PCSTrait for Csm {
     async fn power_on_sync(&self, auth_token: &str, nodes: &[String]) -> Result<Value, Error> {
         let operation = "on";
 
@@ -466,7 +383,9 @@ impl BackendTrait for Csm {
         .await
         .map_err(|e| Error::Message(e.to_string()))
     }
+}
 
+impl BootParametersTrait for Csm {
     async fn get_bootparameters(
         &self,
         auth_token: &str,
@@ -483,21 +402,6 @@ impl BackendTrait for Csm {
             .collect();
 
         Ok(boot_parameter_infra_vec)
-        /* let mut boot_parameter_infra_vec = vec![];
-
-        for boot_parameter in boot_parameter_vec {
-            boot_parameter_infra_vec.push(FrontEndBootParameters {
-                hosts: boot_parameter.hosts,
-                macs: boot_parameter.macs,
-                nids: boot_parameter.nids,
-                params: boot_parameter.params,
-                kernel: boot_parameter.kernel,
-                initrd: boot_parameter.initrd,
-                cloud_init: boot_parameter.cloud_init,
-            });
-        }
-
-        Ok(boot_parameter_infra_vec) */
     }
 
     async fn update_bootparameters(
@@ -520,6 +424,133 @@ impl BackendTrait for Csm {
             auth_token,
             &self.root_cert,
             &boot_parameters,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl BackendTrait for Csm {
+    fn test_backend_trait(&self) -> String {
+        println!("in mesa backend");
+        "in mesa backend".to_string()
+    }
+
+    async fn get_api_token(&self, site_name: &str) -> Result<String, Error> {
+        // FIXME: this is not nice but authentication/authorization will potentially move out to an
+        // external crate since this is type of logic is external to each site ...
+        let base_url = self
+            .base_url
+            .strip_suffix("/apis")
+            .unwrap_or(&self.base_url);
+        let keycloak_base_url = base_url.to_string() + "/keycloak";
+
+        authentication::get_api_token(
+            &self.base_url,
+            &self.root_cert,
+            &keycloak_base_url,
+            site_name,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn post_member(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        xname: &str,
+    ) -> Result<Value, Error> {
+        let member = Member {
+            id: Some(xname.to_string()),
+        };
+
+        hsm::group::http_client::post_member(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            member,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn add_members_to_group(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        new_members: Vec<&str>,
+    ) -> Result<Vec<String>, Error> {
+        let mut sol: Vec<String> = Vec::new();
+
+        for new_member in new_members {
+            sol = hsm::group::utils::add_member(
+                auth_token,
+                &self.base_url,
+                &self.root_cert,
+                group_label,
+                new_member,
+            )
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?;
+        }
+
+        Ok(sol)
+    }
+
+    async fn delete_member_from_group(
+        &self,
+        auth_token: &str,
+        group_label: &str,
+        xname: &str,
+    ) -> Result<(), Error> {
+        hsm::group::http_client::delete_member(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_label,
+            xname,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn update_group_members(
+        &self,
+        auth_token: &str,
+        group_name: &str,
+        members_to_remove: &Vec<String>,
+        members_to_add: &Vec<String>,
+    ) -> Result<(), Error> {
+        hsm::group::utils::update_hsm_group_members(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            group_name,
+            members_to_remove,
+            members_to_add,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    // HSM/GROUP
+    async fn migrate_group_members(
+        &self,
+        shasta_token: &str,
+        target_hsm_group_name: &str,
+        parent_hsm_group_name: &str,
+        new_target_hsm_members: Vec<&str>,
+    ) -> Result<(Vec<String>, Vec<String>), Error> {
+        hsm::group::utils::migrate_hsm_members(
+            shasta_token,
+            &self.base_url,
+            &self.root_cert,
+            target_hsm_group_name,
+            parent_hsm_group_name,
+            new_target_hsm_members,
+            true,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
@@ -555,44 +586,6 @@ impl BackendTrait for Csm {
             &self.base_url,
             &self.root_cert,
             hw_inventory.into(),
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn post_nodes(
-        &self,
-        auth_token: &str,
-        component: FrontEndComponentArrayPostArray,
-    ) -> Result<(), Error> {
-        let component_backend: ComponentArrayPostArray = component.into();
-
-        hsm::component::http_client::post(
-            auth_token,
-            &self.base_url,
-            &self.root_cert,
-            component_backend,
-        )
-        .await
-        .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn delete_node(&self, auth_token: &str, id: &str) -> Result<Value, Error> {
-        hsm::component::http_client::delete_one(auth_token, &self.base_url, &self.root_cert, id)
-            .await
-            .map_err(|e| Error::Message(e.to_string()))
-    }
-
-    async fn get_hsm_map_and_filter_by_hsm_name_vec(
-        &self,
-        shasta_token: &str,
-        hsm_name_vec: Vec<&str>,
-    ) -> Result<HashMap<String, Vec<String>>, Error> {
-        hsm::group::utils::get_hsm_map_and_filter_by_hsm_name_vec(
-            shasta_token,
-            &self.base_url,
-            &self.root_cert,
-            hsm_name_vec,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
