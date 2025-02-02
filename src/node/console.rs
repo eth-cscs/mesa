@@ -1,6 +1,5 @@
 use core::time;
 
-use backend_dispatcher::error::Error;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
     api::{AttachParams, AttachedProcess},
@@ -10,9 +9,12 @@ use serde_json::Value;
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
-use crate::common::{
-    kubernetes::{self, get_k8s_client_programmatically},
-    vault::http_client::fetch_shasta_k8s_secrets,
+use crate::{
+    common::{
+        kubernetes::{self, get_k8s_client_programmatically},
+        vault::http_client::fetch_shasta_k8s_secrets,
+    },
+    error::Error,
 };
 
 pub async fn get_container_attachment_to_conman(
@@ -23,8 +25,19 @@ pub async fn get_container_attachment_to_conman(
     k8s_api_url: &str,
 ) -> Result<AttachedProcess, Error> {
     log::info!("xname: {}", xname);
-    let shasta_k8s_secrets =
+    let shasta_k8s_secrets_rslt =
         fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+
+    let shasta_k8s_secrets = match shasta_k8s_secrets_rslt {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!(
+                "ERROR - could not fetch K8s credentials from Vauls. Reason:\n{}\nExit",
+                error
+            );
+            std::process::exit(1);
+        }
+    };
 
     let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
         .await
@@ -97,11 +110,9 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
     k8s_api_url: &str,
 ) -> Result<AttachedProcess, Error> {
     let shasta_k8s_secrets =
-        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await?;
 
-    let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
-        .await
-        .unwrap();
+    let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets).await?;
 
     let pods_fabric: Api<Pod> = Api::namespaced(client.clone(), "services");
 

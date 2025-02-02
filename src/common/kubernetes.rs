@@ -30,7 +30,7 @@ use crate::common::vault::http_client::fetch_shasta_k8s_secrets;
 pub async fn get_k8s_client_programmatically(
     k8s_api_url: &str,
     shasta_k8s_secrets: Value,
-) -> Result<kube::Client, Box<dyn Error>> {
+) -> Result<kube::Client, crate::error::Error> {
     let shasta_cluster = Cluster {
         server: Some(k8s_api_url.to_string()),
         tls_server_name: Some("kube-apiserver".to_string()), // The value "kube-apiserver" has been taken from the
@@ -108,7 +108,9 @@ pub async fn get_k8s_client_programmatically(
         user: Some(String::from("kubernetes-admin")),
     };
 
-    let config = kube::Config::from_custom_kubeconfig(kube_config, &kube_config_options).await?;
+    let config = kube::Config::from_custom_kubeconfig(kube_config, &kube_config_options)
+        .await
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
     // OPTION 1 --> Native TLS - WORKING
     /* let client = if std::env::var("SOCKS5").is_ok() {
@@ -193,10 +195,18 @@ pub async fn get_k8s_client_programmatically(
         // HttpsConnector following https://github.com/rustls/hyper-rustls/blob/main/examples/client.rs
         // Get CA root cert
         let mut ca_root_cert_pem_decoded: &[u8] = &base64::decode(
-            shasta_k8s_secrets["certificate-authority-data"]
+            shasta_k8s_secrets
+                .get("certificate-authority-data")
+                .ok_or_else(|| {
+                    crate::error::Error::Message(
+                        "ERROR - field 'certificate-authority-data' missing in Vault secrets"
+                            .to_string(),
+                    )
+                })?
                 .as_str()
                 .unwrap(),
-        )?;
+        )
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
         let ca_root_cert = rustls_pemfile::certs(&mut ca_root_cert_pem_decoded)?;
 
@@ -211,7 +221,8 @@ pub async fn get_k8s_client_programmatically(
             shasta_k8s_secrets["client-certificate-data"]
                 .as_str()
                 .unwrap(),
-        )?;
+        )
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
         let client_certs = rustls_pemfile::certs(&mut client_cert_pem_decoded)
             .unwrap()
@@ -220,8 +231,19 @@ pub async fn get_k8s_client_programmatically(
             .collect();
 
         // Get client key
-        let mut client_key_decoded: &[u8] =
-            &base64::decode(shasta_k8s_secrets["client-key-data"].as_str().unwrap())?;
+        let mut client_key_decoded: &[u8] = &base64::decode(
+            shasta_k8s_secrets
+                .get("client-key-data")
+                .ok_or_else(|| {
+                    crate::error::Error::Message(
+                        "ERROR - field 'certificate-authority-data' missing in Vault secrets"
+                            .to_string(),
+                    )
+                })?
+                .as_str()
+                .unwrap(),
+        )
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
         let client_key = match rustls_pemfile::read_one(&mut client_key_decoded)
             .expect("cannot parse private key .pem file")
@@ -237,7 +259,8 @@ pub async fn get_k8s_client_programmatically(
             .with_safe_defaults()
             .with_root_certificates(root_cert_store)
             // .with_no_client_auth();
-            .with_client_auth_cert(client_certs, client_key)?;
+            .with_client_auth_cert(client_certs, client_key)
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
         let rustls_config = std::sync::Arc::new(rustls_config);
 
@@ -256,7 +279,9 @@ pub async fn get_k8s_client_programmatically(
 
         kube::Client::new(service, config.default_namespace)
     } else {
-        let https = config.rustls_https_connector()?;
+        let https = config
+            .rustls_https_connector()
+            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
         let service = tower::ServiceBuilder::new()
             .layer(config.base_uri_layer())
             .service(hyper::Client::builder().build(https));
@@ -946,13 +971,11 @@ pub async fn delete_session_pod(
     vault_role_id: &str,
     k8s_api_url: &str,
     cfs_session_name: &str,
-) -> Result<(), Box<dyn Error + std::marker::Send + Sync>> {
+) -> Result<(), crate::error::Error> {
     let shasta_k8s_secrets =
-        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await?;
 
-    let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
-        .await
-        .unwrap();
+    let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets).await?;
 
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
 
@@ -960,7 +983,10 @@ pub async fn delete_session_pod(
         .limit(1)
         .labels(format!("cfsession={}", cfs_session_name).as_str());
 
-    let pods = pods_api.list(&params).await?;
+    let pods = pods_api
+        .list(&params)
+        .await
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
     let cfs_session_pod = &pods.items[0].clone();
 
     let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();

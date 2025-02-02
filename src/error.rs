@@ -20,4 +20,6 @@ pub enum Error {
     },
     #[error("ERROR - CSM: {0}")]
     CsmError(Value),
+    #[error("ERROR - Console: {0}")]
+    ConsoleError(String),
 }

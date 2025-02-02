@@ -102,7 +102,7 @@ pub async fn post_sync(
     if watch_logs {
         log::info!("Fetching logs ...");
         let shasta_k8s_secrets =
-            fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
+            fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await?;
 
         let client = kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
             .await
