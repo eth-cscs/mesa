@@ -1,6 +1,5 @@
 use aws_config::SdkConfig;
 use hyper::client::HttpConnector;
-use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -11,6 +10,8 @@ use anyhow::Result;
 use aws_sdk_s3::{primitives::ByteStream, Client};
 use indicatif::{ProgressBar, ProgressStyle};
 
+use crate::error::Error;
+
 pub const BAR_FORMAT: &str = "[{elapsed_precise}] {bar:40.cyan/blue} ({bytes_per_sec}) {bytes:>7}/{total_bytes:7} {msg} [ETA {eta}]";
 // Get a token for S3 and return the result
 // If something breaks, return an error
@@ -18,7 +19,7 @@ pub async fn s3_auth(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     // STS
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
@@ -42,7 +43,13 @@ pub async fn s3_auth(
         .bearer_auth(shasta_token)
         .send()
         .await?
-        .error_for_status()?;
+        .error_for_status()
+        .map_err(|e| {
+            Error::Message(format!(
+                "ERROR - could not authenticate to S3 server. Reason:\n{}",
+                e
+            ))
+        })?;
 
     let sts_value = resp.json::<serde_json::Value>().await.unwrap();
 
@@ -126,15 +133,14 @@ async fn setup_client(sts_value: &Value) -> Client {
 /// Gets the size of a given object in S3
 /// path of the object: s3://bucket/key
 /// returns i64 or error
-pub async fn s3_get_object_size(
-    sts_value: &Value,
-    key: &str,
-    bucket: &str,
-) -> Result<i64, Box<dyn Error>> {
+pub async fn s3_get_object_size(sts_value: &Value, key: &str, bucket: &str) -> Result<i64, Error> {
     let client = setup_client(sts_value).await;
     match client.get_object().bucket(bucket).key(key).send().await {
         Ok(object) => Ok(object.content_length().unwrap()),
-        Err(e) => panic!("Error, unable to get object size from s3. Error msg: {}", e),
+        Err(e) => Err(Error::Message(format!(
+            "Error, unable to get object size from s3. Error msg: {}",
+            e
+        ))),
     }
 }
 
@@ -155,44 +161,58 @@ pub async fn s3_download_object(
     object_path: &str,
     bucket: &str,
     destination_path: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Error> {
     let client = setup_client(sts_value).await;
 
     let filename = Path::new(object_path).file_name().unwrap();
     let file_path = Path::new(destination_path).join(filename);
     log::debug!("Create directory '{}'", destination_path);
 
-    match std::fs::create_dir_all(destination_path) {
-        Ok(_) => log::debug!("Created directory '{}' successfully", destination_path),
-        Err(error) => panic!("Error creating directory {}: {}", destination_path, error),
-    };
-    let mut file = match File::create(&file_path) {
-        Ok(file) => {
-            log::debug!(
-                "Created file '{}' successfully",
-                &file_path.to_string_lossy()
-            );
-            file
-        }
-        Err(error) => panic!(
+    std::fs::create_dir_all(destination_path).map_err(|e| {
+        Error::Message(format!(
+            "Error creating directory {}: {}",
+            destination_path, e
+        ))
+    })?;
+
+    log::debug!("Created directory '{}' successfully", destination_path);
+
+    let mut file = File::create(&file_path).map_err(|e| {
+        Error::Message(format!(
             "Error creating file {}: {}",
             &file_path.to_string_lossy(),
-            error
-        ),
-    };
+            e
+        ))
+    })?;
+
+    log::debug!(
+        "Created file '{}' successfully",
+        &file_path.to_string_lossy()
+    );
 
     let mut object = client
         .get_object()
         .bucket(bucket)
         .key(object_path)
         .send()
-        .await?;
+        .await
+        .map_err(|e| {
+            Error::Message(format!(
+                "ERROR - could not download S3 object.\nReason:\n{}",
+                e.to_string(),
+            ))
+        })?;
 
     let bar_size = object.content_length().unwrap();
     let bar = ProgressBar::new(bar_size as u64);
     bar.set_style(ProgressStyle::with_template(BAR_FORMAT).unwrap());
 
-    while let Some(bytes) = object.body.try_next().await? {
+    while let Some(bytes) = object.body.try_next().await.map_err(|e| {
+        Error::Message(format!(
+            "ERROR - Could not finish s3 object download.\nReason:\n{}",
+            e.to_string()
+        ))
+    })? {
         let bytes = file.write(&bytes)?;
         bar.inc(bytes as u64);
     }
@@ -215,7 +235,7 @@ pub async fn s3_upload_object(
     object_path: &str,
     bucket: &str,
     file_path: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Error> {
     let client = setup_client(sts_value).await;
 
     let body = ByteStream::from_path(Path::new(&file_path)).await;
@@ -232,7 +252,10 @@ pub async fn s3_upload_object(
             log::debug!("Uploaded file '{}' successfully", &file_path);
             Ok(put_object_output.e_tag.unwrap())
         }
-        Err(error) => panic!("Error uploading file {}: {}", &file_path, error),
+        Err(error) => Err(Error::Message(format!(
+            "Error uploading file {}: {}",
+            &file_path, error
+        ))),
     }
 }
 
@@ -249,7 +272,7 @@ pub async fn s3_remove_object(
     sts_value: &Value,
     object_path: &str,
     bucket: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Error> {
     let client = setup_client(sts_value).await;
 
     match client
@@ -263,7 +286,10 @@ pub async fn s3_remove_object(
             log::debug!("Cleaned file '{}' successfully", &object_path);
             Ok(String::from("client"))
         }
-        Err(error) => panic!("Error cleaning file {}: {}", &object_path, error),
+        Err(error) => Err(Error::Message(format!(
+            "Error cleaning file {}: {}",
+            &object_path, error
+        ))),
     }
 }
 
@@ -282,7 +308,7 @@ pub async fn s3_multipart_upload_object(
     object_path: &str,
     bucket: &str,
     file_path: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Error> {
     use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
     use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
     use aws_smithy_types::byte_stream::Length;
@@ -300,14 +326,27 @@ pub async fn s3_multipart_upload_object(
         .key(object_path)
         .send()
         .await
-        .unwrap();
+        .map_err(|e| {
+            Error::Message(format!(
+                "ERROR - Could not create multipart object.\nReason:\n{}",
+                e.to_string()
+            ))
+        })?;
 
     let upload_id = multipart_upload_res.upload_id().unwrap();
 
     // Get details of the upload, this is needed because multipart uploads
     // are tricky and have a minimum chunk size of 5MB
     let path = Path::new(&file_path);
-    let file_size = std::fs::metadata(path).expect("it exists I swear").len();
+    let file_size = std::fs::metadata(path)
+        .map_err(|e| {
+            Error::Message(format!(
+                "ERROR - Could not get file size from '{}'.\nReason\n{}",
+                file_path,
+                e.to_string()
+            ))
+        })?
+        .len();
 
     let mut chunk_count = (file_size / CHUNK_SIZE) + 1;
     let mut size_of_last_chunk = file_size % CHUNK_SIZE;
@@ -320,10 +359,12 @@ pub async fn s3_multipart_upload_object(
     bar.set_style(ProgressStyle::with_template(BAR_FORMAT).unwrap());
 
     if file_size == 0 {
-        panic!("Bad file size.");
+        return Err(Error::Message("Bad file size.".to_string()));
     }
     if chunk_count > MAX_CHUNKS {
-        panic!("Too many chunks! Try increasing your chunk size.")
+        return Err(Error::Message(
+            "Too many chunks! Try increasing your chunk size.".to_string(),
+        ));
     }
 
     let mut upload_parts: Vec<CompletedPart> = Vec::new();
@@ -340,7 +381,13 @@ pub async fn s3_multipart_upload_object(
             .length(Length::Exact(this_chunk))
             .build()
             .await
-            .unwrap();
+            .map_err(|e| {
+                Error::Message(format!(
+                    "ERROR - Could not read file '{}'.\nReason:\n{}",
+                    path.display(),
+                    e
+                ))
+            })?;
         //Chunk index needs to start at 0, but part numbers start at 1.
         let part_number = (chunk_index as i32) + 1;
         let upload_part_res = client
@@ -351,7 +398,13 @@ pub async fn s3_multipart_upload_object(
             .body(stream)
             .part_number(part_number)
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                Error::Message(format!(
+                    "ERROR - could not upload to S3.\nReason:\n{}",
+                    e.to_string()
+                ))
+            })?;
         upload_parts.push(
             CompletedPart::builder()
                 .e_tag(upload_part_res.e_tag.unwrap_or_default())
@@ -373,7 +426,12 @@ pub async fn s3_multipart_upload_object(
         .upload_id(upload_id)
         .send()
         .await
-        .unwrap();
+        .map_err(|e| {
+            Error::Message(format!(
+                "ERROR - could not upload to S3.\nReason:\n{}",
+                e.to_string()
+            ))
+        })?;
 
     bar.finish();
 

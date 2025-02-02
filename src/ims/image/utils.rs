@@ -1,6 +1,7 @@
 use crate::{
     bos,
     bss::http_client::get_multiple,
+    error::Error,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::http_client::types::Image},
 };
@@ -17,7 +18,7 @@ pub async fn get_fuzzy(
     hsm_name_available_vec: &[String],
     image_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
-) -> Result<Vec<Image>, reqwest::Error> {
+) -> Result<Vec<Image>, Error> {
     let mut image_available_vec: Vec<Image> = get_image_available_vec(
         shasta_token,
         shasta_base_url,
@@ -26,10 +27,43 @@ pub async fn get_fuzzy(
         None, // NOTE: don't put any limit here since we may be looking in a large number of
               // HSM groups and we will filter the results by image name below
     )
-    .await;
+    .await?;
 
     if let Some(image_name) = image_name_opt {
         image_available_vec.retain(|image| image.name.contains(image_name));
+    }
+
+    if let Some(limit_number) = limit_number_opt {
+        // Limiting the number of results to return to client
+        image_available_vec = image_available_vec[image_available_vec
+            .len()
+            .saturating_sub(*limit_number as usize)..]
+            .to_vec();
+    }
+
+    Ok(image_available_vec.to_vec())
+}
+
+pub async fn get_by_name(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    hsm_name_available_vec: &[String],
+    image_name_opt: Option<&str>,
+    limit_number_opt: Option<&u8>,
+) -> Result<Vec<Image>, Error> {
+    let mut image_available_vec: Vec<Image> = get_image_available_vec(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        hsm_name_available_vec,
+        None, // NOTE: don't put any limit here since we may be looking in a large number of
+              // HSM groups and we will filter the results by image name below
+    )
+    .await?;
+
+    if let Some(image_name) = image_name_opt {
+        image_available_vec.retain(|image| image.name.eq(image_name));
     }
 
     if let Some(limit_number) = limit_number_opt {
@@ -238,19 +272,16 @@ pub async fn get_image_available_vec(
     shasta_root_cert: &[u8],
     hsm_name_available_vec: &[String],
     limit_number_opt: Option<&u8>,
-) -> Vec<Image> {
+) -> Result<Vec<Image>, Error> {
     let mut image_vec: Vec<Image> =
-        super::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None)
-            .await
-            .unwrap();
+        super::http_client::get(shasta_token, shasta_base_url, shasta_root_cert, None).await?;
 
     ims::image::utils::filter(&mut image_vec).await;
 
     // We need BOS session templates to find an image created by SAT
     let mut bos_sessiontemplate_vec =
         bos::template::http_client::v2::get(shasta_token, shasta_base_url, shasta_root_cert, None)
-            .await
-            .unwrap();
+            .await?;
 
     // Filter BOS sessiontemplates to the ones the user has access to
     bos::template::utils::filter(
@@ -272,8 +303,7 @@ pub async fn get_image_available_vec(
         None,
         Some(true),
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Filter CFS sessions to the ones the user has access to
     crate::cfs::session::utils::filter_by_hsm(
@@ -359,5 +389,5 @@ pub async fn get_image_available_vec(
             .to_vec();
     }
 
-    image_available_vec
+    Ok(image_available_vec)
 }
