@@ -647,18 +647,12 @@ impl BackendTrait for Csm {
             return Ok(xname_vec);
         } else {
             log::debug!("No regex found, getting xnames from list of NIDs or NIDs hostlist");
-            let nid_hostlist_expanded_vec_rslt = parse(user_input_nid);
-
-            let nid_hostlist_expanded_vec = match nid_hostlist_expanded_vec_rslt {
-                Ok(xname_requested_vec) => xname_requested_vec,
-                Err(e) => {
-                    println!(
-                        "Could not parse list of nodes as a hostlist. Reason:\n{}Exit",
-                        e
-                    );
-                    std::process::exit(1);
-                }
-            };
+            let nid_hostlist_expanded_vec = parse(user_input_nid).map_err(|e| {
+                Error::Message(format!(
+                    "Could not parse list of nodes as a hostlist. Reason:\n{}Exit",
+                    e
+                ))
+            })?;
 
             log::debug!("hostlist: {}", user_input_nid);
             log::debug!("hostlist expanded: {:?}", nid_hostlist_expanded_vec);
