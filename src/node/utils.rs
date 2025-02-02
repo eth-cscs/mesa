@@ -1,11 +1,10 @@
 use std::{collections::HashMap, sync::Arc, time::Instant};
 
-use backend_dispatcher::error::Error;
 use regex::Regex;
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
-use crate::{bss, cfs, hsm};
+use crate::{bss, cfs, error::Error, hsm};
 
 use super::types::NodeDetails;
 

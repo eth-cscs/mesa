@@ -384,7 +384,7 @@ pub async fn print_cfs_session_logs(
 pub async fn try_get_configmap(
     client: kube::Client,
     configmap_name: &str,
-) -> Result<BTreeMap<String, String>, backend_dispatcher::error::Error> {
+) -> Result<BTreeMap<String, String>, crate::error::Error> {
     let configmap_api: kube::Api<ConfigMap> = kube::Api::namespaced(client, "services");
 
     let params =
@@ -393,20 +393,16 @@ pub async fn try_get_configmap(
     let configmap = configmap_api
         .list(&params)
         .await
-        .map_err(|e| backend_dispatcher::error::Error::Message(e.to_string()))?;
+        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
 
     let configmap_data = configmap
         .items
         .first()
-        .ok_or_else(|| {
-            backend_dispatcher::error::Error::Message("ERROR - There is no configmap".to_string())
-        })?
+        .ok_or_else(|| crate::error::Error::Message("ERROR - There is no configmap".to_string()))?
         .clone();
 
     configmap_data.data.ok_or_else(|| {
-        backend_dispatcher::error::Error::Message(
-            "ERROR - There is no data in the configmap".to_string(),
-        )
+        crate::error::Error::Message("ERROR - There is no data in the configmap".to_string())
     })
 }
 
@@ -815,16 +811,17 @@ pub fn get_container_status(
 pub async fn attach_cfs_session_container_target_k8s_service_name(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<AttachedProcess, backend_dispatcher::error::Error> {
+) -> Result<AttachedProcess, crate::error::Error> {
     let pods_fabric: Api<Pod> = Api::namespaced(client.clone(), "services");
 
     let params = kube::api::ListParams::default()
         .limit(1)
         .labels(format!("cfsession={}", cfs_session_name).as_str());
 
-    let mut pods = pods_fabric.list(&params).await.map_err(|e| {
-        backend_dispatcher::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}"))
-    })?;
+    let mut pods = pods_fabric
+        .list(&params)
+        .await
+        .map_err(|e| crate::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}")))?;
 
     let mut i = 0;
     let max = 30;
@@ -839,13 +836,14 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
-        pods = pods_fabric.list(&params).await.map_err(|e| {
-            backend_dispatcher::error::Error::Message(format!("ERROR - Kubernetes: {}", e))
-        })?;
+        pods = pods_fabric
+            .list(&params)
+            .await
+            .map_err(|e| crate::error::Error::Message(format!("ERROR - Kubernetes: {}", e)))?;
     }
 
     if pods.items.is_empty() {
-        return Err(backend_dispatcher::error::Error::Message(format!(
+        return Err(crate::error::Error::Message(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
         )));
@@ -897,9 +895,10 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         .limit(1)
         .labels(format!("job-name={}", ansible_target_container_label).as_str());
 
-    let mut pods = pods_fabric.list(&params).await.map_err(|e| {
-        backend_dispatcher::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}"))
-    })?;
+    let mut pods = pods_fabric
+        .list(&params)
+        .await
+        .map_err(|e| crate::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}")))?;
 
     let mut i = 0;
     let max = 30;
@@ -918,7 +917,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     }
 
     if pods.items.is_empty() {
-        return Err(backend_dispatcher::error::Error::Message(format!(
+        return Err(crate::error::Error::Message(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
         )));
@@ -947,7 +946,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         )
         .await
         .map_err(|e| {
-            backend_dispatcher::error::Error::Message(format!(
+            crate::error::Error::Message(format!(
                 "Error attaching to container 'sshd' in pod {}.\nReason:\n{}\n. Exit",
                 console_operator_pod_name, e
             ))
