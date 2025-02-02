@@ -1,6 +1,6 @@
 use core::time;
 use std::collections::BTreeMap;
-use std::{error::Error, str::FromStr};
+use std::str::FromStr;
 
 use futures::TryStreamExt;
 
@@ -26,11 +26,12 @@ use serde_json::Value;
 use termion::color;
 
 use crate::common::vault::http_client::fetch_shasta_k8s_secrets;
+use crate::error::Error;
 
 pub async fn get_k8s_client_programmatically(
     k8s_api_url: &str,
     shasta_k8s_secrets: Value,
-) -> Result<kube::Client, crate::error::Error> {
+) -> Result<kube::Client, Error> {
     let shasta_cluster = Cluster {
         server: Some(k8s_api_url.to_string()),
         tls_server_name: Some("kube-apiserver".to_string()), // The value "kube-apiserver" has been taken from the
@@ -110,7 +111,7 @@ pub async fn get_k8s_client_programmatically(
 
     let config = kube::Config::from_custom_kubeconfig(kube_config, &kube_config_options)
         .await
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))?;
 
     // OPTION 1 --> Native TLS - WORKING
     /* let client = if std::env::var("SOCKS5").is_ok() {
@@ -198,7 +199,7 @@ pub async fn get_k8s_client_programmatically(
             shasta_k8s_secrets
                 .get("certificate-authority-data")
                 .ok_or_else(|| {
-                    crate::error::Error::Message(
+                    Error::Message(
                         "ERROR - field 'certificate-authority-data' missing in Vault secrets"
                             .to_string(),
                     )
@@ -206,7 +207,7 @@ pub async fn get_k8s_client_programmatically(
                 .as_str()
                 .unwrap(),
         )
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))?;
 
         let ca_root_cert = rustls_pemfile::certs(&mut ca_root_cert_pem_decoded)?;
 
@@ -222,7 +223,7 @@ pub async fn get_k8s_client_programmatically(
                 .as_str()
                 .unwrap(),
         )
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))?;
 
         let client_certs = rustls_pemfile::certs(&mut client_cert_pem_decoded)
             .unwrap()
@@ -235,7 +236,7 @@ pub async fn get_k8s_client_programmatically(
             shasta_k8s_secrets
                 .get("client-key-data")
                 .ok_or_else(|| {
-                    crate::error::Error::Message(
+                    Error::Message(
                         "ERROR - field 'certificate-authority-data' missing in Vault secrets"
                             .to_string(),
                     )
@@ -243,7 +244,7 @@ pub async fn get_k8s_client_programmatically(
                 .as_str()
                 .unwrap(),
         )
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))?;
 
         let client_key = match rustls_pemfile::read_one(&mut client_key_decoded)
             .expect("cannot parse private key .pem file")
@@ -260,7 +261,7 @@ pub async fn get_k8s_client_programmatically(
             .with_root_certificates(root_cert_store)
             // .with_no_client_auth();
             .with_client_auth_cert(client_certs, client_key)
-            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+            .map_err(|e| Error::Message(e.to_string()))?;
 
         let rustls_config = std::sync::Arc::new(rustls_config);
 
@@ -281,7 +282,7 @@ pub async fn get_k8s_client_programmatically(
     } else {
         let https = config
             .rustls_https_connector()
-            .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+            .map_err(|e| Error::Message(e.to_string()))?;
         let service = tower::ServiceBuilder::new()
             .layer(config.base_uri_layer())
             .service(hyper::Client::builder().build(https));
@@ -295,7 +296,7 @@ pub async fn get_init_container_logs_stream(
     cfs_session_layer_container: &Container,
     cfs_session_pod: &Pod,
     pods_api: &Api<Pod>,
-) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + Sync + Send>> {
+) -> Result<Lines<impl AsyncBufReadExt>, Error> {
     log::info!(
         "Looking for container '{}'",
         cfs_session_layer_container.name
@@ -319,7 +320,8 @@ pub async fn get_init_container_logs_stream(
                 ..kube::api::LogParams::default()
             },
         )
-        .await?
+        .await
+        .map_err(|e| Error::Message(format!("{e}")))?
         .lines();
 
     // We are going to use chain method (https://dtantsur.github.io/rust-openstack/tokio/stream/trait.StreamExt.html#method.chain) to join streams coming from kube_client::api::subresource::Api::log_stream which returns Result<impl Stream<Item = Result<Bytes>>> or Result<hyper::body::Bytes>, we will consume the Result hence we will be chaining streams of hyper::body::Bytes
@@ -332,7 +334,7 @@ pub async fn get_container_logs_stream(
     cfs_session_layer_container: &Container,
     cfs_session_pod: &Pod,
     pods_api: &Api<Pod>,
-) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + Sync + Send>> {
+) -> Result<Lines<impl AsyncBufReadExt>, Error> {
     log::info!(
         "Looking for container '{}'",
         cfs_session_layer_container.name
@@ -356,7 +358,8 @@ pub async fn get_container_logs_stream(
                 ..kube::api::LogParams::default()
             },
         )
-        .await?
+        .await
+        .map_err(|e| Error::Message(format!("{e}")))?
         .lines();
 
     // We are going to use chain method (https://dtantsur.github.io/rust-openstack/tokio/stream/trait.StreamExt.html#method.chain) to join streams coming from kube_client::api::subresource::Api::log_stream which returns Result<impl Stream<Item = Result<Bytes>>> or Result<hyper::body::Bytes>, we will consume the Result hence we will be chaining streams of hyper::body::Bytes
@@ -368,7 +371,7 @@ pub async fn get_container_logs_stream(
 pub async fn print_cfs_session_logs(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<(), Box<dyn Error + std::marker::Send + Sync>> {
+) -> Result<(), Error> {
     let mut logs_stream =
         print_cfs_session_container_git_clone_logs_stream(client.clone(), cfs_session_name).await?;
 
@@ -384,7 +387,7 @@ pub async fn print_cfs_session_logs(
 pub async fn try_get_configmap(
     client: kube::Client,
     configmap_name: &str,
-) -> Result<BTreeMap<String, String>, crate::error::Error> {
+) -> Result<BTreeMap<String, String>, Error> {
     let configmap_api: kube::Api<ConfigMap> = kube::Api::namespaced(client, "services");
 
     let params =
@@ -393,30 +396,33 @@ pub async fn try_get_configmap(
     let configmap = configmap_api
         .list(&params)
         .await
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))?;
 
     let configmap_data = configmap
         .items
         .first()
-        .ok_or_else(|| crate::error::Error::Message("ERROR - There is no configmap".to_string()))?
+        .ok_or_else(|| Error::Message("ERROR - There is no configmap".to_string()))?
         .clone();
 
-    configmap_data.data.ok_or_else(|| {
-        crate::error::Error::Message("ERROR - There is no data in the configmap".to_string())
-    })
+    configmap_data
+        .data
+        .ok_or_else(|| Error::Message("ERROR - There is no data in the configmap".to_string()))
 }
 
 pub async fn print_cfs_session_container_git_clone_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + std::marker::Send + Sync>> {
+) -> Result<Lines<impl AsyncBufReadExt>, Error> {
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
 
     let params = kube::api::ListParams::default()
         .limit(1)
         .labels(format!("cfsession={}", cfs_session_name).as_str());
 
-    let mut pods = pods_api.list(&params).await?;
+    let mut pods = pods_api
+        .list(&params)
+        .await
+        .map_err(|e| Error::Message(format!("{e}")))?;
 
     log::debug!(
         "Pods related to CFS session '{}' found are:\n'{:#?}'",
@@ -439,14 +445,17 @@ pub async fn print_cfs_session_container_git_clone_logs_stream(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-        pods = pods_api.list(&params).await?;
+        pods = pods_api
+            .list(&params)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
     }
 
     if pods.items.is_empty() {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "Pod for cfs session {} missing. Aborting operation",
             cfs_session_name
-        )
+        ))
         .into());
     }
 
@@ -522,7 +531,12 @@ pub async fn print_cfs_session_container_git_clone_logs_stream(
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
 
-        let cfs_session_pod = pods_api.list(&params).await?.items[0].clone();
+        let cfs_session_pod = pods_api
+            .list(&params)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?
+            .items[0]
+            .clone();
 
         init_container_vec = cfs_session_pod
             .spec
@@ -555,10 +569,10 @@ pub async fn print_cfs_session_container_git_clone_logs_stream(
             .waiting
             .is_some()
     {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "Container '{}' not ready. Aborting operation",
             init_container_name
-        )
+        ))
         .into());
     }
 
@@ -568,7 +582,7 @@ pub async fn print_cfs_session_container_git_clone_logs_stream(
 pub async fn print_cfs_session_container_ansible_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<(), Box<dyn Error + Sync + Send>> {
+) -> Result<(), Error> {
     let container_name = "ansible";
 
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
@@ -577,7 +591,10 @@ pub async fn print_cfs_session_container_ansible_logs_stream(
         .limit(1)
         .labels(format!("cfsession={}", cfs_session_name).as_str());
 
-    let mut pods = pods_api.list(&params).await?;
+    let mut pods = pods_api
+        .list(&params)
+        .await
+        .map_err(|e| Error::Message(format!("{e}")))?;
 
     let mut i = 0;
     let max = 30;
@@ -594,14 +611,17 @@ pub async fn print_cfs_session_container_ansible_logs_stream(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-        pods = pods_api.list(&params).await?;
+        pods = pods_api
+            .list(&params)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
     }
 
     if pods.items.is_empty() {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "Pod for cfs session '{}' not created. Aborting operation.",
             cfs_session_name
-        )
+        ))
         .into());
     }
 
@@ -639,7 +659,10 @@ pub async fn print_cfs_session_container_ansible_logs_stream(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
-        let pods = pods_api.list(&params).await?;
+        let pods = pods_api
+            .list(&params)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
         container_status = get_container_status(&pods.items[0], &ansible_container.name);
         log::debug!(
             "Container status:\n{:#?}",
@@ -648,10 +671,10 @@ pub async fn print_cfs_session_container_ansible_logs_stream(
     }
 
     if container_status.as_ref().unwrap().waiting.is_some() {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "Container ({}) status is waiting. Aborting operation.",
             ansible_container.name
-        )
+        ))
         .into());
     }
 
@@ -696,7 +719,7 @@ pub async fn print_cfs_session_container_ansible_logs_stream(
 pub async fn get_cfs_session_container_ansible_logs_details(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<(Container, Pod, Api<Pod>), Box<dyn Error + Sync + Send>> {
+) -> Result<(Container, Pod, Api<Pod>), Error> {
     let container_name = "ansible";
 
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
@@ -705,7 +728,10 @@ pub async fn get_cfs_session_container_ansible_logs_details(
         .limit(1)
         .labels(format!("cfsession={}", cfs_session_name).as_str());
 
-    let mut pods = pods_api.list(&params).await?;
+    let mut pods = pods_api
+        .list(&params)
+        .await
+        .map_err(|e| Error::Message(format!("{e}")))?;
 
     let mut i = 0;
     let max = 30;
@@ -722,14 +748,17 @@ pub async fn get_cfs_session_container_ansible_logs_details(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
-        pods = pods_api.list(&params).await?;
+        pods = pods_api
+            .list(&params)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
     }
 
     if pods.items.is_empty() {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "Pod for cfs session '{}' not created. Aborting operation.",
             cfs_session_name
-        )
+        ))
         .into());
     }
 
@@ -767,7 +796,10 @@ pub async fn get_cfs_session_container_ansible_logs_details(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
-        let pods = pods_api.list(&params).await?;
+        let pods = pods_api
+            .list(&params)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
         container_status = get_container_status(&pods.items[0], &ansible_container.name);
         log::debug!(
             "Container status:\n{:#?}",
@@ -776,10 +808,10 @@ pub async fn get_cfs_session_container_ansible_logs_details(
     }
 
     if container_status.as_ref().unwrap().waiting.is_some() {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "Container ({}) status is waiting. Aborting operation.",
             ansible_container.name
-        )
+        ))
         .into());
     }
 
@@ -811,7 +843,7 @@ pub fn get_container_status(
 pub async fn attach_cfs_session_container_target_k8s_service_name(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<AttachedProcess, crate::error::Error> {
+) -> Result<AttachedProcess, Error> {
     let pods_fabric: Api<Pod> = Api::namespaced(client.clone(), "services");
 
     let params = kube::api::ListParams::default()
@@ -821,7 +853,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     let mut pods = pods_fabric
         .list(&params)
         .await
-        .map_err(|e| crate::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}")))?;
+        .map_err(|e| Error::Message(format!("ERROR - kubernetes: Reason:\n{e}")))?;
 
     let mut i = 0;
     let max = 30;
@@ -839,11 +871,11 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         pods = pods_fabric
             .list(&params)
             .await
-            .map_err(|e| crate::error::Error::Message(format!("ERROR - Kubernetes: {}", e)))?;
+            .map_err(|e| Error::Message(format!("ERROR - Kubernetes: {}", e)))?;
     }
 
     if pods.items.is_empty() {
-        return Err(crate::error::Error::Message(format!(
+        return Err(Error::Message(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
         )));
@@ -898,7 +930,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     let mut pods = pods_fabric
         .list(&params)
         .await
-        .map_err(|e| crate::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}")))?;
+        .map_err(|e| Error::Message(format!("ERROR - kubernetes: Reason:\n{e}")))?;
 
     let mut i = 0;
     let max = 30;
@@ -917,7 +949,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     }
 
     if pods.items.is_empty() {
-        return Err(crate::error::Error::Message(format!(
+        return Err(Error::Message(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
         )));
@@ -946,7 +978,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         )
         .await
         .map_err(|e| {
-            crate::error::Error::Message(format!(
+            Error::Message(format!(
                 "Error attaching to container 'sshd' in pod {}.\nReason:\n{}\n. Exit",
                 console_operator_pod_name, e
             ))
@@ -970,7 +1002,7 @@ pub async fn delete_session_pod(
     vault_role_id: &str,
     k8s_api_url: &str,
     cfs_session_name: &str,
-) -> Result<(), crate::error::Error> {
+) -> Result<(), Error> {
     let shasta_k8s_secrets =
         fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await?;
 
@@ -985,7 +1017,7 @@ pub async fn delete_session_pod(
     let pods = pods_api
         .list(&params)
         .await
-        .map_err(|e| crate::error::Error::Message(e.to_string()))?;
+        .map_err(|e| Error::Message(e.to_string()))?;
     let cfs_session_pod = &pods.items[0].clone();
 
     let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
