@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::Instant};
 
+use backend_dispatcher::error::Error;
 use regex::Regex;
 use serde_json::Value;
 use tokio::sync::Semaphore;
@@ -89,7 +90,7 @@ pub async fn get_node_details(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     xname_list: Vec<String>,
-) -> Vec<NodeDetails> {
+) -> Result<Vec<NodeDetails>, Error> {
     let start = Instant::now();
 
     let (
@@ -151,14 +152,15 @@ pub async fn get_node_details(
             .iter()
             .find(|component_status| component_status.id.as_ref().unwrap().eq(&xname));
 
+        // FIXME: fix this by converting 'compoennt_details_opt' into a Result, with
+        // backend-dispatcher::Error and resolve the value using '?'
         let component_details = if let Some(component_details) = component_details_opt {
             component_details
         } else {
-            eprintln!(
+            return Err(Error::Message(format!(
                 "ERROR - CFS component details for node {}.\nReason:\n{:#?}",
                 xname, component_details_opt
-            );
-            std::process::exit(1);
+            )));
         };
 
         let desired_configuration = &component_details.desired_config;
