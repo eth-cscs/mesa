@@ -122,8 +122,6 @@ pub async fn remove_hsm_members(
     {
         let error_msg = format!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
         return Err(Error::Message(error_msg));
-        /* eprintln!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
-        std::process::exit(1); */
     }
 
     // get list of parent HSM group members
@@ -188,8 +186,6 @@ pub async fn migrate_hsm_members(
     {
         let error_msg = format!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
         return Err(Error::Message(error_msg));
-        /* eprintln!("Nodes '{}' not valid", new_target_hsm_members.join(", "));
-        std::process::exit(1); */
     }
 
     // get list of target HSM group members
@@ -793,7 +789,7 @@ pub async fn validate_config_hsm_group_and_hsm_group_accessed(
     hsm_group: Option<&String>,
     session_name: Option<&String>,
     cfs_sessions: &[CfsSessionGetResponse],
-) {
+) -> Result<(), Error> {
     if let Some(hsm_group_name) = hsm_group {
         let hsm_group_details = crate::hsm::group::http_client::get_hsm_group_vec(
             shasta_token,
@@ -833,12 +829,13 @@ pub async fn validate_config_hsm_group_and_hsm_group_accessed(
                 .iter()
                 .all(|cfs_session_member| hsm_group_members.contains(cfs_session_member))
         {
-            println!(
+            return Err(Error::Message(format!(
                 "CFS session {} does not apply to HSM group {}",
                 session_name.unwrap(),
                 hsm_group_name
-            );
-            std::process::exit(1);
+            )));
         }
     }
+
+    Ok(())
 }
