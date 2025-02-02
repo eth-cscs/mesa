@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
-use crate::common::gitea;
+use crate::{common::gitea, error::Error};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Layer {
@@ -81,7 +81,7 @@ impl CfsConfigurationRequest {
         gitea_token: &str,
         configuration_yaml: &serde_yaml::Value,
         cray_product_catalog: &BTreeMap<String, String>,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let mut cfs_configuration = Self::new();
 
         cfs_configuration.name = configuration_yaml["name"].as_str().unwrap().to_string();
@@ -123,8 +123,9 @@ impl CfsConfigurationRequest {
                         log::debug!("tag details:\n{:#?}", tag_details);
                         tag_details
                     } else {
-                        eprintln!("ERROR - Could not get details for git tag '{}' in CFS configuration '{}'. Reason:\n{:#?}", git_tag, cfs_configuration.name, tag_details_rslt);
-                        std::process::exit(1);
+                        return Err(Error::Message(
+                            format!("ERROR - Could not get details for git tag '{}' in CFS configuration '{}'. Reason:\n{:#?}", git_tag, cfs_configuration.name, tag_details_rslt)
+                        ));
                     };
 
                     // Assumming user sets an existing tag name. It could be an annotated tag
@@ -189,8 +190,10 @@ impl CfsConfigurationRequest {
                 let product = cray_product_catalog.get(product_name);
 
                 if product.is_none() {
-                    eprintln!("Product {} not found in cray product catalog", product_name);
-                    std::process::exit(1);
+                    return Err(Error::Message(format!(
+                        "Product {} not found in cray product catalog",
+                        product_name
+                    )));
                 }
 
                 let cos_cray_product_catalog =
@@ -201,8 +204,9 @@ impl CfsConfigurationRequest {
                     .and_then(|product| product.get("configuration"));
 
                 if product_details_opt.is_none() {
-                    eprintln!("Product details for product name '{}', product_version '{}' and 'configuration' not found in cray product catalog", product_name, product_version);
-                    std::process::exit(1);
+                    return Err(Error::Message(format!(
+                        "Product details for product name '{}', product_version '{}' and 'configuration' not found in cray product catalog", product_name, product_version)
+                    ));
                 }
 
                 let product_details = product_details_opt.unwrap().clone();
@@ -264,11 +268,12 @@ impl CfsConfigurationRequest {
                 );
                 cfs_configuration.add_layer(layer);
             } else {
-                eprintln!("ERROR - configurations section in SAT file error - CFS configuration layer error");
-                std::process::exit(1);
+                return Err(Error::Message(
+                    format!("ERROR - configurations section in SAT file error - CFS configuration layer error")
+                ));
             }
         }
 
-        cfs_configuration
+        Ok(cfs_configuration)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{cfs, hsm};
+use crate::{cfs, error::Error, hsm};
 use std::io::{self, Write};
 
 use super::http_client::v3::types::CfsSessionGetResponse;
@@ -268,16 +268,18 @@ pub fn get_image_id_from_cfs_session_vec(
 }
 
 /// Wait a CFS session to finish
+// FIXME: This function prints CFS session logs to stdout which is not a good idea because the
+// client may run outside this machine
 pub async fn wait_cfs_session_to_finish(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     cfs_session_id: &str,
-) {
+) -> Result<(), Error> {
     let mut i = 0;
     let max = 3000; // Max ammount of attempts to check if CFS session has ended
     loop {
-        let cfs_session_vec_rslt = cfs::session::get(
+        let cfs_session_vec = cfs::session::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -287,13 +289,15 @@ pub async fn wait_cfs_session_to_finish(
             Some(&cfs_session_id.to_string()),
             None,
         )
-        .await;
+        .await?;
 
-        let cfs_session = if let Ok(cfs_session_vec) = cfs_session_vec_rslt {
-            cfs_session_vec.first().unwrap().clone()
+        let cfs_session = if cfs_session_vec.is_empty() {
+            return Err(Error::Message(format!(
+                "ERROR - CFS session '{}' missing. Exit",
+                cfs_session_id
+            )));
         } else {
-            eprintln!("ERROR - CFS session '{}' missing. Exit", cfs_session_id);
-            std::process::exit(1);
+            cfs_session_vec.first().unwrap().clone()
         };
 
         log::debug!("CFS session details:\n{:#?}", cfs_session);
@@ -317,7 +321,7 @@ pub async fn wait_cfs_session_to_finish(
                 "CFS session '{}' finished with status '{}'",
                 cfs_session_id, cfs_session_status
             );
-            break;
+            break Ok(());
         }
     }
 }

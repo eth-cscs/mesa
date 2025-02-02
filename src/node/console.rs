@@ -25,19 +25,8 @@ pub async fn get_container_attachment_to_conman(
     k8s_api_url: &str,
 ) -> Result<AttachedProcess, Error> {
     log::info!("xname: {}", xname);
-    let shasta_k8s_secrets_rslt =
-        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
-
-    let shasta_k8s_secrets = match shasta_k8s_secrets_rslt {
-        Ok(value) => value,
-        Err(error) => {
-            eprintln!(
-                "ERROR - could not fetch K8s credentials from Vauls. Reason:\n{}\nExit",
-                error
-            );
-            std::process::exit(1);
-        }
-    };
+    let shasta_k8s_secrets =
+        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await?;
 
     let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
         .await

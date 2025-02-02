@@ -118,7 +118,7 @@ pub async fn post_sync(
             shasta_root_cert,
             &cfs_session_name,
         )
-        .await;
+        .await?;
     }
 
     // Get most recent CFS session status
