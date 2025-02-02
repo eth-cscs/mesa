@@ -22,4 +22,6 @@ pub enum Error {
     CsmError(Value),
     #[error("ERROR - Console: {0}")]
     ConsoleError(String),
+    #[error("ERROR - K8s: {0}")]
+    K8sError(String),
 }
