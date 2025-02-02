@@ -790,14 +790,16 @@ pub fn get_container_status(
 pub async fn attach_cfs_session_container_target_k8s_service_name(
     client: kube::Client,
     cfs_session_name: &str,
-) -> AttachedProcess {
+) -> Result<AttachedProcess, backend_dispatcher::error::Error> {
     let pods_fabric: Api<Pod> = Api::namespaced(client.clone(), "services");
 
     let params = kube::api::ListParams::default()
         .limit(1)
         .labels(format!("cfsession={}", cfs_session_name).as_str());
 
-    let mut pods = pods_fabric.list(&params).await.unwrap();
+    let mut pods = pods_fabric.list(&params).await.map_err(|e| {
+        backend_dispatcher::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}"))
+    })?;
 
     let mut i = 0;
     let max = 30;
@@ -812,15 +814,16 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
-        pods = pods_fabric.list(&params).await.unwrap();
+        pods = pods_fabric.list(&params).await.map_err(|e| {
+            backend_dispatcher::error::Error::Message(format!("ERROR - Kubernetes: {}", e))
+        })?;
     }
 
     if pods.items.is_empty() {
-        eprintln!(
+        return Err(backend_dispatcher::error::Error::Message(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
-        );
-        std::process::exit(1);
+        )));
     }
 
     let console_operator_pod = &pods.items[0].clone();
@@ -869,7 +872,9 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
         .limit(1)
         .labels(format!("job-name={}", ansible_target_container_label).as_str());
 
-    let mut pods = pods_fabric.list(&params).await.unwrap();
+    let mut pods = pods_fabric.list(&params).await.map_err(|e| {
+        backend_dispatcher::error::Error::Message(format!("ERROR - kubernetes: Reason:\n{e}"))
+    })?;
 
     let mut i = 0;
     let max = 30;
@@ -888,11 +893,10 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
     }
 
     if pods.items.is_empty() {
-        eprintln!(
+        return Err(backend_dispatcher::error::Error::Message(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
-        );
-        std::process::exit(1);
+        )));
     }
 
     let console_operator_pod = &pods.items[0].clone();
@@ -905,7 +909,7 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
                                 // let command = vec!["bash"]; // Enter the container and open bash to start an interactive
                                 // terminal session
 
-    let attachment_rslt = pods_fabric
+    pods_fabric
         .exec(
             &console_operator_pod_name,
             command,
@@ -916,17 +920,13 @@ pub async fn attach_cfs_session_container_target_k8s_service_name(
                 .stderr(false) // Note to self: tty and stderr cannot both be true
                 .tty(true),
         )
-        .await;
-
-    if let Ok(attachment) = attachment_rslt {
-        attachment
-    } else {
-        eprintln!(
-            "Error attaching to container 'sshd' in pod {}. Exit",
-            console_operator_pod_name
-        );
-        std::process::exit(1);
-    }
+        .await
+        .map_err(|e| {
+            backend_dispatcher::error::Error::Message(format!(
+                "Error attaching to container 'sshd' in pod {}.\nReason:\n{}\n. Exit",
+                console_operator_pod_name, e
+            ))
+        })
 }
 
 pub async fn get_output(mut attached: AttachedProcess) -> String {
