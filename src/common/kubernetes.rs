@@ -356,27 +356,33 @@ pub async fn print_cfs_session_logs(
     Ok(())
 }
 
-pub async fn get_configmap(
+pub async fn try_get_configmap(
     client: kube::Client,
     configmap_name: &str,
-) -> Option<BTreeMap<String, String>> {
+) -> Result<BTreeMap<String, String>, backend_dispatcher::error::Error> {
     let configmap_api: kube::Api<ConfigMap> = kube::Api::namespaced(client, "services");
 
     let params =
         kube::api::ListParams::default().fields(&("metadata.name=".to_owned() + configmap_name));
 
-    let configmap_rslt = configmap_api.list(&params).await;
+    let configmap = configmap_api
+        .list(&params)
+        .await
+        .map_err(|e| backend_dispatcher::error::Error::Message(e.to_string()))?;
 
-    if let Err(error) = configmap_rslt {
-        println!("{:#?}", error);
-        std::process::exit(1);
-    }
+    let configmap_data = configmap
+        .items
+        .first()
+        .ok_or_else(|| {
+            backend_dispatcher::error::Error::Message("ERROR - There is no configmap".to_string())
+        })?
+        .clone();
 
-    let configmap = configmap_rslt.unwrap();
-
-    let configmap_data = &configmap.items.first().unwrap().data;
-
-    configmap_data.clone()
+    configmap_data.data.ok_or_else(|| {
+        backend_dispatcher::error::Error::Message(
+            "ERROR - There is no data in the configmap".to_string(),
+        )
+    })
 }
 
 pub async fn print_cfs_session_container_git_clone_logs_stream(

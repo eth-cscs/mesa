@@ -300,7 +300,7 @@ pub async fn get_node_details(
     log::info!("Time elapsed to get node details is: {:?}", duration);
     // ------------------------------------------------------------------------
 
-    node_details_map.into_values().collect()
+    Ok(node_details_map.into_values().collect())
 }
 
 pub fn nodes_to_string_format_one_line(nodes: Option<&Vec<Value>>) -> String {
