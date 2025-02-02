@@ -1,5 +1,6 @@
 use core::time;
 
+use backend_dispatcher::error::Error;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
     api::{AttachParams, AttachedProcess},
@@ -20,7 +21,7 @@ pub async fn get_container_attachment_to_conman(
     vault_secret_path: &str,
     vault_role_id: &str,
     k8s_api_url: &str,
-) -> AttachedProcess {
+) -> Result<AttachedProcess, Error> {
     log::info!("xname: {}", xname);
     let shasta_k8s_secrets =
         fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
@@ -68,7 +69,7 @@ pub async fn get_container_attachment_to_conman(
 
     log::info!("Connecting to console {}", xname);
 
-    let attachment_rslt = pods_fabric
+    pods_fabric
         .exec(
             console_pod_name,
             command,
@@ -79,17 +80,13 @@ pub async fn get_container_attachment_to_conman(
                 .stderr(false) // Note to self: tty and stderr cannot both be true
                 .tty(true),
         )
-        .await;
-
-    if let Ok(attachment) = attachment_rslt {
-        attachment
-    } else {
-        eprintln!(
-            "Error attaching to container 'cray-console-node' in pod '{}'. Exit",
-            console_pod_name
-        );
-        std::process::exit(1);
-    }
+        .await
+        .map_err(|e| {
+            Error::ConsoleError(format!(
+                "Error attaching to container 'cray-console-node' in pod '{}'. Reason:\n{}. Exit",
+                console_pod_name, e
+            ))
+        })
 }
 
 pub async fn get_container_attachment_to_cfs_session_image_target(
@@ -98,7 +95,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
     vault_secret_path: &str,
     vault_role_id: &str,
     k8s_api_url: &str,
-) -> AttachedProcess {
+) -> Result<AttachedProcess, Error> {
     let shasta_k8s_secrets =
         fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await;
 
@@ -131,11 +128,10 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
     }
 
     if pods.items.is_empty() {
-        eprintln!(
+        return Err(Error::ConsoleError(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
-        );
-        std::process::exit(1);
+        )));
     }
 
     let console_operator_pod = &pods.items[0].clone();
@@ -204,11 +200,10 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
     }
 
     if pods.items.is_empty() {
-        eprintln!(
+        return Err(Error::ConsoleError(format!(
             "Pod for cfs session {} not ready. Aborting operation",
             cfs_session_name
-        );
-        std::process::exit(1);
+        )));
     }
 
     let console_operator_pod = &pods.items[0].clone();
@@ -221,7 +216,7 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
                                 // let command = vec!["bash"]; // Enter the container and open bash to start an interactive
                                 // terminal session
 
-    let attachment_rslt = pods_fabric
+    pods_fabric
         .exec(
             &console_operator_pod_name,
             command,
@@ -232,15 +227,11 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
                 .stderr(false) // Note to self: tty and stderr cannot both be true
                 .tty(true),
         )
-        .await;
-
-    if let Ok(attachment) = attachment_rslt {
-        attachment
-    } else {
-        eprintln!(
-            "Error attaching to container 'sshd' in pod '{}'. Exit",
-            console_operator_pod_name
-        );
-        std::process::exit(1);
-    }
+        .await
+        .map_err(|e| {
+            Error::ConsoleError(format!(
+                "Error attaching to container 'sshd' in pod '{}'. Reason\n{}\n. Exit",
+                console_operator_pod_name, e
+            ))
+        })
 }
