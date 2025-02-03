@@ -87,7 +87,7 @@ pub async fn post(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     ims_job: &JobPostRequest,
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -112,10 +112,13 @@ pub async fn post(
         .bearer_auth(shasta_token)
         .json(&ims_job)
         .send()
-        .await?
-        .error_for_status()?
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map_err(Error::NetError)?
         .json()
         .await
+        .map_err(Error::NetError)
 }
 
 /// Synchronous version of the post method, used if want to wait till the IMS job is finished
@@ -124,7 +127,7 @@ pub async fn post_sync(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     ims_job: &JobPostRequest,
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     log::info!("Create IMS job");
     log::debug!("Create IMS job request payload:\n{:#?}", ims_job);
 
@@ -154,7 +157,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     job_id_opt: Option<&str>,
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -182,8 +185,11 @@ pub async fn get(
         .get(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?
-        .error_for_status()?
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map_err(Error::NetError)?
         .json()
         .await
+        .map_err(Error::NetError)
 }

@@ -183,7 +183,7 @@ pub async fn get_token_from_shasta_endpoint(
     shasta_root_cert: &[u8],
     username: &str,
     password: &str,
-) -> Result<String, reqwest::Error> {
+) -> Result<String, Error> {
     let mut params = HashMap::new();
     params.insert("grant_type", "password");
     params.insert("client_id", "shasta");

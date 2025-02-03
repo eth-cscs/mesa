@@ -1,3 +1,5 @@
+use crate::error::Error;
+
 use super::types::{ComponentEthernetInterface, IpAddressMapping};
 
 // Get list of network interfaces
@@ -13,7 +15,7 @@ pub async fn get(
     r#type: &str,
     olther_than: &str,
     newer_than: &str,
-) -> Result<reqwest::Response, reqwest::Error> {
+) -> Result<reqwest::Response, Error> {
     let client_builder = reqwest::Client::builder()
         .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
 
@@ -31,7 +33,7 @@ pub async fn get(
 
     let api_url: String = shasta_base_url.to_owned() + "/smd/hsm/v2/Inventory/EthernetInterfaces";
 
-    let response_rslt = client
+    client
         .get(api_url)
         .query(&[
             ("MACAddress", mac_address),
@@ -44,12 +46,9 @@ pub async fn get(
         ])
         .bearer_auth(shasta_token)
         .send()
-        .await;
-
-    match response_rslt {
-        Ok(response) => response.error_for_status(),
-        Err(error) => Err(error),
-    }
+        .await?
+        .error_for_status()
+        .map_err(Error::NetError)
 }
 
 pub async fn patch(
@@ -61,7 +60,7 @@ pub async fn patch(
     component_id: &str,
     ip_address_mapping: (&str, &str), // [(<ip address>, <network>), ...], examle
                                       // [("192.168.1.10", "HMN"), ...]
-) -> Result<reqwest::Response, reqwest::Error> {
+) -> Result<reqwest::Response, Error> {
     let ip_address = ip_address_mapping.0;
     let network = ip_address_mapping.1;
     let cei = ComponentEthernetInterface {
@@ -93,16 +92,14 @@ pub async fn patch(
         shasta_base_url, eth_interface_id
     );
 
-    let response_rslt = client
+    client
         .patch(api_url)
         .query(&[("ethInterfaceID", ip_address), ("ipAddress", ip_address)])
         .bearer_auth(shasta_token)
         .json(&cei)
         .send()
-        .await;
-
-    match response_rslt {
-        Ok(response) => response.error_for_status(),
-        Err(error) => Err(error),
-    }
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map_err(Error::NetError)
 }

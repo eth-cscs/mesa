@@ -8,7 +8,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     bos_session_template_id_opt: Option<&String>,
-) -> Result<Vec<BosSessionTemplate>, reqwest::Error> {
+) -> Result<Vec<BosSessionTemplate>, Error> {
     log::info!(
         "Get BOS sessiontemplates '{}'",
         bos_session_template_id_opt.unwrap_or(&"all available".to_string())
@@ -38,12 +38,13 @@ pub async fn get(
     let response = client.get(api_url).bearer_auth(shasta_token).send().await?;
 
     if bos_session_template_id_opt.is_none() {
-        response.json().await
+        response.json().await.map_err(Error::NetError)
     } else {
         response
             .json::<BosSessionTemplate>()
             .await
             .map(|cfs_configuration| vec![cfs_configuration])
+            .map_err(Error::NetError)
     }
 }
 

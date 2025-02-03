@@ -1,3 +1,5 @@
+use crate::error::Error;
+
 use super::types::RecipeGetResponse;
 
 /// Create IMS job ref --> https://csm12-apidocs.svc.cscs.ch/paas/ims/operation/post_v3_job/
@@ -6,7 +8,7 @@ pub async fn get(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     recipe_id_opt: Option<&str>,
-) -> Result<Vec<RecipeGetResponse>, reqwest::Error> {
+) -> Result<Vec<RecipeGetResponse>, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()

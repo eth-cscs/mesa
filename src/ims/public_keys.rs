@@ -3,6 +3,8 @@ pub mod http_client {
     pub mod v3 {
         use serde_json::Value;
 
+        use crate::error::Error;
+
         /// Get one user public key in IMS is can find
         /// Returns None if public key not found or multiple fould
         pub async fn get_single(
@@ -33,7 +35,7 @@ pub mod http_client {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             username_opt: Option<&str>,
-        ) -> Result<Vec<Value>, reqwest::Error> {
+        ) -> Result<Vec<Value>, Error> {
             let client;
 
             let client_builder = reqwest::Client::builder()
@@ -57,9 +59,11 @@ pub mod http_client {
                 .get(api_url)
                 .bearer_auth(shasta_token)
                 .send()
-                .await?
+                .await
+                .map_err(Error::NetError)?
                 .json()
-                .await?;
+                .await
+                .map_err(Error::NetError)?;
 
             let mut public_key_value_list: Vec<Value> = json_response.as_array().unwrap().to_vec();
 

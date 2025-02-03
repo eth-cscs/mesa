@@ -111,19 +111,12 @@ pub async fn put(
         .json(&bos_template)
         .bearer_auth(shasta_token)
         .send()
-        .await
-        .map_err(|error| Error::NetError(error))?;
+        .await?;
 
     if response.status().is_success() {
-        response
-            .json()
-            .await
-            .map_err(|error| Error::NetError(error))
+        response.json().await.map_err(Error::NetError)
     } else {
-        let payload = response
-            .json::<Value>()
-            .await
-            .map_err(|error| Error::NetError(error))?;
+        let payload = response.json::<Value>().await.map_err(Error::NetError)?;
         Err(Error::CsmError(payload))
     }
 }
@@ -134,7 +127,7 @@ pub async fn delete(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     bos_template_id: &str,
-) -> Result<(), reqwest::Error> {
+) -> Result<(), Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
