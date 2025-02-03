@@ -183,6 +183,103 @@ pub async fn post(
         .map_err(|error| Error::NetError(error))
 }
 
+/// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
+pub async fn create_new_group(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    hsm_group_name_opt: &str, // label in HSM
+    xnames: &[String],
+    exclusive: &str,
+    description: &str,
+    tags: &[String],
+) -> Result<Vec<Group>, Error> {
+    // Example body to create a new group:
+    // {
+    //   "label": "blue",
+    //   "description": "This is the blue group",
+    //   "tags": [
+    //     "optional_tag1",
+    //     "optional_tag2"
+    //   ],
+    //   "exclusiveGroup": "optional_excl_group",
+    //   "members": {
+    //     "ids": [
+    //       "x1c0s1b0n0",
+    //       "x1c0s1b0n1",
+    //       "x1c0s2b0n0",
+    //       "x1c0s2b0n1"
+    //     ]
+    //   }
+    // }
+    // Describe the JSON object
+
+    // Create the variables that represent our JSON object
+    let myxnames = Members {
+        ids: Some(xnames.to_owned()),
+    };
+
+    let group = Group {
+        label: hsm_group_name_opt.to_owned(),
+        description: Option::from(description.to_string().clone()),
+        tags: Option::from(tags.to_owned()),
+        exclusive_group: Option::from(exclusive.to_string().clone()),
+        members: Some(myxnames),
+    };
+
+    log::debug!("{:#?}", &group);
+
+    post(shasta_token, shasta_base_url, shasta_root_cert, group)
+        .await
+        .map(|group| vec![group])
+}
+
+pub async fn delete_group(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    hsm_group_name: &String, // label in HSM
+) -> Result<Value, Error> {
+    log::info!("Delete HSM group '{}'", hsm_group_name);
+
+    let client_builder = reqwest::Client::builder()
+        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+    // Build client
+    let client = if std::env::var("SOCKS5").is_ok() {
+        // socks5 proxy
+        log::debug!("SOCKS5 enabled");
+        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+        // rest client to authenticate
+        client_builder.proxy(socks5proxy).build()?
+    } else {
+        client_builder.build()?
+    };
+
+    let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name;
+
+    let response = client
+        .delete(url_api)
+        .header("Authorization", format!("Bearer {}", shasta_token))
+        .send()
+        .await
+        .map_err(|error| Error::NetError(error))?;
+
+    if response.status().is_success() {
+        response
+            .json()
+            .await
+            .map_err(|error| Error::NetError(error))
+    } else {
+        let payload = response
+            .text()
+            .await
+            .map_err(|error| Error::NetError(error))?;
+        Err(Error::Message(payload))
+    }
+}
+
 pub async fn post_member(
     shasta_token: &str,
     shasta_base_url: &str,
@@ -282,138 +379,6 @@ pub async fn delete_member(
 
     if response.status().is_success() {
         Ok(())
-    } else {
-        let payload = response
-            .text()
-            .await
-            .map_err(|error| Error::NetError(error))?;
-        Err(Error::Message(payload))
-    }
-}
-
-/// https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/smd.md#post-groups
-pub async fn create_new_group(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    hsm_group_name_opt: &str, // label in HSM
-    xnames: &[String],
-    exclusive: &str,
-    description: &str,
-    tags: &[String],
-) -> Result<Vec<Group>, Error> {
-    // Example body to create a new group:
-    // {
-    //   "label": "blue",
-    //   "description": "This is the blue group",
-    //   "tags": [
-    //     "optional_tag1",
-    //     "optional_tag2"
-    //   ],
-    //   "exclusiveGroup": "optional_excl_group",
-    //   "members": {
-    //     "ids": [
-    //       "x1c0s1b0n0",
-    //       "x1c0s1b0n1",
-    //       "x1c0s2b0n0",
-    //       "x1c0s2b0n1"
-    //     ]
-    //   }
-    // }
-    // Describe the JSON object
-
-    // Create the variables that represent our JSON object
-    let myxnames = Members {
-        ids: Some(xnames.to_owned()),
-    };
-
-    let group = Group {
-        label: hsm_group_name_opt.to_owned(),
-        description: Option::from(description.to_string().clone()),
-        tags: Option::from(tags.to_owned()),
-        exclusive_group: Option::from(exclusive.to_string().clone()),
-        members: Some(myxnames),
-    };
-
-    let hsm_group_json_body = match serde_json::to_string(&group) {
-        Ok(m) => m,
-        Err(_) => panic!(
-            "Error parsing the JSON generated, one or more of the fields could have invalid chars."
-        ),
-    };
-
-    println!("{:#?}", &hsm_group_json_body);
-
-    post(shasta_token, shasta_base_url, shasta_root_cert, group)
-        .await
-        .map(|group| vec![group])
-
-    /* let client;
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client = client_builder.proxy(socks5proxy).build()?;
-    } else {
-        client = client_builder.build()?;
-    }
-    let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
-
-    client
-        .post(url_api)
-        .header("Authorization", format!("Bearer {}", shasta_token))
-        .json(&hsm_group_json) // make sure this is not a string!
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await */
-}
-
-pub async fn delete_group(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    hsm_group_name: &String, // label in HSM
-) -> Result<Value, Error> {
-    log::info!("Delete HSM group '{}'", hsm_group_name);
-
-    let client_builder = reqwest::Client::builder()
-        .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
-
-    // Build client
-    let client = if std::env::var("SOCKS5").is_ok() {
-        // socks5 proxy
-        log::debug!("SOCKS5 enabled");
-        let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
-
-        // rest client to authenticate
-        client_builder.proxy(socks5proxy).build()?
-    } else {
-        client_builder.build()?
-    };
-
-    let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name;
-
-    let response = client
-        .delete(url_api)
-        .header("Authorization", format!("Bearer {}", shasta_token))
-        .send()
-        .await
-        .map_err(|error| Error::NetError(error))?;
-
-    if response.status().is_success() {
-        response
-            .json()
-            .await
-            .map_err(|error| Error::NetError(error))
     } else {
         let payload = response
             .text()
