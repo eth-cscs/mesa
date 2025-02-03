@@ -4,12 +4,14 @@ use serde_json::Value;
 
 use types::{Image, ImsImageRecord2Update};
 
+use crate::error::Error;
+
 pub async fn get(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     image_id_opt: Option<&str>,
-) -> Result<Vec<Image>, reqwest::Error> {
+) -> Result<Vec<Image>, Error> {
     log::info!(
         "Get IMS images '{}'",
         image_id_opt.unwrap_or("all available")
@@ -36,7 +38,23 @@ pub async fn get(
         shasta_base_url.to_owned() + "/ims/v3/images"
     };
 
-    let response_rslt = client.get(api_url).bearer_auth(shasta_token).send().await;
+    let response_rslt = client
+        .get(api_url)
+        .bearer_auth(shasta_token)
+        .send()
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map_err(|e| match e.status() {
+            Some(reqwest::StatusCode::NOT_FOUND) => {
+                Error::ImageNotFound(image_id_opt.unwrap().to_string())
+            }
+            Some(_) => Error::NetError(e),
+            None => Error::Message(format!(
+                "ERROR - Http response with no status code?.\nReason:\n{}",
+                e.to_string()
+            )),
+        });
 
     let image_vec: Vec<Image> = match response_rslt {
         Ok(response) => {
@@ -56,7 +74,7 @@ pub async fn get_all(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-) -> Result<Vec<Image>, reqwest::Error> {
+) -> Result<Vec<Image>, Error> {
     get(shasta_token, shasta_base_url, shasta_root_cert, None).await
 }
 
@@ -66,7 +84,7 @@ pub async fn post(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     ims_image: &Image,
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -91,10 +109,13 @@ pub async fn post(
         .header("Authorization", format!("Bearer {}", shasta_token))
         .json(&ims_image)
         .send()
-        .await?
-        .error_for_status()?
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map_err(Error::NetError)?
         .json()
         .await
+        .map_err(Error::NetError)
 }
 
 // Delete IMS image using CSM API. First does a "soft delete", then a "permanent deletion"
@@ -105,7 +126,7 @@ pub async fn delete(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     image_id: &str,
-) -> Result<(), reqwest::Error> {
+) -> Result<(), Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -130,8 +151,18 @@ pub async fn delete(
         .delete(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?
-        .error_for_status()?;
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map(|_| ())
+        .map_err(|e| match e.status() {
+            Some(reqwest::StatusCode::NOT_FOUND) => Error::ImageNotFound(image_id.to_string()),
+            Some(_) => Error::NetError(e),
+            None => Error::Message(format!(
+                "ERROR - Http response with no status code?.\nReason:\n{}",
+                e.to_string()
+            )),
+        })?;
 
     // PERMANENT DELETION
     let api_url = shasta_base_url.to_owned() + "/ims/v3/deleted/images/" + image_id;
@@ -140,9 +171,18 @@ pub async fn delete(
         .delete(api_url)
         .bearer_auth(shasta_token)
         .send()
-        .await?
+        .await
+        .map_err(Error::NetError)?
         .error_for_status()
         .map(|_| ())
+        .map_err(|e| match e.status() {
+            Some(reqwest::StatusCode::NOT_FOUND) => Error::ImageNotFound(image_id.to_string()),
+            Some(_) => Error::NetError(e),
+            None => Error::Message(format!(
+                "ERROR - Http response with no status code?.\nReason:\n{}",
+                e.to_string()
+            )),
+        })
 }
 
 /// update an IMS image record --> https://github.com/Cray-HPE/docs-csm/blob/release/1.5/api/ims.md#post_v2_image
@@ -152,7 +192,7 @@ pub async fn patch(
     shasta_root_cert: &[u8],
     ims_image_id: &String,
     ims_link: &ImsImageRecord2Update,
-) -> Result<Value, reqwest::Error> {
+) -> Result<Value, Error> {
     let client;
 
     let client_builder = reqwest::Client::builder()
@@ -177,8 +217,11 @@ pub async fn patch(
         .header("Authorization", format!("Bearer {}", shasta_token))
         .json(&ims_link)
         .send()
-        .await?
-        .error_for_status()?
+        .await
+        .map_err(Error::NetError)?
+        .error_for_status()
+        .map_err(Error::NetError)?
         .json::<Value>()
         .await
+        .map_err(Error::NetError)
 }

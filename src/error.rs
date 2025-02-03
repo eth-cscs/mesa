@@ -24,4 +24,6 @@ pub enum Error {
     ConsoleError(String),
     #[error("ERROR - K8s: {0}")]
     K8sError(String),
+    #[error("ERROR - Image '{0}' not found")]
+    ImageNotFound(String),
 }

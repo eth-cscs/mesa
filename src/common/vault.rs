@@ -86,6 +86,8 @@ pub mod http_client {
         )
         .await?; // this works for hashicorp-vault for fulen may need /v1/secret/data/shasta/k8s
 
-        Ok(vault_secret.get("value").unwrap().clone()) // this works for vault v1.12.0 for older versions may need vault_secret["data"]["value"]
+        serde_json::from_str(vault_secret.get("value").unwrap().clone().as_str().unwrap())
+            .map_err(Error::SerdeError)
+        // this works for vault v1.12.0 for older versions may need vault_secret["data"]["value"]
     }
 }
