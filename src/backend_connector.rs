@@ -11,7 +11,7 @@ use backend_dispatcher::{
         pcs::PCSTrait,
     },
     types::{
-        BootParameters as FrontEndBootParameters,
+        BootParameters as FrontEndBootParameters, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList, HardwareMetadataArray,
     },
@@ -387,6 +387,31 @@ impl ComponentTrait for Csm {
         .await
         .map(|c| c.into())
         .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_node_metadata_available(&self, auth_token: &str) -> Result<Vec<Component>, Error> {
+        let xname_available_vec: Vec<String> = self
+            .get_group_available(auth_token)
+            .await
+            .map_err(|e| Error::Message(e.to_string()))?
+            .iter()
+            .flat_map(|group| group.get_members())
+            .collect();
+
+        let node_metadata_vec: Vec<Component> = self
+            .get_all_nodes(auth_token, Some("true"))
+            .await
+            .unwrap()
+            .components
+            .unwrap_or_default()
+            .iter()
+            .filter(|&node_metadata| {
+                xname_available_vec.contains(&node_metadata.id.as_ref().unwrap())
+            })
+            .cloned()
+            .collect();
+
+        Ok(node_metadata_vec)
     }
 
     async fn get(
