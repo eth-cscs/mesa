@@ -13,7 +13,7 @@ use backend_dispatcher::{
     types::{
         BootParameters as FrontEndBootParameters, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
-        HWInventoryByLocationList as FrontEndHWInventoryByLocationList, HardwareMetadataArray,
+        HWInventoryByLocationList as FrontEndHWInventoryByLocationList, NodeMetadataArray,
     },
 };
 use hostlist_parser::parse;
@@ -358,7 +358,7 @@ impl ComponentTrait for Csm {
         &self,
         auth_token: &str,
         nid_only: Option<&str>,
-    ) -> Result<HardwareMetadataArray, Error> {
+    ) -> Result<NodeMetadataArray, Error> {
         hsm::component::http_client::get(
             &self.base_url,
             &self.root_cert,
@@ -437,7 +437,7 @@ impl ComponentTrait for Csm {
         flag_only: Option<&str>,
         role_only: Option<&str>,
         nid_only: Option<&str>,
-    ) -> Result<HardwareMetadataArray, Error> {
+    ) -> Result<NodeMetadataArray, Error> {
         hsm::component::http_client::get(
             &self.base_url,
             &self.root_cert,

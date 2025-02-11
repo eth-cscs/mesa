@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use backend_dispatcher::types::{
     Component as FrontEndComponent, ComponentArrayPostArray as FrontEndComponentArrayPostArray,
-    ComponentCreate as FrontEndComponentCreate, HardwareMetadataArray as FrontEndComponentArray,
+    ComponentCreate as FrontEndComponentCreate, NodeMetadataArray as FrontEndNodeMetadataArray,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -12,8 +12,8 @@ pub struct ComponentArray {
     pub components: Option<Vec<Component>>,
 }
 
-impl From<FrontEndComponentArray> for ComponentArray {
-    fn from(value: FrontEndComponentArray) -> Self {
+impl From<FrontEndNodeMetadataArray> for ComponentArray {
+    fn from(value: FrontEndNodeMetadataArray) -> Self {
         let component_vec_opt: Option<Vec<Component>> = if let Some(components) = value.components {
             let mut component_vec: Vec<Component> = Vec::with_capacity(components.len());
 
@@ -34,8 +34,8 @@ impl From<FrontEndComponentArray> for ComponentArray {
     }
 }
 
-impl Into<FrontEndComponentArray> for ComponentArray {
-    fn into(self) -> FrontEndComponentArray {
+impl Into<FrontEndNodeMetadataArray> for ComponentArray {
+    fn into(self) -> FrontEndNodeMetadataArray {
         let component_vec_opt: Option<Vec<FrontEndComponent>> = if let Some(components) =
             self.components
         {
@@ -50,7 +50,7 @@ impl Into<FrontEndComponentArray> for ComponentArray {
             None
         };
 
-        FrontEndComponentArray {
+        FrontEndNodeMetadataArray {
             components: component_vec_opt,
         }
     }
