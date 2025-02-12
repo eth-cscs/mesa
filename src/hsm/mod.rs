@@ -277,7 +277,7 @@ pub mod group {
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             group: HsmGroup,
-        ) -> Result<HsmGroup, Error> {
+        ) -> Result<Value, Error> {
             log::info!("Add/Create HSM group");
             log::debug!("Add HSM group payload:\n{:#?}", group);
 
