@@ -106,6 +106,42 @@ pub mod group {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub id: Option<String>,
         }
+
+        impl HsmGroup {
+            /// Constructor
+            pub fn new(
+                label: &str,
+                member_vec_opt: Option<Vec<&str>>,
+                tag_vec_opt: Option<Vec<String>>,
+                exclusive_opt: Option<String>,
+            ) -> Self {
+                let members_opt = if let Some(member_vec) = member_vec_opt {
+                    Some(Member {
+                        ids: Some(member_vec.iter().map(|&id| id.to_string()).collect()),
+                    })
+                } else {
+                    None
+                };
+
+                let group = Self {
+                    label: label.to_string(),
+                    description: None,
+                    tags: tag_vec_opt,
+                    members: members_opt,
+                    exclusive_group: exclusive_opt,
+                };
+
+                group
+            }
+
+            /// Get group members
+            pub fn get_members(&self) -> Vec<String> {
+                self.members
+                    .clone()
+                    .map(|member| member.ids.unwrap_or_default())
+                    .unwrap_or_default()
+            }
+        }
     }
 
     pub mod http_client {
