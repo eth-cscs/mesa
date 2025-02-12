@@ -16,7 +16,9 @@ pub mod service {
             }
 
             pub mod http_client {
-                use crate::error::Error;
+                use serde_json::Value;
+
+                use crate::{error::Error, hsm::group::r#struct::HsmGroup};
 
                 use super::r#struct::Role;
 
@@ -145,6 +147,8 @@ pub mod group {
     }
 
     pub mod http_client {
+        use serde_json::Value;
+
         use crate::{
             error::Error,
             hsm::group::r#struct::{HsmGroup, Member, XnameId},
@@ -267,6 +271,106 @@ pub mod group {
             }
 
             Ok(hsm_groups)
+        }
+
+        pub async fn post(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            group: HsmGroup,
+        ) -> Result<HsmGroup, Error> {
+            log::info!("Add/Create HSM group");
+            log::debug!("Add HSM group payload:\n{:#?}", group);
+
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(socks5_env)?;
+
+                // rest client to authenticate
+                client_builder.proxy(socks5proxy).build()?
+            } else {
+                client_builder.build()?
+            };
+
+            let api_url: String = shasta_base_url.to_owned() + "/smd/hsm/v2/groups";
+
+            let response = client
+                .post(api_url)
+                .bearer_auth(shasta_token)
+                .json(&group)
+                .send()
+                .await?;
+
+            log::debug!("Response:\n{:#?}", response);
+
+            if let Err(e) = response.error_for_status_ref() {
+                match response.status() {
+                    reqwest::StatusCode::UNAUTHORIZED => {
+                        return Err(Error::Message(response.text().await?));
+                    }
+                    _ => {
+                        let error_payload = response.json().await?;
+                        let error = Error::Message(error_payload);
+                        return Err(error);
+                    }
+                }
+            }
+
+            response
+                .json()
+                .await
+                .map_err(|error| Error::NetError(error))
+        }
+
+        pub async fn delete(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            hsm_group_name: &String, // label in HSM
+        ) -> Result<Value, Error> {
+            log::info!("Delete HSM group '{}'", hsm_group_name);
+
+            let client_builder = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_pem(shasta_root_cert)?);
+
+            // Build client
+            let client = if std::env::var("SOCKS5").is_ok() {
+                // socks5 proxy
+                log::debug!("SOCKS5 enabled");
+                let socks5proxy = reqwest::Proxy::all(std::env::var("SOCKS5").unwrap())?;
+
+                // rest client to authenticate
+                client_builder.proxy(socks5proxy).build()?
+            } else {
+                client_builder.build()?
+            };
+
+            let url_api = shasta_base_url.to_owned() + "/smd/hsm/v2/groups/" + &hsm_group_name;
+
+            let response = client
+                .delete(url_api)
+                .header("Authorization", format!("Bearer {}", shasta_token))
+                .send()
+                .await
+                .map_err(|error| Error::NetError(error))?;
+
+            if response.status().is_success() {
+                response
+                    .json()
+                    .await
+                    .map_err(|error| Error::NetError(error))
+            } else {
+                let payload = response
+                    .text()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+                Err(Error::Message(payload))
+            }
         }
 
         pub async fn post_member(
