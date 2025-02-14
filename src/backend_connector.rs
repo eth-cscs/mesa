@@ -1,28 +1,31 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, pin::Pin};
 
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
     interfaces::{
         bss::BootParametersTrait,
+        cfs::CfsTrait,
         hsm::{
             component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
         },
         pcs::PCSTrait,
     },
     types::{
-        BootParameters as FrontEndBootParameters, Component,
+        cfs::CfsSessionGetResponse, BootParameters as FrontEndBootParameters, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
-        HWInventoryByLocationList as FrontEndHWInventoryByLocationList, NodeMetadataArray,
+        HWInventoryByLocationList as FrontEndHWInventoryByLocationList, K8sAuth, K8sDetails,
+        NodeMetadataArray,
     },
 };
+use futures::AsyncBufRead;
 use hostlist_parser::parse;
 use regex::Regex;
 use serde_json::Value;
 
 use crate::{
     bss::{self},
-    common::authentication,
+    common::{authentication, kubernetes, vault::http_client::fetch_shasta_k8s_secrets_from_vault},
     hsm::{self, component::types::ComponentArrayPostArray, group::types::Member},
     pcs,
 };
@@ -737,5 +740,359 @@ impl BackendTrait for Csm {
 
             return Ok(xname_vec);
         };
+    }
+}
+
+impl CfsTrait for Csm {
+    type T = Pin<Box<dyn AsyncBufRead>>;
+
+    async fn get_session_logs_stream(
+        &self,
+        cfs_session_name: &str,
+        k8s_api_url: &str,
+        k8s: &K8sDetails,
+    ) -> Result<Pin<Box<dyn AsyncBufRead>>, Error> {
+        // FIXME: this only takes the stream from the CFS session and not from the
+        // git-clone init container
+        let shasta_k8s_secrets = match &k8s.authentication {
+            K8sAuth::Native {
+                certificate_authority_data,
+                client_certificate_data,
+                client_key_data,
+            } => {
+                serde_json::json!({ "certificate-authority-data": certificate_authority_data, "client-certificate-data": client_certificate_data, "client-key-data": client_key_data })
+            }
+            K8sAuth::Vault {
+                base_url,
+                secret_path,
+                role_id,
+            } => fetch_shasta_k8s_secrets_from_vault(&base_url, &secret_path, &role_id).await,
+        };
+
+        let client = kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
+
+        // NOTE: here is where we convert from impl AsyncBufRead to Pin<Box<dyn AsyncBufRead>>
+        // through dynamic dispatch
+        Ok(Box::pin(
+            kubernetes::get_cfs_session_init_container_git_clone_logs_stream(
+                client,
+                cfs_session_name,
+            )
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?,
+        ))
+    }
+
+    async fn get_session_logs_stream_by_xname(
+        &self,
+        auth_token: &str,
+        xname: &str,
+        k8s_api_url: &str,
+        k8s: &K8sDetails,
+    ) -> Result<Pin<Box<dyn AsyncBufRead>>, Error> {
+        let mut session_vec = crate::cfs::session::http_client::v3::get(
+            auth_token,
+            self.base_url.as_str(),
+            self.root_cert.as_slice(),
+            None,
+            Some(1),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))?;
+
+        crate::cfs::session::utils::filter_by_xname(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            &mut session_vec,
+            &[xname],
+            None,
+        )
+        .await;
+
+        if session_vec.is_empty() {
+            return Err(Error::Message(format!(
+                "No CFS session found for xname '{}'",
+                xname
+            )));
+        }
+
+        self.get_session_logs_stream(
+            session_vec.first().unwrap().name.as_ref().unwrap().as_str(),
+            k8s_api_url,
+            k8s,
+        )
+        .await
+    }
+
+    /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
+    async fn get_sessions(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        session_name_opt: Option<&String>,
+        limit_opt: Option<u8>,
+        after_id_opt: Option<String>,
+        min_age_opt: Option<String>,
+        max_age_opt: Option<String>,
+        status_opt: Option<String>,
+        name_contains_opt: Option<String>,
+        is_succeded_opt: Option<bool>,
+        tags_opt: Option<String>,
+    ) -> Result<Vec<CfsSessionGetResponse>, Error> {
+        // Get local/backend CFS sessions
+        let local_cfs_session_vec = crate::cfs::session::http_client::v3::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            session_name_opt,
+            limit_opt,
+            after_id_opt,
+            min_age_opt,
+            max_age_opt,
+            status_opt,
+            name_contains_opt,
+            is_succeded_opt,
+            tags_opt,
+        )
+        .await;
+
+        // Convert to manta session
+        let border_session_vec = local_cfs_session_vec
+            .map(|cfs_session_vec| {
+                cfs_session_vec
+                    .into_iter()
+                    .map(|cfs_session| cfs_session.into())
+                    .collect::<Vec<CfsSessionGetResponse>>()
+            })
+            .map_err(|e| Error::Message(e.to_string()));
+
+        border_session_vec
+    }
+
+    async fn get_and_filter_sessions(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_vec_opt: Option<Vec<String>>,
+        xname_vec_opt: Option<Vec<&str>>,
+        min_age_opt: Option<&String>,
+        max_age_opt: Option<&String>,
+        status_opt: Option<&String>,
+        cfs_session_name_opt: Option<&String>,
+        limit_number_opt: Option<&u8>,
+    ) -> Result<Vec<CfsSessionGetResponse>, Error> {
+        let mut cfs_session_vec = crate::cfs::session::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            min_age_opt,
+            max_age_opt,
+            status_opt,
+            cfs_session_name_opt,
+            None,
+        )
+        .await
+        .unwrap();
+
+        if let Some(hsm_group_name_vec) = hsm_group_name_vec_opt {
+            if !hsm_group_name_vec.is_empty() {
+                crate::cfs::session::utils::filter_by_hsm(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    &mut cfs_session_vec,
+                    &hsm_group_name_vec,
+                    limit_number_opt,
+                )
+                .await;
+            }
+        }
+
+        if let Some(xname_vec) = xname_vec_opt {
+            crate::cfs::session::utils::filter_by_xname(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                &mut cfs_session_vec,
+                xname_vec.as_slice(),
+                limit_number_opt,
+            )
+            .await;
+        }
+
+        if cfs_session_vec.is_empty() {
+            return Err(Error::Message("No CFS session found".to_string()));
+        }
+
+        for cfs_session in cfs_session_vec.iter_mut() {
+            log::debug!("CFS session:\n{:#?}", cfs_session);
+
+            if cfs_session
+                .target
+                .as_ref()
+                .unwrap()
+                .definition
+                .as_ref()
+                .unwrap()
+                .eq("image")
+                && cfs_session
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .session
+                    .as_ref()
+                    .unwrap()
+                    .succeeded
+                    .as_ref()
+                    .unwrap()
+                    .eq("true")
+            {
+                log::info!(
+                    "Find image ID related to CFS configuration {} in CFS session {}",
+                    cfs_session
+                        .configuration
+                        .as_ref()
+                        .unwrap()
+                        .name
+                        .as_ref()
+                        .unwrap(),
+                    cfs_session.name.as_ref().unwrap()
+                );
+
+                let new_image_id_opt = if cfs_session
+                    .status
+                    .as_ref()
+                    .and_then(|status| {
+                        status.artifacts.as_ref().and_then(|artifacts| {
+                            artifacts
+                                .first()
+                                .and_then(|artifact| artifact.result_id.clone())
+                        })
+                    })
+                    .is_some()
+                {
+                    let cfs_session_image_id = cfs_session
+                        .status
+                        .as_ref()
+                        .unwrap()
+                        .artifacts
+                        .as_ref()
+                        .unwrap()
+                        .first()
+                        .unwrap()
+                        .result_id
+                        .as_ref();
+
+                    let image_id = cfs_session_image_id.map(|elem| elem.as_str());
+
+                    let new_image_vec_rslt: Result<
+                        Vec<crate::ims::image::http_client::types::Image>,
+                        _,
+                    > = crate::ims::image::http_client::get(
+                        shasta_token,
+                        shasta_base_url,
+                        shasta_root_cert,
+                        // hsm_group_name_vec,
+                        image_id,
+                    )
+                    .await;
+
+                    // if new_image_id_vec_rslt.is_ok() && new_image_id_vec_rslt.as_ref().unwrap().first().is_some()
+                    if let Ok(Some(new_image)) = new_image_vec_rslt
+                        .as_ref()
+                        .map(|new_image_vec| new_image_vec.first())
+                    {
+                        Some(new_image.clone().id.unwrap_or("".to_string()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if new_image_id_opt.is_some() {
+                    cfs_session
+                        .status
+                        .clone()
+                        .unwrap()
+                        .artifacts
+                        .unwrap()
+                        .first()
+                        .unwrap()
+                        .clone()
+                        .result_id = new_image_id_opt;
+                }
+            }
+        }
+
+        Ok(cfs_session_vec
+            .into_iter()
+            .map(|cfs_session| cfs_session.into())
+            .collect())
+    }
+
+    /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
+    async fn get_sessions_by_xname(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        xname_vec: &[&str],
+        limit_opt: Option<u8>,
+        after_id_opt: Option<String>,
+        min_age_opt: Option<String>,
+        max_age_opt: Option<String>,
+        status_opt: Option<String>,
+        name_contains_opt: Option<String>,
+        is_succeded_opt: Option<bool>,
+        tags_opt: Option<String>,
+    ) -> Result<Vec<CfsSessionGetResponse>, Error> {
+        // Get local/backend CFS sessions
+        let mut local_cfs_session_vec = crate::cfs::session::http_client::v3::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            None,
+            limit_opt,
+            after_id_opt,
+            min_age_opt,
+            max_age_opt,
+            status_opt,
+            name_contains_opt,
+            is_succeded_opt,
+            tags_opt,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))?;
+
+        crate::cfs::session::utils::filter_by_xname(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &mut local_cfs_session_vec,
+            xname_vec,
+            None,
+        )
+        .await;
+
+        // Convert to manta session
+        let border_session_vec = local_cfs_session_vec
+            .into_iter()
+            .map(|cfs_session| cfs_session.into())
+            .collect::<Vec<CfsSessionGetResponse>>();
+
+        Ok(border_session_vec)
     }
 }

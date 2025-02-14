@@ -1,3 +1,11 @@
+use backend_dispatcher::types::cfs::{
+    Ansible as FrontEndAnsible, Artifact as FrontEndArtifact,
+    CfsSessionGetResponse as FrontEndCfsSessionGetResponse,
+    CfsSessionGetResponseList as FrontEndCfsSessionGetResponseList,
+    CfsSessionPostRequest as FrontEndCfsSessionPostRequest, Configuration as FrontEndConfiguration,
+    Group as FrontEndGroup, ImageMap as FrontEndImageMap, Next as FrontEndNext,
+    Session as FrontEndSession, Status as FrontEndStatus, Target as FrontEndTarget,
+};
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -8,11 +16,262 @@ pub struct CfsSessionGetResponseList {
     pub next: Option<Next>,
 }
 
+impl From<FrontEndCfsSessionGetResponseList> for CfsSessionGetResponseList {
+    fn from(value: FrontEndCfsSessionGetResponseList) -> Self {
+        CfsSessionGetResponseList {
+            sessions: value
+                .sessions
+                .into_iter()
+                .map(CfsSessionGetResponse::from)
+                .collect(),
+            next: value.next.map(Next::from),
+        }
+    }
+}
+
+impl Into<FrontEndCfsSessionGetResponseList> for CfsSessionGetResponseList {
+    fn into(self) -> FrontEndCfsSessionGetResponseList {
+        FrontEndCfsSessionGetResponseList {
+            sessions: self
+                .sessions
+                .into_iter()
+                .map(|session| session.into())
+                .collect(),
+            next: self.next.map(|next| next.into()),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)] // TODO: investigate why serde can Deserialize dynamically syzed structs `Vec<Layer>`
 pub struct Next {
-    limit: Option<u8>,
-    after_id: Option<String>,
-    in_use: Option<bool>,
+    pub limit: Option<u8>,
+    pub after_id: Option<String>,
+    pub in_use: Option<bool>,
+}
+
+impl From<FrontEndNext> for Next {
+    fn from(value: FrontEndNext) -> Self {
+        Next {
+            limit: value.limit,
+            after_id: value.after_id,
+            in_use: value.in_use,
+        }
+    }
+}
+
+impl Into<FrontEndNext> for Next {
+    fn into(self) -> FrontEndNext {
+        FrontEndNext {
+            limit: self.limit,
+            after_id: self.after_id,
+            in_use: self.in_use,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Configuration {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<String>,
+}
+
+impl From<FrontEndConfiguration> for Configuration {
+    fn from(value: FrontEndConfiguration) -> Self {
+        Configuration {
+            name: value.name,
+            limit: value.limit,
+        }
+    }
+}
+
+impl Into<FrontEndConfiguration> for Configuration {
+    fn into(self) -> FrontEndConfiguration {
+        FrontEndConfiguration {
+            name: self.name,
+            limit: self.limit,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Ansible {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verbosity: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passthrough: Option<String>,
+}
+
+impl From<FrontEndAnsible> for Ansible {
+    fn from(value: FrontEndAnsible) -> Self {
+        Ansible {
+            config: value.config,
+            limit: value.limit,
+            verbosity: value.verbosity,
+            passthrough: value.passthrough,
+        }
+    }
+}
+
+impl Into<FrontEndAnsible> for Ansible {
+    fn into(self) -> FrontEndAnsible {
+        FrontEndAnsible {
+            config: self.config,
+            limit: self.limit,
+            verbosity: self.verbosity,
+            passthrough: self.passthrough,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Group {
+    pub name: String,
+    pub members: Vec<String>,
+}
+
+impl From<FrontEndGroup> for Group {
+    fn from(value: FrontEndGroup) -> Self {
+        Group {
+            name: value.name,
+            members: value.members,
+        }
+    }
+}
+
+impl Into<FrontEndGroup> for Group {
+    fn into(self) -> FrontEndGroup {
+        FrontEndGroup {
+            name: self.name,
+            members: self.members,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ImageMap {
+    pub source_id: String,
+    pub result_name: String,
+}
+
+impl From<FrontEndImageMap> for ImageMap {
+    fn from(value: FrontEndImageMap) -> Self {
+        ImageMap {
+            source_id: value.source_id,
+            result_name: value.result_name,
+        }
+    }
+}
+
+impl Into<FrontEndImageMap> for ImageMap {
+    fn into(self) -> FrontEndImageMap {
+        FrontEndImageMap {
+            source_id: self.source_id,
+            result_name: self.result_name,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct Target {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub definition: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub groups: Option<Vec<Group>>,
+    pub image_map: Option<Vec<ImageMap>>,
+}
+
+impl From<FrontEndTarget> for Target {
+    fn from(value: FrontEndTarget) -> Self {
+        Target {
+            definition: value.definition,
+            groups: value
+                .groups
+                .map(|groups| groups.into_iter().map(Group::from).collect()),
+            image_map: value
+                .image_map
+                .map(|image_map| image_map.into_iter().map(ImageMap::from).collect()),
+        }
+    }
+}
+
+impl Into<FrontEndTarget> for Target {
+    fn into(self) -> FrontEndTarget {
+        FrontEndTarget {
+            definition: self.definition,
+            groups: self
+                .groups
+                .map(|groups| groups.into_iter().map(Group::into).collect()),
+            image_map: self
+                .image_map
+                .map(|image_map| image_map.into_iter().map(ImageMap::into).collect()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Artifact {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+}
+
+impl From<FrontEndArtifact> for Artifact {
+    fn from(value: FrontEndArtifact) -> Self {
+        Artifact {
+            image_id: value.image_id,
+            result_id: value.result_id,
+            r#type: value.r#type,
+        }
+    }
+}
+
+impl Into<FrontEndArtifact> for Artifact {
+    fn into(self) -> FrontEndArtifact {
+        FrontEndArtifact {
+            image_id: self.image_id,
+            result_id: self.result_id,
+            r#type: self.r#type,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Status {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifacts: Option<Vec<Artifact>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<Session>,
+}
+
+impl From<FrontEndStatus> for Status {
+    fn from(value: FrontEndStatus) -> Self {
+        Status {
+            artifacts: value
+                .artifacts
+                .map(|artifacts| artifacts.into_iter().map(Artifact::from).collect()),
+            session: value.session.map(Session::from),
+        }
+    }
+}
+
+impl Into<FrontEndStatus> for Status {
+    fn into(self) -> FrontEndStatus {
+        FrontEndStatus {
+            artifacts: self
+                .artifacts
+                .map(|artifacts| artifacts.into_iter().map(Artifact::into).collect()),
+            session: self.session.map(Session::into),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -31,6 +290,36 @@ pub struct CfsSessionGetResponse {
     pub tags: Option<HashMap<String, String>>,
     pub debug_on_failure: bool,
     pub logs: Option<String>,
+}
+
+impl From<FrontEndCfsSessionGetResponse> for CfsSessionGetResponse {
+    fn from(value: FrontEndCfsSessionGetResponse) -> Self {
+        CfsSessionGetResponse {
+            name: value.name,
+            configuration: value.configuration.map(Configuration::from),
+            ansible: value.ansible.map(Ansible::from),
+            target: value.target.map(Target::from),
+            status: value.status.map(Status::from),
+            tags: value.tags,
+            debug_on_failure: value.debug_on_failure,
+            logs: value.logs,
+        }
+    }
+}
+
+impl Into<FrontEndCfsSessionGetResponse> for CfsSessionGetResponse {
+    fn into(self) -> FrontEndCfsSessionGetResponse {
+        FrontEndCfsSessionGetResponse {
+            name: self.name,
+            configuration: self.configuration.map(|configuration| configuration.into()),
+            ansible: self.ansible.map(|ansible| ansible.into()),
+            target: self.target.map(|target| target.into()),
+            status: self.status.map(|status| status.into()),
+            tags: self.tags,
+            debug_on_failure: self.debug_on_failure,
+            logs: self.logs,
+        }
+    }
 }
 
 impl CfsSessionGetResponse {
@@ -146,44 +435,6 @@ impl CfsSessionGetResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Configuration {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Ansible {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub config: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub verbosity: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub passthrough: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Status {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub artifacts: Option<Vec<Artifact>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session: Option<Session>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Artifact {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub image_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub result_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Session {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job: Option<String>,
@@ -197,6 +448,32 @@ pub struct Session {
     pub status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub succeeded: Option<String>,
+}
+
+impl From<FrontEndSession> for Session {
+    fn from(value: FrontEndSession) -> Self {
+        Session {
+            job: value.job,
+            ims_job: value.ims_job,
+            completion_time: value.completion_time,
+            start_time: value.start_time,
+            status: value.status,
+            succeeded: value.succeeded,
+        }
+    }
+}
+
+impl Into<FrontEndSession> for Session {
+    fn into(self) -> FrontEndSession {
+        FrontEndSession {
+            job: self.job,
+            ims_job: self.ims_job,
+            completion_time: self.completion_time,
+            start_time: self.start_time,
+            status: self.status,
+            succeeded: self.succeeded,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -220,25 +497,38 @@ pub struct CfsSessionPostRequest {
     pub debug_on_failure: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Target {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub definition: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub groups: Option<Vec<Group>>,
-    pub image_map: Option<Vec<ImageMap>>,
+impl From<FrontEndCfsSessionPostRequest> for CfsSessionPostRequest {
+    fn from(value: FrontEndCfsSessionPostRequest) -> Self {
+        CfsSessionPostRequest {
+            name: value.name,
+            configuration_name: value.configuration_name,
+            configuration_limit: value.configuration_limit,
+            ansible_limit: value.ansible_limit,
+            ansible_config: value.ansible_config,
+            ansible_verbosity: value.ansible_verbosity,
+            ansible_passthrough: value.ansible_passthrough,
+            target: value.target.into(),
+            tags: value.tags,
+            debug_on_failure: value.debug_on_failure,
+        }
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Group {
-    pub name: String,
-    pub members: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ImageMap {
-    source_id: String,
-    result_name: String,
+impl Into<FrontEndCfsSessionPostRequest> for CfsSessionPostRequest {
+    fn into(self) -> FrontEndCfsSessionPostRequest {
+        FrontEndCfsSessionPostRequest {
+            name: self.name,
+            configuration_name: self.configuration_name,
+            configuration_limit: self.configuration_limit,
+            ansible_limit: self.ansible_limit,
+            ansible_config: self.ansible_config,
+            ansible_verbosity: self.ansible_verbosity,
+            ansible_passthrough: self.ansible_passthrough,
+            target: self.target.into(),
+            tags: self.tags,
+            debug_on_failure: self.debug_on_failure,
+        }
+    }
 }
 
 impl CfsSessionPostRequest {
