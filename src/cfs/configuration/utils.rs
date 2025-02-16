@@ -5,11 +5,18 @@ use crate::{
         configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
         session::http_client::v3::types::CfsSessionGetResponse,
     },
-    common, hsm,
+    common::{self, gitea},
+    error::Error,
+    hsm,
     ims::image::http_client::types::Image,
 };
 
 use globset::Glob;
+use serde_json::Value;
+
+use super::http_client::v3::types::{
+    cfs_configuration::LayerDetails, cfs_configuration_response::Layer,
+};
 
 /// Filter the list of CFS configurations provided. This operation is very expensive since it is
 /// filtering by HSM group which means it needs to link CFS configurations with CFS sessions and
@@ -148,7 +155,7 @@ pub async fn filter(
     configuration_name_pattern_opt: Option<&str>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
-) -> Vec<CfsConfigurationResponse> {
+) -> Result<Vec<CfsConfigurationResponse>, Error> {
     log::info!("Filter CFS configurations");
     // Fetch CFS components and filter by HSM group members
     let cfs_component_vec: Vec<Component> = if !hsm_group_name_vec.is_empty() {
@@ -158,8 +165,7 @@ pub async fn filter(
             shasta_root_cert,
             hsm_group_name_vec.to_vec(),
         )
-        .await
-        .unwrap();
+        .await?;
 
         // Note: nodes can be configured calling the component APi directly (bypassing BOS
         // session API)
@@ -169,8 +175,7 @@ pub async fn filter(
             shasta_root_cert,
             &hsm_group_members_vec,
         )
-        .await
-        .unwrap()
+        .await?
     } else {
         Vec::new()
     };
@@ -279,7 +284,7 @@ pub async fn filter(
             .retain(|cfs_configuration| glob.is_match(cfs_configuration.name.clone()));
     }
 
-    cfs_configuration_vec.to_vec()
+    Ok(cfs_configuration_vec.to_vec())
 }
 
 /// If filtering by HSM group, then configuration name must include HSM group name (It assumms each configuration
@@ -293,16 +298,15 @@ pub async fn get_and_filter(
     configuration_name_pattern: Option<&str>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
-) -> Vec<CfsConfigurationResponse> {
-    let mut cfs_configuration_value_vec: Vec<CfsConfigurationResponse> =
+) -> Result<Vec<CfsConfigurationResponse>, Error> {
+    let mut cfs_configuration_vec: Vec<CfsConfigurationResponse> =
         cfs::configuration::http_client::v3::get(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
             configuration_name,
         )
-        .await
-        .unwrap_or_default();
+        .await?;
 
     if configuration_name.is_none() {
         // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
@@ -311,15 +315,15 @@ pub async fn get_and_filter(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            &mut cfs_configuration_value_vec,
+            &mut cfs_configuration_vec,
             configuration_name_pattern,
             hsm_group_name_vec,
             limit_number_opt,
         )
-        .await;
+        .await?;
     }
 
-    cfs_configuration_value_vec
+    Ok(cfs_configuration_vec)
 }
 
 // Get all CFS sessions, IMS images and BOS sessiontemplates related to a CFS configuration
@@ -328,11 +332,14 @@ pub async fn get_derivatives(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     configuration_name: &str,
-) -> (
-    Option<Vec<CfsSessionGetResponse>>,
-    Option<Vec<BosSessionTemplate>>,
-    Option<Vec<Image>>,
-) {
+) -> Result<
+    (
+        Option<Vec<CfsSessionGetResponse>>,
+        Option<Vec<BosSessionTemplate>>,
+        Option<Vec<Image>>,
+    ),
+    Error,
+> {
     // List of image ids from CFS sessions and BOS sessiontemplates related to CFS configuration
     let mut image_id_vec: Vec<String> = Vec::new();
 
@@ -381,9 +388,190 @@ pub async fn get_derivatives(
     // Filter images
     ims_images.retain(|image| image_id_vec.contains(image.id.as_ref().unwrap()));
 
-    (
+    Ok((
         Some(cfs_sessions),
         Some(bos_sessiontemplates),
         Some(ims_images),
+    ))
+}
+
+pub async fn get_configuration_layer_details(
+    shasta_root_cert: &[u8],
+    gitea_base_url: &str,
+    gitea_token: &str,
+    layer: Layer,
+) -> Result<LayerDetails, Error> {
+    let commit_id: String = layer.commit.clone().unwrap_or("Not defined".to_string());
+    // let branch_name_opt: Option<&str> = layer.branch.as_deref();
+    // let mut most_recent_commit: bool = false;
+    let mut branch_name_vec: Vec<String> = Vec::new();
+    let mut tag_name_vec: Vec<String> = Vec::new();
+    let commit_sha;
+
+    let repo_ref_vec = gitea::http_client::get_all_refs_from_repo_url(
+        gitea_base_url,
+        gitea_token,
+        &layer.clone_url,
+        shasta_root_cert,
     )
+    .await?;
+
+    let mut ref_value_vec: Vec<&Value> = repo_ref_vec
+        .iter()
+        .filter(|repo_ref| {
+            repo_ref
+                .pointer("/object/sha")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .eq(&commit_id)
+        })
+        .collect();
+
+    // Check if ref filtering returns an annotated tag, if so, then get the SHA of its
+    // commit because it will be needed in case there are branches related to the
+    // annotated tag
+    if ref_value_vec.len() == 1 {
+        // Potentially an annotated tag
+        let ref_value = ref_value_vec.first().unwrap();
+        log::debug!("Found ref in remote git repo:\n{:#?}", ref_value);
+
+        let ref_type: &str = ref_value.pointer("/object/type").unwrap().as_str().unwrap();
+
+        let mut r#ref = ref_value["ref"].as_str().unwrap().split("/").skip(1);
+
+        let _ref_1 = r#ref.next();
+        let ref_2 = r#ref.next();
+
+        if ref_type == "tag" {
+            // Yes, we are processing an annotated tag
+            let tag_name = ref_2.unwrap();
+
+            let commit_sha_value = gitea::http_client::get_commit_from_tag(
+                ref_value["url"].as_str().unwrap(),
+                &tag_name,
+                gitea_token,
+                shasta_root_cert,
+            )
+            .await?;
+
+            commit_sha = commit_sha_value
+                .pointer("/commit/sha")
+                .unwrap()
+                .as_str()
+                .unwrap();
+
+            let annotated_tag_commit_sha = [commit_id.clone(), commit_sha.to_string()];
+
+            ref_value_vec = repo_ref_vec
+                .iter()
+                .filter(|repo_ref| {
+                    let ref_sha: String = repo_ref
+                        .pointer("/object/sha")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .to_string();
+
+                    annotated_tag_commit_sha.contains(&ref_sha)
+                })
+                .collect();
+        }
+    }
+
+    for ref_value in ref_value_vec {
+        log::debug!("Found ref in remote git repo:\n{:#?}", ref_value);
+        let ref_type: &str = ref_value.pointer("/object/type").unwrap().as_str().unwrap();
+        let mut r#ref = ref_value["ref"].as_str().unwrap().split("/").skip(1);
+
+        // let commit_sha_value: Value;
+
+        let ref_1 = r#ref.next();
+        // let ref_2 = r#ref.next();
+        let ref_2 = r#ref.collect::<Vec<_>>().join("/");
+
+        if ref_type == "commit" {
+            // either branch or lightweight tag
+            if let (Some("heads"), branch_name_aux) = (ref_1, ref_2.clone()) {
+                // branch
+                branch_name_vec.push(branch_name_aux);
+            } else if let (Some("tags"), tag_name_aux) = (ref_1, ref_2) {
+                // lightweight tag
+                tag_name_vec.push(tag_name_aux);
+            }
+
+            // commit_sha = ref_value["url"].as_str().unwrap();
+        } else {
+            // annotated tag
+            tag_name_vec.push(ref_2);
+
+            /* commit_sha_value = gitea::http_client::get_commit_from_tag(
+                ref_value["url"].as_str().unwrap(),
+                &tag_name,
+                gitea_token,
+                shasta_root_cert,
+            )
+            .await
+            .unwrap(); */
+
+            /* commit_sha = commit_sha_value
+            .pointer("/commit/sha")
+            .unwrap()
+            .as_str()
+            .unwrap(); */
+        }
+
+        /* // check if layer commit is the most recent
+        if commit_sha.eq(&layer.commit.clone().unwrap()) {
+            // CFS layer commit is the same as the HEAD of the branch
+            most_recent_commit = true;
+        } */
+    }
+
+    if let Some(cfs_config_layer_branch) = &layer.branch {
+        branch_name_vec.push(cfs_config_layer_branch.to_string());
+    }
+
+    let commit_id_opt = layer.commit.as_ref();
+
+    let gitea_commit_details: serde_json::Value = if let Some(commit_id) = commit_id_opt {
+        let repo_name = layer
+            .clone_url
+            .trim_start_matches("https://api-gw-service-nmn.local/vcs/")
+            .trim_end_matches(".git");
+
+        gitea::http_client::get_commit_details_from_external_url(
+            // &layer.clone_url,
+            repo_name,
+            commit_id,
+            gitea_token,
+            shasta_root_cert,
+        )
+        .await?
+    } else {
+        serde_json::json!({})
+    };
+
+    Ok(LayerDetails::new(
+        &layer.name,
+        layer
+            .clone_url
+            .trim_start_matches("https://api.cmn.alps.cscs.ch")
+            .trim_end_matches(".git"),
+        &commit_id,
+        gitea_commit_details
+            .pointer("/commit/committer/name")
+            .unwrap_or(&serde_json::json!("Not defined"))
+            .as_str()
+            .unwrap(),
+        gitea_commit_details
+            .pointer("/commit/committer/date")
+            .unwrap_or(&serde_json::json!("Not defined"))
+            .as_str()
+            .unwrap(),
+        &branch_name_vec.join(","),
+        &tag_name_vec.join(","),
+        &layer.playbook,
+        // most_recent_commit,
+    ))
 }

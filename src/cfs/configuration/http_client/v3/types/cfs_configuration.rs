@@ -1,3 +1,5 @@
+use backend_dispatcher::types::cfs::LayerDetails as FrontendLayerDetails;
+
 use std::fmt;
 
 /// Struct used by get_configuration when only one CFS configuration is fetched. This means we will
@@ -43,6 +45,36 @@ pub struct LayerDetails {
     pub branch: String,
     pub tag: String,
     pub playbook: String, // pub most_recent_commit: bool,
+}
+
+impl From<FrontendLayerDetails> for LayerDetails {
+    fn from(frontend_layer_details: FrontendLayerDetails) -> Self {
+        Self {
+            name: frontend_layer_details.name,
+            repo_name: frontend_layer_details.repo_name,
+            commit_id: frontend_layer_details.commit_id,
+            author: frontend_layer_details.author,
+            commit_date: frontend_layer_details.commit_date,
+            branch: frontend_layer_details.branch,
+            tag: frontend_layer_details.tag,
+            playbook: frontend_layer_details.playbook,
+        }
+    }
+}
+
+impl Into<FrontendLayerDetails> for LayerDetails {
+    fn into(self) -> FrontendLayerDetails {
+        FrontendLayerDetails {
+            name: self.name,
+            repo_name: self.repo_name,
+            commit_id: self.commit_id,
+            author: self.author,
+            commit_date: self.commit_date,
+            branch: self.branch,
+            tag: self.tag,
+            playbook: self.playbook,
+        }
+    }
 }
 
 impl LayerDetails {

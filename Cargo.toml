@@ -14,7 +14,9 @@ publish = true
 
 [dependencies]
 # backend-dispatcher = { path = "../backend-dispatcher" } # Only for development purposes
-backend-dispatcher = "0.1.24"
+backend-dispatcher = "0.1.25"
+chrono = { version = "0.4.31", default-features = false }
+substring = "1.4.5"
 strum = { version = "0.25.0", default-features = false }
 strum_macros = "0.25"
 anyhow = { version = "1.0.44", default-features = false }
@@ -40,6 +42,7 @@ hyper-rustls = { version = "0.24.0", default-features = false }
 tower = { version = "0.4.13", default-features = false }
 futures = { version = "0.3.28", default-features = false }
 dialoguer = { version = "0.10.2", features = ["password"], default-features = false }
+git2 = { version = "0.18.1", default-features = false }
 regex = "1.6.0"
 directories = "4.0.1" # XDG Base Directory Specification
 config = { version = "0.13.2", features = ["ron"], default-features = false }

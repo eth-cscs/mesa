@@ -1,3 +1,8 @@
+use backend_dispatcher::types::cfs::cfs_configuration_request::{
+    AdditionalInventory as FrontEndAdditionalInventory,
+    CfsConfigurationRequest as FrontEndCfsConfigurationRequest, Layer as FrontEndLayer,
+    SpecialParameter as FrontEndSpecialParameter,
+};
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -13,13 +18,53 @@ pub struct Layer {
     pub clone_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
     pub source: Option<String>,
-    playbook: String,
+    pub playbook: String,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
     pub commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
     pub branch: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub special_parameters: Option<Vec<SpecialParameter>>,
+}
+
+impl From<FrontEndLayer> for Layer {
+    fn from(front_end_layer: FrontEndLayer) -> Self {
+        Self {
+            name: front_end_layer.name,
+            clone_url: front_end_layer.clone_url,
+            source: front_end_layer.source,
+            playbook: front_end_layer.playbook,
+            commit: front_end_layer.commit,
+            branch: front_end_layer.branch,
+            special_parameters: front_end_layer
+                .special_parameters
+                .map(|special_parameters| {
+                    special_parameters
+                        .into_iter()
+                        .map(|special_parameter| special_parameter.into())
+                        .collect()
+                }),
+        }
+    }
+}
+
+impl Into<FrontEndLayer> for Layer {
+    fn into(self) -> FrontEndLayer {
+        FrontEndLayer {
+            name: self.name,
+            clone_url: self.clone_url,
+            source: self.source,
+            playbook: self.playbook,
+            commit: self.commit,
+            branch: self.branch,
+            special_parameters: self.special_parameters.map(|special_parameters| {
+                special_parameters
+                    .into_iter()
+                    .map(|special_parameter| special_parameter.into())
+                    .collect()
+            }),
+        }
+    }
 }
 
 impl Layer {
@@ -47,16 +92,56 @@ impl Layer {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SpecialParameter {
     #[serde(skip_serializing_if = "Option::is_none")]
-    ims_required_dkms: Option<bool>,
+    pub ims_required_dkms: Option<bool>,
+}
+
+impl From<FrontEndSpecialParameter> for SpecialParameter {
+    fn from(front_end_special_parameter: FrontEndSpecialParameter) -> Self {
+        Self {
+            ims_required_dkms: front_end_special_parameter.ims_required_dkms,
+        }
+    }
+}
+
+impl Into<FrontEndSpecialParameter> for SpecialParameter {
+    fn into(self) -> FrontEndSpecialParameter {
+        FrontEndSpecialParameter {
+            ims_required_dkms: self.ims_required_dkms,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AdditionalInventory {
-    name: Option<String>,
-    clone_url: String,
-    source: Option<String>,
-    commit: Option<String>,
-    branch: Option<String>,
+    pub name: Option<String>,
+    pub clone_url: String,
+    pub source: Option<String>,
+    pub commit: Option<String>,
+    pub branch: Option<String>,
+}
+
+impl From<FrontEndAdditionalInventory> for AdditionalInventory {
+    fn from(front_end_additional_inventory: FrontEndAdditionalInventory) -> Self {
+        Self {
+            name: front_end_additional_inventory.name,
+            clone_url: front_end_additional_inventory.clone_url,
+            source: front_end_additional_inventory.source,
+            commit: front_end_additional_inventory.commit,
+            branch: front_end_additional_inventory.branch,
+        }
+    }
+}
+
+impl Into<FrontEndAdditionalInventory> for AdditionalInventory {
+    fn into(self) -> FrontEndAdditionalInventory {
+        FrontEndAdditionalInventory {
+            name: self.name,
+            clone_url: self.clone_url,
+            source: self.source,
+            commit: self.commit,
+            branch: self.branch,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -64,6 +149,34 @@ pub struct CfsConfigurationRequest {
     pub description: Option<String>,
     pub layers: Option<Vec<Layer>>,
     pub additional_inventory: Option<AdditionalInventory>,
+}
+
+impl From<FrontEndCfsConfigurationRequest> for CfsConfigurationRequest {
+    fn from(front_end_cfs_configuration_request: FrontEndCfsConfigurationRequest) -> Self {
+        Self {
+            description: front_end_cfs_configuration_request.description,
+            layers: front_end_cfs_configuration_request
+                .layers
+                .map(|layer_vec| layer_vec.into_iter().map(Layer::from).collect()),
+            additional_inventory: front_end_cfs_configuration_request
+                .additional_inventory
+                .map(|additional_inventory| additional_inventory.into()),
+        }
+    }
+}
+
+impl Into<FrontEndCfsConfigurationRequest> for CfsConfigurationRequest {
+    fn into(self) -> FrontEndCfsConfigurationRequest {
+        FrontEndCfsConfigurationRequest {
+            description: self.description,
+            layers: self
+                .layers
+                .map(|layer_vec| layer_vec.into_iter().map(Layer::into).collect()),
+            additional_inventory: self
+                .additional_inventory
+                .map(|additional_inventory| additional_inventory.into()),
+        }
+    }
 }
 
 impl Default for CfsConfigurationRequest {
@@ -297,5 +410,158 @@ impl CfsConfigurationRequest {
         }
 
         Ok((cfs_configuration_name, cfs_configuration))
+    }
+
+    pub async fn create_from_repos(
+        gitea_token: &str,
+        gitea_base_url: &str,
+        shasta_root_cert: &[u8],
+        // repos: Vec<PathBuf>,
+        repo_name_vec: Vec<String>,
+        local_git_commit_vec: Vec<String>,
+        playbook_file_name_opt: Option<&String>,
+    ) -> CfsConfigurationRequest {
+        // Create CFS configuration
+        let mut cfs_configuration = CfsConfigurationRequest::new();
+        // cfs_configuration.name = cfs_configuration_name.to_string();
+
+        /* for repo_path in &repos {
+            // Get repo from path
+            let repo = match local_git_repo::get_repo(&repo_path.to_string_lossy()) {
+                Ok(repo) => repo,
+                Err(_) => {
+                    eprintln!(
+                        "Could not find a git repo in {}",
+                        repo_path.to_string_lossy()
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            // Get last (most recent) commit
+            let local_last_commit = local_git_repo::get_last_commit(&repo).unwrap();
+
+            // Get repo name
+            let repo_ref_origin = repo.find_remote("origin").unwrap();
+
+            log::info!("Repo ref origin URL: {}", repo_ref_origin.url().unwrap());
+
+            let repo_ref_origin_url = repo_ref_origin.url().unwrap();
+
+            let repo_name = repo_ref_origin_url
+                .substring(
+                    repo_ref_origin_url.rfind(|c| c == '/').unwrap() + 1, // repo name should not include URI '/' separator
+                    repo_ref_origin_url.len(), // repo_ref_origin_url.rfind(|c| c == '.').unwrap(),
+                )
+                .trim_end_matches(".git");
+
+            let repo_name = "cray/".to_owned() + repo_name;
+
+            // Check if repo and local commit id exists in Shasta cvs
+            let shasta_commitid_details_resp = gitea::http_client::get_commit_details(
+                "https://api-gw-service-nmn.local/vcs/",
+                &repo_name,
+                &local_last_commit.id().to_string(),
+                gitea_token,
+                shasta_root_cert,
+            )
+            .await;
+
+            // Check sync status between user face and shasta VCS
+            let _ = match shasta_commitid_details_resp {
+                Ok(_) => {
+                    log::debug!(
+                        "Local latest commit id {} for repo {} exists in shasta",
+                        local_last_commit.id(),
+                        repo_name
+                    );
+                    shasta_commitid_details_resp.unwrap()
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            let clone_url = gitea_base_url.to_owned() + &repo_name;
+
+            log::debug!("clone url: {}", clone_url);
+
+            // Create CFS layer
+            let cfs_layer = Layer::new(
+                Some(format!(
+                    "{}-{}",
+                    repo_name,
+                    chrono::offset::Local::now().timestamp()
+                )),
+                // Some(shasta_commitid_details["sha"].as_str().unwrap().to_string()),
+                Some(clone_url),
+                None,
+                playbook_file_name_opt
+                    .unwrap_or(&"site.yml".to_string())
+                    .to_string(),
+                Some(local_last_commit.id().to_string()),
+                None,
+                None,
+            );
+
+            CfsConfigurationRequest::add_layer(&mut cfs_configuration, cfs_layer);
+        } */
+        for (repo_name, local_last_commit) in repo_name_vec.iter().zip(local_git_commit_vec.iter())
+        {
+            // Check if repo and local commit id exists in Shasta cvs
+            let shasta_commitid_details_resp = gitea::http_client::get_commit_details(
+                "https://api-gw-service-nmn.local/vcs/",
+                &repo_name,
+                &local_last_commit,
+                gitea_token,
+                shasta_root_cert,
+            )
+            .await;
+
+            // Check sync status between user face and shasta VCS
+            let _ = match shasta_commitid_details_resp {
+                Ok(_) => {
+                    log::debug!(
+                        "Local latest commit id {} for repo {} exists in shasta",
+                        local_last_commit,
+                        repo_name
+                    );
+                    shasta_commitid_details_resp.unwrap()
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            let clone_url = gitea_base_url.to_owned() + &repo_name;
+
+            log::debug!("clone url: {}", clone_url);
+
+            // Create CFS layer
+            let cfs_layer = Layer::new(
+                Some(format!(
+                    "{}-{}",
+                    repo_name,
+                    chrono::offset::Local::now().timestamp()
+                )),
+                // Some(shasta_commitid_details["sha"].as_str().unwrap().to_string()),
+                Some(clone_url),
+                None,
+                playbook_file_name_opt
+                    .unwrap_or(&"site.yml".to_string())
+                    .to_string(),
+                Some(local_last_commit.to_string()),
+                None,
+                None,
+            );
+
+            CfsConfigurationRequest::add_layer(&mut cfs_configuration, cfs_layer);
+        }
+
+        log::debug!("CFS configuration:\n{:#?}", cfs_configuration);
+
+        cfs_configuration
     }
 }

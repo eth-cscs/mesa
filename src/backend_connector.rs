@@ -12,7 +12,12 @@ use backend_dispatcher::{
         pcs::PCSTrait,
     },
     types::{
-        cfs::CfsSessionGetResponse, BootParameters as FrontEndBootParameters, Component,
+        cfs::{
+            cfs_configuration_request::CfsConfigurationRequest, CfsConfigurationResponse,
+            CfsSessionGetResponse, Layer, LayerDetails,
+        },
+        ims::Image,
+        BootParameters as FrontEndBootParameters, BosSessionTemplate, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList, K8sAuth, K8sDetails,
         NodeMetadataArray,
@@ -1043,6 +1048,106 @@ impl CfsTrait for Csm {
             .collect())
     }
 
+    async fn create_configuration_from_repos(
+        &self,
+        gitea_token: &str,
+        gitea_base_url: &str,
+        shasta_root_cert: &[u8],
+        repo_name_vec: Vec<String>,
+        local_git_commit_vec: Vec<String>,
+        playbook_file_name_opt: Option<&String>,
+    ) -> Result<CfsConfigurationRequest, Error> {
+        Ok(crate::cfs::configuration::http_client::v3::types::cfs_configuration_request::CfsConfigurationRequest::create_from_repos(
+            gitea_token,
+            gitea_base_url,
+            shasta_root_cert,
+            repo_name_vec,
+            local_git_commit_vec,
+            playbook_file_name_opt,
+        ).await.into())
+    }
+
+    async fn get_configuration(
+        &self,
+        auth_token: &str,
+        base_url: &str,
+        root_cert: &[u8],
+        configuration_name_opt: Option<&String>,
+    ) -> Result<Vec<CfsConfigurationResponse>, Error> {
+        let cfs_configuration_vec = crate::cfs::configuration::http_client::v3::get(
+            auth_token,
+            base_url,
+            root_cert,
+            configuration_name_opt.map(|elem| elem.as_str()),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()));
+
+        cfs_configuration_vec.map(|config_vec| config_vec.into_iter().map(|c| c.into()).collect())
+    }
+
+    async fn get_and_filter_configuration(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        configuration_name: Option<&str>,
+        configuration_name_pattern: Option<&str>,
+        hsm_group_name_vec: &[String],
+        limit_number_opt: Option<&u8>,
+    ) -> Result<Vec<CfsConfigurationResponse>, Error> {
+        crate::cfs::configuration::utils::get_and_filter(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            configuration_name,
+            configuration_name_pattern,
+            hsm_group_name_vec,
+            limit_number_opt,
+        )
+        .await
+        .map(|config_vec| config_vec.into_iter().map(|c| c.into()).collect())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_configuration_layer_details(
+        &self,
+        shasta_root_cert: &[u8],
+        gitea_base_url: &str,
+        gitea_token: &str,
+        layer: Layer,
+    ) -> Result<LayerDetails, Error> {
+        crate::cfs::configuration::utils::get_configuration_layer_details(
+            shasta_root_cert,
+            gitea_base_url,
+            gitea_token,
+            layer.into(),
+        )
+        .await
+        .map(|layer_details| layer_details.into())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn put_configuration(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        configuration: &CfsConfigurationRequest,
+        configuration_name: &str,
+    ) -> Result<CfsConfigurationResponse, Error> {
+        crate::cfs::configuration::http_client::v3::put(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &configuration.clone().into(),
+            configuration_name,
+        )
+        .await
+        .map(|config| config.into())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
     async fn get_sessions_by_xname(
         &self,
@@ -1094,5 +1199,69 @@ impl CfsTrait for Csm {
             .collect::<Vec<CfsSessionGetResponse>>();
 
         Ok(border_session_vec)
+    }
+
+    async fn update_runtime_configuration(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        xnames: Vec<String>,
+        desired_configuration: &str,
+        enabled: bool,
+    ) -> Result<(), Error> {
+        crate::cfs::component::utils::update_component_list_desired_configuration(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            xnames,
+            desired_configuration,
+            enabled,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    // Get all CFS sessions, IMS images and BOS sessiontemplates related to a CFS configuration
+    async fn get_derivatives(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        configuration_name: &str,
+    ) -> Result<
+        (
+            Option<Vec<CfsSessionGetResponse>>,
+            Option<Vec<BosSessionTemplate>>,
+            Option<Vec<Image>>,
+        ),
+        Error,
+    > {
+        crate::cfs::configuration::utils::get_derivatives(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            configuration_name,
+        )
+        .await
+        .map(|(cfs_session_vec, bos_session_template_vec, image_vec)| {
+            (
+                cfs_session_vec.map(|cfs_session_vec| {
+                    cfs_session_vec
+                        .into_iter()
+                        .map(|cfs_session| cfs_session.into())
+                        .collect()
+                }),
+                bos_session_template_vec.map(|bos_session_template_vec| {
+                    bos_session_template_vec
+                        .into_iter()
+                        .map(|bos_session_template| bos_session_template.into())
+                        .collect()
+                }),
+                image_vec
+                    .map(|image_vec| image_vec.into_iter().map(|image| image.into()).collect()),
+            )
+        })
+        .map_err(|e| Error::Message(e.to_string()))
     }
 }

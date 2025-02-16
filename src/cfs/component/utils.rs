@@ -1,4 +1,4 @@
-use crate::cfs::component::http_client::v3::types::Component;
+use crate::{cfs::component::http_client::v3::types::Component, error::Error};
 
 pub async fn update_component_desired_configuration(
     shasta_token: &str,
@@ -36,7 +36,7 @@ pub async fn update_component_list_desired_configuration(
     xnames: Vec<String>,
     desired_configuration: &str,
     enabled: bool,
-) {
+) -> Result<(), Error> {
     let mut component_list = Vec::new();
 
     for xname in xnames {
@@ -55,11 +55,13 @@ pub async fn update_component_list_desired_configuration(
         component_list.push(component);
     }
 
-    let _ = crate::cfs::component::http_client::v3::patch_component_list(
+    crate::cfs::component::http_client::v3::patch_component_list(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
         component_list,
     )
-    .await;
+    .await?;
+
+    Ok(())
 }
