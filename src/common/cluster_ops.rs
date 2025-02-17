@@ -1,6 +1,9 @@
-use crate::cfs::{
-    configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
-    session::http_client::v3::types::CfsSessionGetResponse,
+use crate::{
+    cfs::{
+        configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
+        session::http_client::v3::types::CfsSessionGetResponse,
+    },
+    error::Error,
 };
 
 #[derive(Debug)]
@@ -16,7 +19,7 @@ pub async fn get_details(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     hsm_group_name: &str,
-) -> Vec<ClusterDetails> {
+) -> Result<Vec<ClusterDetails>, Error> {
     let mut clusters_details = vec![];
 
     // Get HSM groups matching cluster name
@@ -26,8 +29,7 @@ pub async fn get_details(
         shasta_root_cert,
         Some(&hsm_group_name.to_string()),
     )
-    .await
-    .unwrap();
+    .await?;
 
     for hsm_group in hsm_group_value_vec {
         let hsm_group_name = hsm_group.label.as_str();
@@ -36,7 +38,7 @@ pub async fn get_details(
             crate::hsm::group::utils::get_member_vec_from_hsm_group(&hsm_group).join(",");
 
         // Get all CFS sessions
-        let mut cfs_session_vec = crate::cfs::session::get(
+        let mut cfs_session_vec = crate::cfs::session::get_and_sort(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -46,8 +48,7 @@ pub async fn get_details(
             None,
             Some(true),
         )
-        .await
-        .unwrap();
+        .await?;
 
         crate::cfs::session::utils::filter_by_hsm(
             shasta_token,
@@ -57,7 +58,7 @@ pub async fn get_details(
             &[hsm_group_name.to_string()],
             None,
         )
-        .await;
+        .await?;
 
         let most_recent_cfs_session;
         let cfs_configuration;
@@ -105,8 +106,7 @@ pub async fn get_details(
                             .unwrap(),
                     ),
                 )
-                .await
-                .unwrap();
+                .await?;
 
                 cfs_configuration = cfs_configuration_vec.first().unwrap();
 
@@ -124,5 +124,5 @@ pub async fn get_details(
         }
     }
 
-    clusters_details
+    Ok(clusters_details)
 }

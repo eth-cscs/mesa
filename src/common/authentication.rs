@@ -87,9 +87,8 @@ pub async fn get_api_token(
         {
             Ok(shasta_token_aux) => {
                 log::debug!("Shasta token received");
-                file = File::create(&path).expect("Error encountered while creating file!");
-                file.write_all(shasta_token_aux.as_bytes())
-                    .expect("Error while writing to file");
+                file = File::create(&path)?;
+                file.write_all(shasta_token_aux.as_bytes())?;
                 shasta_token = get_token_from_local_file(path.as_os_str()).unwrap();
             }
             Err(_) => {

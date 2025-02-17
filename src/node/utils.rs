@@ -8,6 +8,59 @@ use crate::{bss, cfs, error::Error, hsm};
 
 use super::types::NodeDetails;
 
+/// Validate user has access to a list of HSM group members provided.
+/// HSM members user is asking for are taken from cli command
+/// Exit if user does not have access to any of the members provided. By not having access to a HSM
+/// members means, the node belongs to an HSM group which the user does not have access
+pub async fn validate_target_hsm_members(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    hsm_group_members_opt: &Vec<String>,
+) -> Result<Vec<String>, Error> {
+    let hsm_groups_user_has_access = hsm::group::utils::get_group_name_available(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+    )
+    .await
+    .unwrap();
+    /* let hsm_groups_user_has_access = config_show::get_hsm_name_available_from_jwt_or_all(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+    )
+    .await; */
+
+    let all_xnames_user_has_access = hsm::group::utils::get_member_vec_from_hsm_name_vec(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        hsm_groups_user_has_access.clone(),
+    )
+    .await
+    .unwrap();
+    /* let all_xnames_user_has_access = hsm::group::utils::get_member_vec_from_hsm_name_vec(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        hsm_groups_user_has_access.clone(),
+    )
+    .await; */
+
+    // Check user has access to all xnames he is requesting
+    if hsm_group_members_opt
+        .iter()
+        .all(|hsm_member| all_xnames_user_has_access.contains(hsm_member))
+    {
+        Ok(hsm_group_members_opt.to_vec())
+    } else {
+        return Err(Error::Message(format!("Can't access all or any of the HSM members '{}'.\nPlease choose members form the list of HSM groups below:\n{}\nExit", hsm_group_members_opt.join(", "), hsm_groups_user_has_access.join(", "))));
+        /* println!("Can't access all or any of the HSM members '{}'.\nPlease choose members form the list of HSM groups below:\n{}\nExit", hsm_group_members_opt.join(", "), hsm_groups_user_has_access.join(", "));
+        std::process::exit(1); */
+    }
+}
+
 /// Check if input is a NID
 pub fn validate_nid_format_regex(node_vec: Vec<String>, regex: Regex) -> bool {
     node_vec.iter().all(|nid| regex.is_match(nid))
@@ -149,7 +202,7 @@ pub async fn get_node_details(
             &xname_list,
         ),
         // Get CFS sessions
-        cfs::session::get(
+        cfs::session::get_and_sort(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -292,15 +345,45 @@ pub async fn get_node_details(
                 &xname,
             )
             .await
-            .expect(&format!(
+            /* .expect(&format!(
                 "ERROR - could not get node '{}' membership from HSM",
                 xname
-            ))
+            )) */
         });
     }
 
     while let Some(message) = tasks.join_next().await {
-        if let Ok(node_membership) = message {
+        match message.unwrap() {
+            Ok(node_membership) => {
+                let node_details = NodeDetails {
+                    xname: "".to_string(),
+                    nid: "".to_string(),
+                    hsm: node_membership.group_labels.join(", "),
+                    power_status: "".to_string(),
+                    desired_configuration: "".to_string(),
+                    configuration_status: "".to_string(),
+                    enabled: "".to_string(),
+                    error_count: "".to_string(),
+                    boot_image_id: "".to_string(),
+                    boot_configuration: "".to_string(),
+                    kernel_params: "".to_string(),
+                };
+
+                node_details_map
+                    .entry(node_membership.id.clone())
+                    .and_modify(|node_details: &mut NodeDetails| {
+                        node_details.hsm = node_membership.group_labels.join(", ")
+                    })
+                    .or_insert(node_details);
+            }
+            Err(e) => {
+                log::error!(
+                    "ERROR - could not get node membership from HSM\nReason:\n{:#?}",
+                    e
+                );
+            }
+        }
+        /* if let Ok(Ok(node_membership)) = message {
             let node_details = NodeDetails {
                 xname: "".to_string(),
                 nid: "".to_string(),
@@ -321,7 +404,7 @@ pub async fn get_node_details(
                     node_details.hsm = node_membership.group_labels.join(", ")
                 })
                 .or_insert(node_details);
-        }
+        } */
     }
 
     let duration = start.elapsed();

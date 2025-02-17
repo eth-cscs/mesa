@@ -87,14 +87,21 @@ pub async fn get(
                 &node_vec,
             )
             .await
-            .unwrap()
         });
     }
 
     while let Some(message) = tasks.join_next().await {
-        if let Ok(mut node_status_vec) = message {
-            hsm_component_status_vec.append(&mut node_status_vec);
+        match message.unwrap() {
+            Ok(mut node_status_vec) => {
+                hsm_component_status_vec.append(&mut node_status_vec);
+            }
+            Err(error) => {
+                log::error!("Error: {:?}", error);
+            }
         }
+        /* if let Ok(mut node_status_vec) = message {
+            hsm_component_status_vec.append(&mut node_status_vec);
+        } */
     }
 
     Ok(hsm_component_status_vec)

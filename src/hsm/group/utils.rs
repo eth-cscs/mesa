@@ -10,7 +10,7 @@ use tokio::sync::Semaphore;
 use crate::{
     cfs::session::http_client::v3::types::CfsSessionGetResponse,
     error::Error,
-    hsm::group::{http_client::get, types::Group},
+    hsm::{self, group::types::Group},
     node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,
 };
 
@@ -18,6 +18,52 @@ use super::{
     http_client::{self, delete_member, post_member},
     types::Member,
 };
+
+pub async fn get_group_name_available(
+    shasta_auth_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+) -> Result<Vec<String>, Error> {
+    log::debug!("Get HSM names available from JWT or all");
+
+    const ADMIN_ROLE_NAME: &str = "pa_admin";
+
+    // Get HSM groups/Keycloak roles the user has access to from JWT token
+    let mut realm_access_role_vec = crate::common::jwt_ops::get_roles(shasta_auth_token);
+
+    if !realm_access_role_vec.contains(&ADMIN_ROLE_NAME.to_string()) {
+        log::debug!("User is not admin, getting HSM groups available from JWT");
+
+        // remove keycloak roles not related with HSM groups
+        realm_access_role_vec
+            .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
+
+        // Remove site wide HSM groups like 'alps', 'prealps', 'alpsm', etc because they pollute
+        // the roles to check if a user has access to individual compute nodes
+        //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
+        //wide operations instead of using roles
+        let mut realm_access_role_filtered_vec =
+            hsm::group::hacks::filter_system_hsm_group_names(realm_access_role_vec.clone());
+
+        realm_access_role_filtered_vec.sort();
+
+        Ok(realm_access_role_vec)
+    } else {
+        log::debug!("User is admin, getting all HSM groups in the system");
+        let all_hsm_groups_rslt =
+            hsm::group::http_client::get_all(shasta_auth_token, shasta_base_url, shasta_root_cert)
+                .await;
+
+        let mut all_hsm_groups = all_hsm_groups_rslt?
+            .iter()
+            .map(|hsm_value| hsm_value.label.clone())
+            .collect::<Vec<String>>();
+
+        all_hsm_groups.sort();
+
+        Ok(all_hsm_groups)
+    }
+}
 
 /// Add a list of xnames to target HSM group
 /// Returns the new list of nodes in target HSM group
@@ -29,7 +75,7 @@ pub async fn add_member(
     new_member: &str,
 ) -> Result<Vec<String>, Error> {
     // Get HSM group from CSM
-    let group_vec = crate::hsm::group::http_client::get(
+    let group_vec = hsm::group::http_client::get(
         base_url,
         auth_token,
         root_cert,
@@ -431,7 +477,7 @@ pub async fn get_member_vec_from_hsm_name_vec(
         tasks.spawn(async move {
             let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
 
-            get(
+            hsm::group::http_client::get(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,

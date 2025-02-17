@@ -15,7 +15,7 @@ use crate::{
 /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
 /// Returns list of CFS sessions ordered by start time.
 /// This methods filter by either HSM group name or HSM group members or both
-pub async fn get(
+pub async fn get_and_sort(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
@@ -122,7 +122,7 @@ pub async fn post_sync(
     }
 
     // Get most recent CFS session status
-    let cfs_session: CfsSessionGetResponse = get(
+    let cfs_session: CfsSessionGetResponse = get_and_sort(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,

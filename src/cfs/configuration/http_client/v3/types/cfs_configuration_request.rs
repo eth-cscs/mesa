@@ -420,7 +420,7 @@ impl CfsConfigurationRequest {
         repo_name_vec: Vec<String>,
         local_git_commit_vec: Vec<String>,
         playbook_file_name_opt: Option<&String>,
-    ) -> CfsConfigurationRequest {
+    ) -> Result<CfsConfigurationRequest, Error> {
         // Create CFS configuration
         let mut cfs_configuration = CfsConfigurationRequest::new();
         // cfs_configuration.name = cfs_configuration_name.to_string();
@@ -530,8 +530,9 @@ impl CfsConfigurationRequest {
                     shasta_commitid_details_resp.unwrap()
                 }
                 Err(e) => {
-                    eprintln!("{}", e);
-                    std::process::exit(1);
+                    return Err(Error::Message(e.to_string()));
+                    /* eprintln!("{}", e);
+                    std::process::exit(1); */
                 }
             };
 
@@ -562,6 +563,6 @@ impl CfsConfigurationRequest {
 
         log::debug!("CFS configuration:\n{:#?}", cfs_configuration);
 
-        cfs_configuration
+        Ok(cfs_configuration)
     }
 }

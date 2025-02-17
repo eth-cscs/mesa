@@ -3,6 +3,7 @@ pub mod bos;
 pub mod bss;
 pub mod capmc;
 pub mod cfs;
+pub mod commands;
 pub mod common;
 pub mod error;
 pub mod hsm;

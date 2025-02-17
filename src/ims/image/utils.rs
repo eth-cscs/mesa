@@ -100,7 +100,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
     image_vec: &mut Vec<Image>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
-) -> Vec<(Image, String, String, bool)> {
+) -> Result<Vec<(Image, String, String, bool)>, Error> {
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
         *image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
@@ -113,8 +113,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         shasta_root_cert,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
     bos::template::utils::filter(
         &mut bos_sessiontemplate_value_vec,
@@ -122,13 +121,12 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         &Vec::new(),
         // None,
         None,
-    )
-    .await;
+    );
 
     // We need CFS sessions to find images without a BOS session template (hopefully the CFS
     // session has not been deleted by CSCS staff, otherwise it will be technically impossible to
     // find unless we search images by HSM name and expect HSM name to be in image name...)
-    let mut cfs_session_vec = crate::cfs::session::get(
+    let mut cfs_session_vec = crate::cfs::session::get_and_sort(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -138,8 +136,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         None,
         Some(true),
     )
-    .await
-    .unwrap();
+    .await?;
 
     crate::cfs::session::utils::filter_by_hsm(
         shasta_token,
@@ -149,7 +146,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         hsm_group_name_vec,
         None,
     )
-    .await;
+    .await?;
 
     let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
@@ -176,8 +173,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         shasta_root_cert,
         hsm_group_name_vec.to_vec(),
     )
-    .await
-    .unwrap();
+    .await?;
 
     let boot_param_vec = get_multiple(
         shasta_token,
@@ -186,7 +182,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         &hsm_member_vec,
     )
     .await
-    .unwrap_or(Vec::new());
+    .unwrap_or_default();
 
     let image_id_from_boot_params: Vec<String> = boot_param_vec
         .iter()
@@ -259,7 +255,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         ));
     }
 
-    image_detail_vec
+    Ok(image_detail_vec)
 }
 
 /// Returns a list of images with the cfs
@@ -289,11 +285,10 @@ pub async fn get_image_available_vec(
         hsm_name_available_vec,
         &Vec::new(),
         None,
-    )
-    .await;
+    );
 
     // We need CFS sessions to find images without a BOS session template
-    let mut cfs_session_vec = crate::cfs::session::get(
+    let mut cfs_session_vec = crate::cfs::session::get_and_sort(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -314,7 +309,7 @@ pub async fn get_image_available_vec(
         hsm_name_available_vec,
         None,
     )
-    .await;
+    .await?;
 
     let mut image_id_cfs_configuration_from_bos_sessiontemplate: Vec<(
         String,

@@ -9,6 +9,7 @@ use crate::{
         configuration::http_client::v3::types::cfs_configuration_response::CfsConfigurationResponse,
         session::http_client::v3::types::CfsSessionGetResponse,
     },
+    error::Error,
     ims::{self, image::http_client::types::Image},
 };
 
@@ -20,12 +21,15 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
     get_cfs_session: bool,
     get_bos_sessiontemplate: bool,
     get_ims_image: bool,
-) -> (
-    Option<Vec<CfsConfigurationResponse>>,
-    Option<Vec<CfsSessionGetResponse>>,
-    Option<Vec<BosSessionTemplate>>,
-    Option<Vec<Image>>,
-) {
+) -> Result<
+    (
+        Option<Vec<CfsConfigurationResponse>>,
+        Option<Vec<CfsSessionGetResponse>>,
+        Option<Vec<BosSessionTemplate>>,
+        Option<Vec<Image>>,
+    ),
+    Error,
+> {
     let start = Instant::now();
 
     let handle_cfs_configuration_opt = if get_cfs_configuration {
@@ -41,7 +45,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
                 None,
             )
             .await
-            .unwrap()
+            // .unwrap()
         }))
     } else {
         None
@@ -53,7 +57,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            cfs::session::get(
+            cfs::session::get_and_sort(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
@@ -64,7 +68,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
                 None,
             )
             .await
-            .unwrap()
+            // .unwrap()
         }))
     } else {
         None
@@ -82,7 +86,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
                 &shasta_root_cert_vec,
             )
             .await
-            .unwrap()
+            // .unwrap()
         }))
     } else {
         None
@@ -100,32 +104,64 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
                 &shasta_root_cert_vec,
             )
             .await
-            .unwrap()
+            // .unwrap()
         }))
     } else {
         None
     };
 
+    /* let cfs_configuration_vec = if let Some(handle) = handle_cfs_configuration_opt {
+        Some(handle.await.unwrap())
+    } else {
+        None
+    }; */
     let cfs_configuration_vec = if let Some(handle) = handle_cfs_configuration_opt {
-        Some(handle.await.unwrap())
+        match handle.await.unwrap() {
+            Ok(cfs_configuration_vec) => Some(cfs_configuration_vec),
+            Err(e) => return Err(e),
+        }
     } else {
         None
     };
 
+    /* let cfs_session_vec = if let Some(handle) = handle_cfs_session_opt {
+        Some(handle.await.unwrap())
+    } else {
+        None
+    }; */
     let cfs_session_vec = if let Some(handle) = handle_cfs_session_opt {
-        Some(handle.await.unwrap())
+        match handle.await.unwrap() {
+            Ok(cfs_session_vec) => Some(cfs_session_vec),
+            Err(e) => return Err(e),
+        }
     } else {
         None
     };
 
+    /* let bos_sessiontemplate_vec = if let Some(handle) = handle_bos_sessiontemplate_opt {
+        Some(handle.await.unwrap())
+    } else {
+        None
+    }; */
     let bos_sessiontemplate_vec = if let Some(handle) = handle_bos_sessiontemplate_opt {
-        Some(handle.await.unwrap())
+        match handle.await.unwrap() {
+            Ok(bos_sessiontemplate_vec) => Some(bos_sessiontemplate_vec),
+            Err(e) => return Err(e),
+        }
     } else {
         None
     };
 
+    /* let ims_image_vec = if let Some(handle) = handle_ims_image_opt {
+        handle.await.unwrap()
+    } else {
+        None
+    }; */
     let ims_image_vec = if let Some(handle) = handle_ims_image_opt {
-        Some(handle.await.unwrap())
+        match handle.await.unwrap() {
+            Ok(ims_image_vec) => Some(ims_image_vec),
+            Err(e) => return Err(e),
+        }
     } else {
         None
     };
@@ -133,12 +169,12 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images(
     let duration = start.elapsed();
     log::info!("Time elapsed to get CFS configurations, CFS sessions, BSS bootparameters and images bundle is: {:?}", duration);
 
-    (
+    Ok((
         cfs_configuration_vec,
         cfs_session_vec,
         bos_sessiontemplate_vec,
         ims_image_vec,
-    )
+    ))
 }
 
 pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
@@ -204,7 +240,7 @@ pub async fn get_configurations_sessions_bos_sessiontemplates_images_components(
         let shasta_root_cert_vec = shasta_root_cert.to_vec();
 
         Some(task::spawn(async move {
-            cfs::session::get(
+            cfs::session::get_and_sort(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,

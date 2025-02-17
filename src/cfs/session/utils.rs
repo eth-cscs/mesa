@@ -15,7 +15,7 @@ pub async fn filter_by_hsm(
     cfs_session_vec: &mut Vec<CfsSessionGetResponse>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
-) {
+) -> Result<(), Error> {
     log::info!("Filter CFS sessions");
     let xname_vec: Vec<String> = hsm::group::utils::get_member_vec_from_hsm_name_vec(
         shasta_token,
@@ -23,8 +23,7 @@ pub async fn filter_by_hsm(
         shasta_root_cert,
         hsm_group_name_vec.to_vec(),
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Checks either target.groups contains hsm_group_name or ansible.limit is a subset of
     // hsm_group.members.ids
@@ -74,6 +73,8 @@ pub async fn filter_by_hsm(
             [cfs_session_vec.len().saturating_sub(*limit_number as usize)..]
             .to_vec();
     }
+
+    Ok(())
 }
 
 pub async fn filter_by_xname(
@@ -279,7 +280,7 @@ pub async fn wait_cfs_session_to_finish(
     let mut i = 0;
     let max = 3000; // Max ammount of attempts to check if CFS session has ended
     loop {
-        let cfs_session_vec = cfs::session::get(
+        let cfs_session_vec = cfs::session::get_and_sort(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,

@@ -154,16 +154,25 @@ pub async fn get_multiple(
                 None,
             )
             .await
-            .unwrap()
         });
 
         i += 1;
     }
 
     while let Some(message) = tasks.join_next().await {
-        if let Ok(mut cfs_component_vec) = message {
-            component_vec.append(&mut cfs_component_vec);
+        match message.unwrap() {
+            Ok(mut cfs_component_vec) => {
+                component_vec.append(&mut cfs_component_vec);
+            }
+            Err(e) => {
+                return Err(Error::Message(e.to_string()));
+                /* eprintln!("{}", e);
+                std::process::exit(1); */
+            }
         }
+        /* if let Ok(mut cfs_component_vec) = message {
+            component_vec.append(&mut cfs_component_vec);
+        } */
     }
 
     let duration = start.elapsed();

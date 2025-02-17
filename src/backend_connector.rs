@@ -664,7 +664,12 @@ impl BackendTrait for Csm {
 
             // Get list of xnames the user is asking for
             for hsm_component in hsm_component_vec {
-                let nid_long = format!("nid{:06}", &hsm_component.nid.expect("No NID found"));
+                let nid_long = format!(
+                    "nid{:06}",
+                    &hsm_component
+                        .nid
+                        .ok_or_else(|| Error::Message("No NID found".to_string()))?
+                );
                 for regex in &regex_vec {
                     if regex.is_match(&nid_long) {
                         log::debug!(
@@ -672,7 +677,12 @@ impl BackendTrait for Csm {
                             nid_long,
                             regex.as_str()
                         );
-                        xname_vec.push(hsm_component.id.clone().expect("No XName found"));
+                        xname_vec.push(
+                            hsm_component
+                                .id
+                                .clone()
+                                .ok_or_else(|| Error::Message("No XName found".to_string()))?,
+                        );
                     }
                 }
             }
@@ -690,18 +700,41 @@ impl BackendTrait for Csm {
             log::debug!("hostlist: {}", user_input_nid);
             log::debug!("hostlist expanded: {:?}", nid_hostlist_expanded_vec);
 
-            let nid_short = nid_hostlist_expanded_vec
-                .iter()
-                .map(|nid_long| {
-                    nid_long
-                        .strip_prefix("nid")
-                        .expect(
-                            format!("Nid '{}' not valid, 'nid' prefix missing", nid_long).as_str(),
-                        )
-                        .trim_start_matches("0")
-                })
-                .collect::<Vec<&str>>()
-                .join(",");
+            let mut nid_short_vec = Vec::new();
+
+            for nid_long in nid_hostlist_expanded_vec {
+                let nid_short_elem = nid_long
+                    .strip_prefix("nid")
+                    .ok_or_else(|| {
+                        Error::Message(format!(
+                            "Nid '{}' not valid, 'nid' prefix missing",
+                            nid_long
+                        ))
+                    })?
+                    .trim_start_matches("0");
+
+                nid_short_vec.push(nid_short_elem.to_string());
+            }
+
+            let nid_short = nid_short_vec.join(",");
+            /* let nid_short = nid_hostlist_expanded_vec
+            .iter()
+            .map(|nid_long| {
+                nid_long
+                    .strip_prefix("nid")
+                    .ok_or_else(|| {
+                        Error::Message(format!(
+                            "Nid '{}' not valid, 'nid' prefix missing",
+                            nid_long
+                        ))
+                    })?
+                    /* .expect(
+                        format!("Nid '{}' not valid, 'nid' prefix missing", nid_long).as_str(),
+                    ) */
+                    .trim_start_matches("0")
+            })
+            .collect::<Vec<&str>>()
+            .join(","); */
 
             log::debug!("short NID list: {}", nid_short);
 
@@ -771,7 +804,9 @@ impl CfsTrait for Csm {
                 base_url,
                 secret_path,
                 role_id,
-            } => fetch_shasta_k8s_secrets_from_vault(&base_url, &secret_path, &role_id).await,
+            } => fetch_shasta_k8s_secrets_from_vault(&base_url, &secret_path, &role_id)
+                .await
+                .map_err(|e| Error::Message(format!("{e}")))?,
         };
 
         let client = kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
@@ -898,7 +933,7 @@ impl CfsTrait for Csm {
         cfs_session_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
     ) -> Result<Vec<CfsSessionGetResponse>, Error> {
-        let mut cfs_session_vec = crate::cfs::session::get(
+        let mut cfs_session_vec = crate::cfs::session::get_and_sort(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
@@ -921,7 +956,8 @@ impl CfsTrait for Csm {
                     &hsm_group_name_vec,
                     limit_number_opt,
                 )
-                .await;
+                .await
+                .map_err(|e| Error::Message(e.to_string()))?;
             }
         }
 
@@ -1064,7 +1100,7 @@ impl CfsTrait for Csm {
             repo_name_vec,
             local_git_commit_vec,
             playbook_file_name_opt,
-        ).await.into())
+        ).await.map_err(|e| Error::Message(e.to_string()))?.into())
     }
 
     async fn get_configuration(

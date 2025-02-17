@@ -201,16 +201,19 @@ pub async fn get_parallel(
                 None,
             )
             .await
-            .unwrap()
         });
 
         i += 1;
     }
 
     while let Some(message) = tasks.join_next().await {
-        if let Ok(mut cfs_component_vec) = message {
-            component_vec.append(&mut cfs_component_vec);
+        match message.unwrap() {
+            Ok(mut cfs_component_vec) => component_vec.append(&mut cfs_component_vec),
+            Err(error) => return Err(error),
         }
+        /* if let Ok(mut cfs_component_vec) = message {
+            component_vec.append(&mut cfs_component_vec);
+        } */
     }
 
     let duration = start.elapsed();

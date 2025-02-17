@@ -265,14 +265,21 @@ pub mod node_power_reset {
                     force,
                 )
                 .await
-                .unwrap()
             });
         }
 
         while let Some(message) = tasks.join_next().await {
-            if let Ok(node_power_status) = message {
-                nodes_reseted.push(node_power_status);
+            match message.unwrap() {
+                Ok(node_power_status) => {
+                    nodes_reseted.push(node_power_status);
+                }
+                Err(error) => {
+                    log::error!("Error: {:?}", error);
+                }
             }
+            /* if let Ok(node_power_status) = message {
+                nodes_reseted.push(node_power_status);
+            } */
         }
 
         Ok(serde_json::to_value(nodes_reseted).unwrap())

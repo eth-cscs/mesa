@@ -22,11 +22,32 @@ use kube::{
 use futures::StreamExt;
 
 use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use termion::color;
 
 use crate::common::vault::http_client::fetch_shasta_k8s_secrets;
 use crate::error::Error;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum K8sAuth {
+    Native {
+        certificate_authority_data: String,
+        client_certificate_data: String,
+        client_key_data: String,
+    },
+    Vault {
+        base_url: String,
+        secret_path: String,
+        role_id: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct K8sDetails {
+    pub api_url: String,
+    pub authentication: K8sAuth,
+}
 
 pub async fn get_k8s_client_programmatically(
     k8s_api_url: &str,
@@ -246,9 +267,7 @@ pub async fn get_k8s_client_programmatically(
         )
         .map_err(|e| Error::K8sError(e.to_string()))?;
 
-        let client_key = match rustls_pemfile::read_one(&mut client_key_decoded)
-            .expect("cannot parse private key .pem file")
-        {
+        let client_key = match rustls_pemfile::read_one(&mut client_key_decoded)? {
             Some(rustls_pemfile::Item::RSAKey(key)) => tokio_rustls::rustls::PrivateKey(key),
             Some(rustls_pemfile::Item::PKCS8Key(key)) => tokio_rustls::rustls::PrivateKey(key),
             Some(rustls_pemfile::Item::ECKey(key)) => tokio_rustls::rustls::PrivateKey(key),

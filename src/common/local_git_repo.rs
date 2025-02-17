@@ -1,12 +1,9 @@
-#![allow(dead_code, unused_imports)] // TODO: to avoid compiler from complaining about unused methods
+// #![allow(dead_code, unused_imports)] // TODO: to avoid compiler from complaining about unused methods
 
-use std::error::Error;
 // Code below inspired on https://github.com/rust-lang/git2-rs/issues/561
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use dialoguer::{Input, Password};
-use git2::{Commit, ObjectType, PushOptions, Remote, Repository};
+use git2::{Commit, ObjectType, Repository};
 
 pub fn get_repo(repo_path: &str) -> Result<Repository, git2::Error> {
     let repo_root = PathBuf::from(repo_path);
@@ -76,7 +73,7 @@ pub fn untracked_changed_local_files(
     }
 }
 
-/// equivalent to `git add .`
+/* /// equivalent to `git add .`
 pub fn add_all(repo: &Repository) {
     let mut index = repo.index().unwrap();
 
@@ -114,9 +111,9 @@ pub fn add_all(repo: &Repository) {
 
     // Persists index
     index.write().unwrap();
-}
+} */
 
-pub fn commit(repo: &Repository) {
+/* pub fn commit(repo: &Repository) {
     let mut index = repo.index().unwrap();
     let oid = index.write_tree().unwrap();
     let signature = repo.signature().unwrap();
@@ -131,9 +128,9 @@ pub fn commit(repo: &Repository) {
         &[&parent_commit],
     )
     .unwrap();
-}
+} */
 
-pub fn push(mut remote: Remote) -> Result<(), git2::Error> {
+/* pub fn push(mut remote: Remote) -> Result<(), git2::Error> {
     // Configure callbacks for push operation
     let mut callbacks = git2::RemoteCallbacks::new();
 
@@ -196,9 +193,9 @@ pub fn push(mut remote: Remote) -> Result<(), git2::Error> {
         ],
         Some(po),
     )
-}
+} */
 
-pub fn fetch<'a>(
+/* pub fn fetch<'a>(
     repo: &'a git2::Repository,
     refs: &[&str],
     remote: &'a mut git2::Remote,
@@ -294,9 +291,9 @@ pub fn fetch<'a>(
 
     let fetch_head = repo.find_reference("FETCH_HEAD")?;
     Ok(repo.reference_to_annotated_commit(&fetch_head)?)
-}
+} */
 
-pub fn has_conflicts(
+/* pub fn has_conflicts(
     repo: &Repository,
     local: &git2::AnnotatedCommit,
     remote: &git2::AnnotatedCommit,
@@ -315,9 +312,9 @@ pub fn has_conflicts(
     }
 
     Ok(())
-}
+} */
 
-pub fn fetch_and_check_conflicts(repo: &Repository) -> core::result::Result<(), Box<dyn Error>> {
+/* pub fn fetch_and_check_conflicts(repo: &Repository) -> core::result::Result<(), Box<dyn Error>> {
     let head_commit = repo.reference_to_annotated_commit(&repo.head()?)?;
     let mut remote_aux = repo.find_remote("origin")?;
     let remote_branch = "apply-dynamic-target-session";
@@ -325,4 +322,4 @@ pub fn fetch_and_check_conflicts(repo: &Repository) -> core::result::Result<(), 
     has_conflicts(repo, &head_commit, &fetch_commit)?;
 
     Ok(())
-}
+} */

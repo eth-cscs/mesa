@@ -32,7 +32,7 @@ pub mod http_client {
         vault_base_url: &str,
         vault_secret_path: &str,
         vault_role_id: &str,
-    ) -> Value {
+    ) -> Result<Value, Error> {
         let vault_token_resp = auth(vault_base_url, vault_role_id).await;
 
         match vault_token_resp {
@@ -45,12 +45,13 @@ pub mod http_client {
                 .await
                 .unwrap(); // this works for hashicorp-vault for fulen may need /v1/secret/data/shasta/k8s
 
-                serde_json::from_str::<Value>(vault_secret["value"].as_str().unwrap()).unwrap()
+                Ok(serde_json::from_str::<Value>(vault_secret["value"].as_str().unwrap()).unwrap())
                 // this works for vault v1.12.0 for older versions may need vault_secret["data"]["value"]
             }
             Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
+                return Err(Error::Message(e.to_string()));
+                /* eprintln!("{}", e);
+                std::process::exit(1); */
             }
         }
     }

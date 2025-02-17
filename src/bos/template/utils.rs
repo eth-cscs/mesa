@@ -1,6 +1,6 @@
 use crate::bos::template::http_client::v2::types::BosSessionTemplate;
 
-pub async fn filter(
+pub fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
     hsm_group_name_vec: &[String],
     xname_vec: &[String],

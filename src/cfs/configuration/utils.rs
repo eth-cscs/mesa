@@ -32,7 +32,7 @@ pub async fn filter_2(
     configuration_name_pattern_opt: Option<&str>,
     hsm_group_name_vec: &[String],
     limit_number_opt: Option<&u8>,
-) -> Vec<CfsConfigurationResponse> {
+) -> Result<Vec<CfsConfigurationResponse>, Error> {
     log::info!("Filter CFS configurations");
 
     let (_, cfs_session_vec_opt, bos_sessiontemplate_vec_opt, _) =
@@ -45,7 +45,7 @@ pub async fn filter_2(
             true,
             false,
         )
-        .await;
+        .await?;
 
     let mut cfs_session_vec = cfs_session_vec_opt.unwrap();
     let mut bos_sessiontemplate_vec = bos_sessiontemplate_vec_opt.unwrap();
@@ -57,8 +57,7 @@ pub async fn filter_2(
         &Vec::new(),
         // None,
         None,
-    )
-    .await;
+    );
 
     // Filter CFS sessions based on HSM groups
     cfs::session::utils::filter_by_hsm(
@@ -69,7 +68,7 @@ pub async fn filter_2(
         hsm_group_name_vec,
         None,
     )
-    .await;
+    .await?;
 
     // Get boot image id and desired configuration from BOS sessiontemplates
     let image_id_cfs_configuration_target_from_bos_sessiontemplate: Vec<(
@@ -139,7 +138,7 @@ pub async fn filter_2(
             .retain(|cfs_configuration| glob.is_match(cfs_configuration.name.clone()));
     }
 
-    cfs_configuration_vec.to_vec()
+    Ok(cfs_configuration_vec.to_vec())
 }
 
 /// Filter the list of CFS configurations provided. This operation is very expensive since it is
@@ -190,7 +189,7 @@ pub async fn filter(
             true,
             false,
         )
-        .await;
+        .await?;
 
     let mut cfs_session_vec = cfs_session_vec_opt.unwrap();
     let mut bos_sessiontemplate_vec = bos_sessiontemplate_vec_opt.unwrap();
@@ -202,8 +201,7 @@ pub async fn filter(
         &Vec::new(),
         // None,
         None,
-    )
-    .await;
+    );
 
     // Filter CFS sessions based on HSM groups
     cfs::session::utils::filter_by_hsm(
@@ -214,7 +212,7 @@ pub async fn filter(
         hsm_group_name_vec,
         None,
     )
-    .await;
+    .await?;
 
     // Get boot image id and desired configuration from BOS sessiontemplates
     let image_id_cfs_configuration_target_from_bos_sessiontemplate: Vec<(
@@ -353,7 +351,7 @@ pub async fn get_derivatives(
             true,
             true,
         )
-        .await;
+        .await?;
 
     let mut cfs_sessions = cfs_sessions_opt.unwrap();
     let mut bos_sessiontemplates = bos_sessiontemplates_opt.unwrap();
