@@ -220,7 +220,7 @@ pub async fn exec(
     )?;
 
     // Validate 'images' section
-    let image_validation_rslt = utils::validate_sat_file_images_section(
+    utils::validate_sat_file_images_section(
         image_yaml_vec_opt.unwrap_or(&Vec::new()),
         configuration_yaml_vec_opt.unwrap_or(&Vec::new()),
         hsm_group_available_vec,
