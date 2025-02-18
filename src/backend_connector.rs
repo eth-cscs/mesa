@@ -10,6 +10,7 @@ use backend_dispatcher::{
         hsm::{
             component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
         },
+        ims::ImsTrait,
         pcs::PCSTrait,
         sat::SatTrait,
     },
@@ -934,6 +935,7 @@ impl CfsTrait for Csm {
         status_opt: Option<&String>,
         cfs_session_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
+        is_succeded_opt: Option<bool>,
     ) -> Result<Vec<CfsSessionGetResponse>, Error> {
         let mut cfs_session_vec = crate::cfs::session::get_and_sort(
             shasta_token,
@@ -943,7 +945,7 @@ impl CfsTrait for Csm {
             max_age_opt,
             status_opt,
             cfs_session_name_opt,
-            None,
+            is_succeded_opt,
         )
         .await
         .unwrap();
@@ -1384,6 +1386,26 @@ impl ApplyHwClusterPin for Csm {
             delete_empty_parent_hsm_group,
         )
         .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl ImsTrait for Csm {
+    async fn get_images(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        image_id_opt: Option<&str>,
+    ) -> Result<Vec<Image>, Error> {
+        crate::ims::image::http_client::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            image_id_opt,
+        )
+        .await
+        .map(|image_vec| image_vec.into_iter().map(|image| image.into()).collect())
         .map_err(|e| Error::Message(e.to_string()))
     }
 }
