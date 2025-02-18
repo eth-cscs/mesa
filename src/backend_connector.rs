@@ -1,10 +1,11 @@
-use std::{collections::HashMap, pin::Pin};
+use std::{collections::HashMap, path::PathBuf, pin::Pin};
 
 use backend_dispatcher::{
     contracts::BackendTrait,
     error::Error,
     interfaces::{
         apply_hw_cluster_pin::ApplyHwClusterPin,
+        apply_session::ApplySessionTrait,
         bss::BootParametersTrait,
         cfs::CfsTrait,
         hsm::{
@@ -17,9 +18,10 @@ use backend_dispatcher::{
     types::{
         cfs::{
             cfs_configuration_request::CfsConfigurationRequest, CfsConfigurationResponse,
-            CfsSessionGetResponse, Layer, LayerDetails,
+            CfsSessionGetResponse, CfsSessionPostRequest, Layer, LayerDetails,
         },
         ims::Image,
+        kafka::Kafka,
         BootParameters as FrontEndBootParameters, BosSessionTemplate, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList, K8sAuth, K8sDetails,
@@ -877,6 +879,24 @@ impl CfsTrait for Csm {
         .await
     }
 
+    async fn post_session(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        session: &CfsSessionPostRequest,
+    ) -> Result<CfsSessionGetResponse, Error> {
+        crate::cfs::session::http_client::v3::post(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &session.clone().into(),
+        )
+        .await
+        .map(|cfs_session| cfs_session.into())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
     async fn get_sessions(
         &self,
@@ -1406,6 +1426,49 @@ impl ImsTrait for Csm {
         )
         .await
         .map(|image_vec| image_vec.into_iter().map(|image| image.into()).collect())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl ApplySessionTrait for Csm {
+    async fn apply_session(
+        &self,
+        gitea_token: &str,
+        gitea_base_url: &str,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        k8s_api_url: &str,
+        cfs_conf_sess_name: Option<&String>,
+        playbook_yaml_file_name_opt: Option<&String>,
+        hsm_group: Option<&String>,
+        repos_paths: Vec<PathBuf>,
+        ansible_limit: Option<String>,
+        ansible_verbosity: Option<String>,
+        ansible_passthrough: Option<String>,
+        watch_logs: bool,
+        /* kafka_audit: &Kafka,
+        k8s: &K8sDetails, */
+    ) -> Result<(String, String), Error> {
+        crate::commands::apply_session::exec(
+            gitea_token,
+            gitea_base_url,
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            k8s_api_url,
+            cfs_conf_sess_name,
+            playbook_yaml_file_name_opt,
+            hsm_group,
+            repos_paths,
+            ansible_limit,
+            ansible_verbosity,
+            ansible_passthrough,
+            watch_logs,
+            /* kafka_audit,
+            k8s, */
+        )
+        .await
         .map_err(|e| Error::Message(e.to_string()))
     }
 }
