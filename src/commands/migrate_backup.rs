@@ -285,18 +285,6 @@ pub async fn exec(
                             let src = image_id.clone() + "/" + file;
                             println!("\t\tfile: {}/{}", dest, src);
                         }
-                        /* if posthook.is_some() {
-                            println!("Running the post-hook {}", &posthook.unwrap());
-                            match crate::common::hooks::run_hook(posthook).await {
-                                Ok(_code) => {
-                                    log::debug!("Post-hook script completed ok. RT={}", _code)
-                                }
-                                Err(_error) => {
-                                    log::error!("{}", _error);
-                                    exit(2);
-                                }
-                            };
-                        } */
                     }
                     Err(e) => {
                         panic!(
@@ -308,6 +296,19 @@ pub async fn exec(
             }
         }
     }
+
+    /* if posthook.is_some() {
+        println!("Running the post-hook {}", &posthook.unwrap());
+        match crate::common::hooks::run_hook(posthook).await {
+            Ok(_code) => {
+                log::debug!("Post-hook script completed ok. RT={}", _code)
+            }
+            Err(_error) => {
+                log::error!("{}", _error);
+                exit(2);
+            }
+        };
+    } */
 
     Ok(())
 }
