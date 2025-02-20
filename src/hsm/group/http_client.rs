@@ -193,7 +193,7 @@ pub async fn create_new_group(
     exclusive: &str,
     description: &str,
     tags: &[String],
-) -> Result<Vec<Group>, Error> {
+) -> Result<Group, Error> {
     // Example body to create a new group:
     // {
     //   "label": "blue",
@@ -229,9 +229,7 @@ pub async fn create_new_group(
 
     log::debug!("{:#?}", &group);
 
-    post(shasta_token, shasta_base_url, shasta_root_cert, group)
-        .await
-        .map(|group| vec![group])
+    post(shasta_token, shasta_base_url, shasta_root_cert, group).await
 }
 
 pub async fn delete_group(

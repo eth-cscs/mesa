@@ -14,7 +14,7 @@ publish = true
 
 [dependencies]
 # backend-dispatcher = { path = "../backend-dispatcher" } # Only for development purposes
-backend-dispatcher = "0.1.27"
+backend-dispatcher = "0.1.28"
 chrono = { version = "0.4.31", default-features = false }
 substring = "1.4.5"
 strum = { version = "0.25.0", default-features = false }
@@ -56,6 +56,8 @@ aws-smithy-types = { version = "1.1.2", features = ["rt-tokio"] }
 indicatif = { version = "0.17.7", default-features = false }
 uuid = { version = "1.10.0", features = ["fast-rng", "v4"] }
 globset = { version = "0.4.14", default-features = false }
+humansize = "2.0.0"
+md5 = { version = "0.7.0", default-features = false }
 
 [profile.release]
 opt-level = "s" # Tell `rustc` to optimize for small code size.

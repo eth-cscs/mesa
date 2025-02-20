@@ -12,6 +12,8 @@ use backend_dispatcher::{
             component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
         },
         ims::ImsTrait,
+        migrate_backup::MigrateBackupTrait,
+        migrate_restore::MigrateRestoreTrait,
         pcs::PCSTrait,
         sat::SatTrait,
     },
@@ -1467,6 +1469,54 @@ impl ApplySessionTrait for Csm {
             watch_logs,
             /* kafka_audit,
             k8s, */
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl MigrateRestoreTrait for Csm {
+    async fn migrate_restore(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_file: Option<&String>,
+        cfs_file: Option<&String>,
+        hsm_file: Option<&String>,
+        ims_file: Option<&String>,
+        image_dir: Option<&String>,
+    ) -> Result<(), Error> {
+        crate::commands::migrate_restore::exec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            bos_file,
+            cfs_file,
+            hsm_file,
+            ims_file,
+            image_dir,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl MigrateBackupTrait for Csm {
+    async fn migrate_backup(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos: Option<&String>,
+        destination: Option<&String>,
+    ) -> Result<(), Error> {
+        crate::commands::migrate_backup::exec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            bos,
+            destination,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
