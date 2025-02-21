@@ -134,7 +134,8 @@ pub async fn exec(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            Some(&hsm_group_name),
+            Some(&[&hsm_group_name]),
+            None,
         )
         .await
         {

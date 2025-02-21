@@ -72,7 +72,8 @@ pub async fn exec(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        Some(&target_hsm_group_name.to_string()),
+        Some(&[target_hsm_group_name]),
+        None
     ).await
     /* match hsm::group::http_client::get(
         shasta_token,

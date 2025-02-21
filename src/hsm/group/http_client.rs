@@ -47,49 +47,71 @@ pub async fn get_raw(
 /// CSM API gets shrinked by removing the CSM wide HSM groups like `alps`, `alpsm`,
 /// `alpsb`, etc
 pub async fn get(
-    shasta_token: &str,
-    shasta_base_url: &str,
-    shasta_root_cert: &[u8],
-    group_name_opt: Option<&String>,
+    base_url: &str,
+    auth_token: &str,
+    root_cert: &[u8],
+    label_vec_opt: Option<&[&str]>,
+    tag_vec_opt: Option<&[&str]>,
 ) -> Result<Vec<Group>, Error> {
-    let response = get_raw(
-        shasta_token,
-        shasta_base_url,
-        shasta_root_cert,
-        group_name_opt,
-    )
-    .await?;
+    let client_builder =
+        reqwest::Client::builder().add_root_certificate(reqwest::Certificate::from_pem(root_cert)?);
 
-    if response.status().is_success() {
-        if group_name_opt.is_some() {
-            let payload = response
-                .json::<Group>()
-                .await
-                .map_err(|error| Error::NetError(error))?;
+    // Build client
+    let client = if let Ok(socks5_env) = std::env::var("SOCKS5") {
+        // socks5 proxy
+        log::debug!("SOCKS5 enabled");
+        let socks5proxy = reqwest::Proxy::all(socks5_env)?;
 
-            let hsm_group_vec_rslt = Ok(vec![payload]);
-
-            //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
-            //wide operations instead of using roles
-            filter_system_hsm_groups(hsm_group_vec_rslt)
-        } else {
-            let hsm_group_vec_rslt = response
-                .json()
-                .await
-                .map_err(|error| Error::NetError(error));
-
-            //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
-            //wide operations instead of using roles
-            filter_system_hsm_groups(hsm_group_vec_rslt)
-        }
+        // rest client to authenticate
+        client_builder.proxy(socks5proxy).build()?
     } else {
-        let payload = response
-            .text()
-            .await
-            .map_err(|error| Error::NetError(error))?;
+        client_builder.build()?
+    };
 
-        Err(Error::Message(payload))
+    let api_url: String = format!("{}/{}", base_url, "hsm/v2/groups");
+
+    let mut query = Vec::new();
+
+    if let Some(label_vec) = label_vec_opt {
+        for label in label_vec {
+            query.push(("label", label));
+        }
     }
+    if let Some(tag_vec) = tag_vec_opt {
+        for tag in tag_vec {
+            query.push(("tag", tag));
+        }
+    }
+
+    let response = client
+        .get(api_url)
+        .query(query.as_slice())
+        .bearer_auth(auth_token)
+        .send()
+        .await?;
+
+    if let Err(e) = response.error_for_status_ref() {
+        match response.status() {
+            reqwest::StatusCode::UNAUTHORIZED => {
+                let error_payload = response.text().await?;
+                let error = Error::RequestError {
+                    response: e,
+                    payload: error_payload,
+                };
+                return Err(error);
+            }
+            _ => {
+                let error_payload = response.text().await?;
+                let error = Error::Message(error_payload);
+                return Err(error);
+            }
+        }
+    }
+
+    response
+        .json()
+        .await
+        .map_err(|error| Error::NetError(error))
 }
 
 pub async fn get_all(
@@ -97,7 +119,7 @@ pub async fn get_all(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
 ) -> Result<Vec<Group>, Error> {
-    get(shasta_token, shasta_base_url, shasta_root_cert, None).await
+    get(shasta_token, shasta_base_url, shasta_root_cert, None, None).await
 }
 
 /// Get list of HSM groups using --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
@@ -129,7 +151,7 @@ pub async fn post(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     group: Group,
-) -> Result<Group, Error> {
+) -> Result<String, Error> {
     log::info!("Add/Create HSM group");
     log::debug!("Add HSM group payload:\n{:#?}", group);
 
@@ -178,7 +200,7 @@ pub async fn post(
     }
 
     response
-        .json()
+        .text()
         .await
         .map_err(|error| Error::NetError(error))
 }
@@ -229,7 +251,17 @@ pub async fn create_new_group(
 
     log::debug!("{:#?}", &group);
 
-    post(shasta_token, shasta_base_url, shasta_root_cert, group).await
+    let add_group_rslt = post(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        group.clone(),
+    )
+    .await;
+
+    log::info!("Group created: {:?}", add_group_rslt);
+
+    Ok(group)
 }
 
 pub async fn delete_group(

@@ -75,13 +75,9 @@ pub async fn add_member(
     new_member: &str,
 ) -> Result<Vec<String>, Error> {
     // Get HSM group from CSM
-    let group_vec = hsm::group::http_client::get(
-        base_url,
-        auth_token,
-        root_cert,
-        Some(&group_label.to_string()),
-    )
-    .await?;
+    let group_vec =
+        hsm::group::http_client::get(base_url, auth_token, root_cert, Some(&[&group_label]), None)
+            .await?;
 
     // Check if HSM group found
     if let Some(group) = group_vec.first().cloned().as_mut() {
@@ -481,7 +477,8 @@ pub async fn get_member_vec_from_hsm_name_vec(
                 &shasta_token_string,
                 &shasta_base_url_string,
                 &shasta_root_cert_vec,
-                Some(&hsm_name),
+                Some(&[&hsm_name]),
+                None,
             )
             .await
         });
@@ -635,7 +632,8 @@ pub async fn get_member_vec_from_hsm_group_name_opt(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        Some(&hsm_group.to_string()),
+        Some(&[hsm_group]),
+        None,
     )
     .await
     .unwrap()
@@ -655,7 +653,8 @@ pub async fn get_member_vec_from_hsm_group_name(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        Some(&hsm_group.to_string()),
+        Some(&[hsm_group]),
+        None,
     )
     .await
     .unwrap()

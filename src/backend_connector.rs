@@ -119,12 +119,13 @@ impl GroupTrait for Csm {
             &auth_token,
             &self.base_url,
             &self.root_cert,
-            group.into(),
+            group.clone().into(),
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))?;
 
-        let group: FrontEndGroup = group_csm.into();
+        // let group: FrontEndGroup = group_csm.into();
+        log::info!("Group created: {}", group_csm);
 
         Ok(group)
     }
@@ -183,7 +184,8 @@ impl GroupTrait for Csm {
             auth_token,
             &self.base_url,
             &self.root_cert,
-            Some(&hsm_name.to_string()),
+            Some(&[hsm_name]),
+            None,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))?;
@@ -201,6 +203,32 @@ impl GroupTrait for Csm {
         let hsm_group: FrontEndGroup = hsm_group_backend.into();
 
         Ok(hsm_group)
+    }
+
+    async fn get_groups(
+        &self,
+        auth_token: &str,
+        hsm_name_vec: Option<&[&str]>,
+    ) -> Result<Vec<FrontEndGroup>, Error> {
+        // Get all HSM groups
+        let hsm_group_backend_vec = hsm::group::http_client::get(
+            &self.base_url,
+            auth_token,
+            &self.root_cert,
+            hsm_name_vec,
+            None,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))?;
+
+        // Convert from HsmGroup (silla) to HsmGroup (infra)
+        let mut hsm_group_vec = Vec::new();
+        for hsm_group_backend in hsm_group_backend_vec {
+            let hsm_group: FrontEndGroup = hsm_group_backend.into();
+            hsm_group_vec.push(hsm_group);
+        }
+
+        Ok(hsm_group_vec)
     }
 
     async fn delete_group(&self, auth_token: &str, label: &str) -> Result<Value, Error> {
@@ -413,7 +441,7 @@ impl ComponentTrait for Csm {
             .flat_map(|group| group.get_members())
             .collect();
 
-        let node_metadata_vec: Vec<Component> = self
+        let node_metadata_vec_rslt = self
             .get_all_nodes(auth_token, Some("true"))
             .await
             .unwrap()
@@ -425,6 +453,8 @@ impl ComponentTrait for Csm {
             })
             .cloned()
             .collect();
+
+        let node_metadata_vec: Vec<Component> = node_metadata_vec_rslt;
 
         Ok(node_metadata_vec)
     }
