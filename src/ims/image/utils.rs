@@ -110,6 +110,7 @@ pub async fn filter(
         &mut cfs_session_vec,
         hsm_group_name_vec,
         None,
+        false,
     )
     .await;
 
@@ -282,6 +283,7 @@ pub async fn get_image_available_vec(
         &mut cfs_session_vec,
         hsm_name_available_vec,
         None,
+        true,
     )
     .await;
 

@@ -40,6 +40,7 @@ pub async fn filter(
             &mut cfs_session_vec,
             hsm_group_name_vec_opt.unwrap(),
             limit_number_opt,
+            true,
         )
         .await;
 

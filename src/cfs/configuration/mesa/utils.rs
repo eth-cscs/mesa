@@ -124,6 +124,7 @@ pub async fn filter(
         &mut cfs_session_vec,
         hsm_group_name_vec,
         None,
+        true,
     )
     .await;
 
