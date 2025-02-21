@@ -145,6 +145,7 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         &mut cfs_session_vec,
         hsm_group_name_vec,
         None,
+        true,
     )
     .await?;
 
@@ -308,6 +309,7 @@ pub async fn get_image_available_vec(
         &mut cfs_session_vec,
         hsm_name_available_vec,
         None,
+        true,
     )
     .await?;
 

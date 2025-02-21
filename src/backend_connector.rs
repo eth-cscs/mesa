@@ -893,6 +893,7 @@ impl CfsTrait for Csm {
             &mut session_vec,
             &[xname],
             None,
+            true,
         )
         .await;
 
@@ -1011,6 +1012,7 @@ impl CfsTrait for Csm {
                     &mut cfs_session_vec,
                     &hsm_group_name_vec,
                     limit_number_opt,
+                    true,
                 )
                 .await
                 .map_err(|e| Error::Message(e.to_string()))?;
@@ -1025,6 +1027,7 @@ impl CfsTrait for Csm {
                 &mut cfs_session_vec,
                 xname_vec.as_slice(),
                 limit_number_opt,
+                true,
             )
             .await;
         }
@@ -1281,6 +1284,7 @@ impl CfsTrait for Csm {
             &mut local_cfs_session_vec,
             xname_vec,
             None,
+            true,
         )
         .await;
 

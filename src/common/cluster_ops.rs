@@ -57,6 +57,7 @@ pub async fn get_details(
             &mut cfs_session_vec,
             &[hsm_group_name.to_string()],
             None,
+            true,
         )
         .await?;
 
