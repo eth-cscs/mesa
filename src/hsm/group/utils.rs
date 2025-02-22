@@ -453,9 +453,32 @@ pub async fn get_member_vec_from_hsm_name_vec(
 ) -> Result<Vec<String>, Error> {
     log::info!("Get xnames for HSM groups: {:?}", hsm_name_vec);
 
-    let start = Instant::now();
+    let hsm_group_vec = hsm::group::http_client::get(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        Some(
+            hsm_name_vec
+                .iter()
+                .map(|c| &**c)
+                .collect::<Vec<&str>>()
+                .as_slice(),
+        ),
+        None,
+    )
+    .await?;
 
     let mut hsm_group_member_vec: Vec<String> = Vec::new();
+
+    for hsm_group in hsm_group_vec {
+        hsm_group_member_vec.append(&mut hsm_group.get_members());
+    }
+
+    Ok(hsm_group_member_vec)
+
+    /* let mut hsm_group_member_vec: Vec<String> = Vec::new();
+
+    let start = Instant::now();
 
     let pipe_size = 10;
 
@@ -501,7 +524,7 @@ pub async fn get_member_vec_from_hsm_name_vec(
     let duration = start.elapsed();
     log::info!("Time elapsed to get HSM members is: {:?}", duration);
 
-    Ok(hsm_group_member_vec)
+    Ok(hsm_group_member_vec) */
 }
 
 /* /// Get the list of xnames which are members of a list of HSM groups.

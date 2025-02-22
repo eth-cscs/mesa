@@ -74,7 +74,7 @@ pub async fn get(
 
     if let Some(label_vec) = label_vec_opt {
         for label in label_vec {
-            query.push(("label", label));
+            query.push(("group", label));
         }
     }
     if let Some(tag_vec) = tag_vec_opt {
