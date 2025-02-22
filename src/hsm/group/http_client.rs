@@ -47,8 +47,8 @@ pub async fn get_raw(
 /// CSM API gets shrinked by removing the CSM wide HSM groups like `alps`, `alpsm`,
 /// `alpsb`, etc
 pub async fn get(
-    base_url: &str,
     auth_token: &str,
+    base_url: &str,
     root_cert: &[u8],
     label_vec_opt: Option<&[&str]>,
     tag_vec_opt: Option<&[&str]>,
@@ -68,7 +68,7 @@ pub async fn get(
         client_builder.build()?
     };
 
-    let api_url: String = format!("{}/{}", base_url, "hsm/v2/groups");
+    let api_url: String = format!("{}/{}", base_url, "smd/hsm/v2/groups");
 
     let mut query = Vec::new();
 

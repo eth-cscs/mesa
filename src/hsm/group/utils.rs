@@ -76,7 +76,7 @@ pub async fn add_member(
 ) -> Result<Vec<String>, Error> {
     // Get HSM group from CSM
     let group_vec =
-        hsm::group::http_client::get(base_url, auth_token, root_cert, Some(&[&group_label]), None)
+        hsm::group::http_client::get(auth_token, base_url, root_cert, Some(&[&group_label]), None)
             .await?;
 
     // Check if HSM group found

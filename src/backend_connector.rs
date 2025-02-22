@@ -63,6 +63,7 @@ impl GroupTrait for Csm {
             .get_all_groups(auth_token)
             .await
             .map_err(|e| Error::Message(e.to_string()))?;
+
         let available_groups_name = self.get_group_name_available(auth_token).await?;
 
         group_vec.retain(|group| available_groups_name.contains(&group.label));
@@ -212,8 +213,8 @@ impl GroupTrait for Csm {
     ) -> Result<Vec<FrontEndGroup>, Error> {
         // Get all HSM groups
         let hsm_group_backend_vec = hsm::group::http_client::get(
-            &self.base_url,
             auth_token,
+            &self.base_url,
             &self.root_cert,
             hsm_name_vec,
             None,
