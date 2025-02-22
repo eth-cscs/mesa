@@ -347,15 +347,21 @@ pub async fn print_cfs_session_logs(
     let mut logs_stream =
         get_cfs_session_container_git_clone_logs_stream(client.clone(), cfs_session_name).await?;
 
-    while let Some(line) = logs_stream.try_next().await.unwrap() {
+    while let Some(line) = logs_stream.try_next().await? {
         println!("{}", line);
     }
 
-    let mut logs_stream = get_cfs_session_container_ansible_logs_stream(client, cfs_session_name)
-        .await
-        .unwrap();
+    let mut logs_stream =
+        get_cfs_session_container_ansible_logs_stream(client.clone(), cfs_session_name).await?;
 
-    while let Some(line) = logs_stream.try_next().await.unwrap() {
+    while let Some(line) = logs_stream.try_next().await? {
+        println!("{}", line);
+    }
+
+    let mut logs_stream =
+        get_cfs_session_container_teardown_logs_stream(client, cfs_session_name).await?;
+
+    while let Some(line) = logs_stream.try_next().await? {
         println!("{}", line);
     }
 
@@ -549,6 +555,99 @@ pub async fn get_cfs_session_container_ansible_logs_stream(
     cfs_session_name: &str,
 ) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + std::marker::Send + Sync>> {
     let container_name = "ansible";
+
+    let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
+
+    let params = kube::api::ListParams::default()
+        .limit(1)
+        .labels(format!("cfsession={}", cfs_session_name).as_str());
+
+    let mut pods = pods_api.list(&params).await?;
+
+    let mut i = 0;
+    let max = 30;
+    let delay_secs = 2;
+
+    // Waiting for pod to start
+    while pods.items.is_empty() && i <= max {
+        println!(
+            "Waiting k8s to create pod/container for cfs session '{}'. Trying again in {} secs. Attempt {} of {}",
+            cfs_session_name,
+            delay_secs,
+            i + 1,
+            max
+        );
+        i += 1;
+        tokio::time::sleep(time::Duration::from_secs(delay_secs)).await;
+        pods = pods_api.list(&params).await?;
+    }
+
+    if pods.items.is_empty() {
+        return Err(format!(
+            "Pod for cfs session '{}' not created. Aborting operation.",
+            cfs_session_name
+        )
+        .into());
+    }
+
+    let cfs_session_pod = &pods.items[0].clone();
+
+    let cfs_session_pod_name = cfs_session_pod.metadata.name.clone().unwrap();
+    log::info!("Pod name: {}", cfs_session_pod_name);
+
+    let mut containers = cfs_session_pod.spec.as_ref().unwrap().containers.iter();
+
+    log::debug!(
+        "Containers found in pod {}: {:#?}",
+        cfs_session_pod_name,
+        containers
+    );
+
+    let ansible_container: &Container = containers
+        .find(|container| container.name.eq(container_name))
+        .unwrap();
+
+    let mut container_status = get_container_status(cfs_session_pod, &ansible_container.name);
+
+    let mut i = 0;
+    let max = 300;
+
+    // Waiting for container ansible-x to start
+    while container_status.as_ref().is_none()
+        || container_status.as_ref().unwrap().waiting.is_some() && i <= max
+    {
+        println!(
+            "Container ({}) status missing or 'waiting'. Checking again in 2 secs. Attempt {} of {}",
+            ansible_container.name,
+            i + 1,
+            max
+        );
+        i += 1;
+        tokio::time::sleep(time::Duration::from_secs(2)).await;
+        let pods = pods_api.list(&params).await?;
+        container_status = get_container_status(&pods.items[0], &ansible_container.name);
+        log::debug!(
+            "Container status:\n{:#?}",
+            container_status.as_ref().unwrap()
+        );
+    }
+
+    if container_status.as_ref().unwrap().waiting.is_some() {
+        return Err(format!(
+            "Container ({}) status is waiting. Aborting operation.",
+            ansible_container.name
+        )
+        .into());
+    }
+
+    get_container_logs_stream(ansible_container, cfs_session_pod, &pods_api).await
+}
+
+pub async fn get_cfs_session_container_teardown_logs_stream(
+    client: kube::Client,
+    cfs_session_name: &str,
+) -> Result<Lines<impl AsyncBufReadExt>, Box<dyn Error + std::marker::Send + Sync>> {
+    let container_name = "teardown";
 
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, "services");
 
