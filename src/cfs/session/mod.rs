@@ -109,17 +109,17 @@ pub async fn post_sync(
             .unwrap();
 
         let _ = print_cfs_session_logs(client, &cfs_session_name).await;
-    } else {
-        // User does not want the CFS logs but we still need to wayt the CFS session to
-        // finis. Wait till the CFS session finishes
-        utils::wait_cfs_session_to_finish(
-            shasta_token,
-            shasta_base_url,
-            shasta_root_cert,
-            &cfs_session_name,
-        )
-        .await?;
     }
+
+    // User does not want the CFS logs but we still need to wayt the CFS session to
+    // finis. Wait till the CFS session finishes
+    utils::wait_cfs_session_to_finish(
+        shasta_token,
+        shasta_base_url,
+        shasta_root_cert,
+        &cfs_session_name,
+    )
+    .await?;
 
     // Get most recent CFS session status
     let cfs_session: CfsSessionGetResponse = get_and_sort(
