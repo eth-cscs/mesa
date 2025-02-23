@@ -361,6 +361,20 @@ impl GroupTrait for Csm {
 }
 
 impl HardwareInventory for Csm {
+    async fn get_inventory_hardware(&self, auth_token: &str, xname: &str) -> Result<Value, Error> {
+        hsm::hw_inventory::hw_component::http_client::get(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            xname,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+        .and_then(|hw_inventory| {
+            serde_json::to_value(hw_inventory).map_err(|e| Error::Message(e.to_string()))
+        })
+    }
+
     async fn get_inventory_hardware_query(
         &self,
         auth_token: &str,
@@ -371,7 +385,7 @@ impl HardwareInventory for Csm {
         _partition: Option<&str>,
         _format: Option<&str>,
     ) -> Result<Value, Error> {
-        hsm::hw_inventory::hw_component::http_client::get_hw_inventory(
+        hsm::hw_inventory::hw_component::http_client::get_query(
             &auth_token,
             &self.base_url,
             &self.root_cert,

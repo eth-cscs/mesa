@@ -26,4 +26,6 @@ pub enum Error {
     K8sError(String),
     #[error("ERROR - Image '{0}' not found")]
     ImageNotFound(String),
+    #[error("ERROR - Group '{0}' not found")]
+    GroupNotFound(String),
 }

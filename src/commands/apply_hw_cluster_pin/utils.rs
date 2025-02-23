@@ -588,7 +588,7 @@ pub async fn get_node_hw_component_count(
     )
     .await
     .unwrap(); */
-    let node_hw_inventory_value = hsm::hw_inventory::hw_component::http_client::get_hw_inventory(
+    let node_hw_inventory_value = hsm::hw_inventory::hw_component::http_client::get_query(
         &shasta_token,
         shasta_base_url,
         shasta_root_cert,

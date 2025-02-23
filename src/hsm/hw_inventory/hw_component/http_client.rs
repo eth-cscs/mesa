@@ -27,10 +27,7 @@ pub async fn get(
         client = client_builder.build()?;
     }
 
-    let api_url = format!(
-        "{}/smd/hsm/v2/Inventory/Hardware/Query/{}",
-        shasta_base_url, xname
-    );
+    let api_url = format!("{}/smd/hsm/v2/Inventory/Hardware", shasta_base_url);
 
     let response = client
         .get(api_url)
@@ -45,10 +42,6 @@ pub async fn get(
             .await
             .map_err(|error| Error::NetError(error));
 
-        /* Ok(NodeSummary::from_csm_value(
-            payload.unwrap().pointer("/Nodes/0").unwrap().clone(),
-        )) */
-
         match payload.unwrap().pointer("/Nodes/0") {
             Some(node_value) => Ok(NodeSummary::from_csm_value(node_value.clone())),
             None => Err(Error::Message(format!(
@@ -57,16 +50,16 @@ pub async fn get(
             ))),
         }
     } else {
-        let payload = response
-            .json::<Value>()
+        let e = response
+            .text()
             .await
             .map_err(|error| Error::NetError(error))?;
 
-        Err(Error::CsmError(payload))
+        Err(Error::Message(e.to_string()))
     }
 }
 
-pub async fn get_hw_inventory(
+pub async fn get_query(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
