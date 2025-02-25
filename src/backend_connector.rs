@@ -10,6 +10,7 @@ use backend_dispatcher::{
         cfs::CfsTrait,
         hsm::{
             component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
+            redfish_endpoint::RedfishEndpointTrait,
         },
         ims::ImsTrait,
         migrate_backup::MigrateBackupTrait,
@@ -22,7 +23,11 @@ use backend_dispatcher::{
             cfs_configuration_request::CfsConfigurationRequest, CfsConfigurationResponse,
             CfsSessionGetResponse, CfsSessionPostRequest, Layer, LayerDetails,
         },
-        ims::Image,
+        hsm::inventory::{
+            RedfishEndpoint as FrontEndRedfishEndpoint,
+            RedfishEndpointArray as FrontEndRedfishEndpointArray,
+        },
+        ims::Image as FrontEndImage,
         kafka::Kafka,
         BootParameters as FrontEndBootParameters, BosSessionTemplate, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
@@ -665,6 +670,54 @@ impl BootParametersTrait for Csm {
     ) -> Result<String, Error> {
         Err(Error::Message(
             "Delete boot parameters command not implemented for this backend".to_string(),
+        ))
+    }
+}
+
+impl RedfishEndpointTrait for Csm {
+    async fn get_redfish_endpoints(
+        &self,
+        _auth_token: &str,
+        _id: Option<&str>,
+        _fqdn: Option<&str>,
+        _type: Option<&str>,
+        _uuid: Option<&str>,
+        _macaddr: Option<&str>,
+        _ip_address: Option<&str>,
+        _last_status: Option<&str>,
+    ) -> Result<FrontEndRedfishEndpointArray, Error> {
+        Err(Error::Message(
+            "Get redfish endpoint command not implemented for this backend".to_string(),
+        ))
+    }
+
+    async fn add_redfish_endpoint(
+        &self,
+        _auth_token: &str,
+        _redfish_endpoint: &backend_dispatcher::types::hsm::inventory::RedfishEndpoint,
+    ) -> Result<(), Error> {
+        Err(Error::Message(
+            "Add redfish endpoint command not implemented for this backend".to_string(),
+        ))
+    }
+
+    async fn update_redfish_endpoint(
+        &self,
+        _auth_token: &str,
+        _redfish_endpoint: &backend_dispatcher::types::hsm::inventory::RedfishEndpoint,
+    ) -> Result<(), Error> {
+        Err(Error::Message(
+            "Update redfish endpoint command not implemented for this backend".to_string(),
+        ))
+    }
+
+    async fn delete_redfish_endpoint(
+        &self,
+        _auth_token: &str,
+        _redfish_endpoint: &backend_dispatcher::types::hsm::inventory::RedfishEndpoint,
+    ) -> Result<Value, Error> {
+        Err(Error::Message(
+            "Delete redfish endpoint command not implemented for this backend".to_string(),
         ))
     }
 }
@@ -1358,7 +1411,7 @@ impl CfsTrait for Csm {
         (
             Option<Vec<CfsSessionGetResponse>>,
             Option<Vec<BosSessionTemplate>>,
-            Option<Vec<Image>>,
+            Option<Vec<FrontEndImage>>,
         ),
         Error,
     > {
@@ -1482,7 +1535,7 @@ impl ImsTrait for Csm {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         image_id_opt: Option<&str>,
-    ) -> Result<Vec<Image>, Error> {
+    ) -> Result<Vec<FrontEndImage>, Error> {
         crate::ims::image::http_client::get(
             shasta_token,
             shasta_base_url,
