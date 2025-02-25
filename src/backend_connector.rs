@@ -711,11 +711,7 @@ impl RedfishEndpointTrait for Csm {
         ))
     }
 
-    async fn delete_redfish_endpoint(
-        &self,
-        _auth_token: &str,
-        _redfish_endpoint: &backend_dispatcher::types::hsm::inventory::RedfishEndpoint,
-    ) -> Result<Value, Error> {
+    async fn delete_redfish_endpoint(&self, _auth_token: &str, _id: &str) -> Result<Value, Error> {
         Err(Error::Message(
             "Delete redfish endpoint command not implemented for this backend".to_string(),
         ))
