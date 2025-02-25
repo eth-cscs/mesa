@@ -629,29 +629,43 @@ impl BootParametersTrait for Csm {
         Ok(boot_parameter_infra_vec)
     }
 
+    async fn add_bootparameters(
+        &self,
+        auth_token: &str,
+        boot_parameters: &FrontEndBootParameters,
+    ) -> Result<(), Error> {
+        bss::http_client::post(
+            &self.base_url,
+            auth_token,
+            &self.root_cert,
+            boot_parameters.clone().into(),
+        )
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     async fn update_bootparameters(
         &self,
         auth_token: &str,
         boot_parameter: &FrontEndBootParameters,
     ) -> Result<(), Error> {
-        let boot_parameters = bss::types::BootParameters {
-            hosts: boot_parameter.hosts.clone(),
-            macs: boot_parameter.macs.clone(),
-            nids: boot_parameter.nids.clone(),
-            params: boot_parameter.params.clone(),
-            kernel: boot_parameter.kernel.clone(),
-            initrd: boot_parameter.initrd.clone(),
-            cloud_init: boot_parameter.cloud_init.clone(),
-        };
-
         bss::http_client::patch(
             &self.base_url,
             auth_token,
             &self.root_cert,
-            &boot_parameters,
+            &boot_parameter.clone().into(),
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn delete_bootparameters(
+        &self,
+        _auth_token: &str,
+        _boot_parameters: &FrontEndBootParameters,
+    ) -> Result<String, Error> {
+        Err(Error::Message(
+            "Delete boot parameters command not implemented for this backend".to_string(),
+        ))
     }
 }
 
