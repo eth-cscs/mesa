@@ -1612,14 +1612,20 @@ pub async fn get_output(mut attached: AttachedProcess) -> String {
 }
 
 pub async fn delete_session_pod(
+    shasta_token: &str,
     vault_base_url: &str,
-    vault_secret_path: &str,
-    vault_role_id: &str,
+    site_name: &str,
+    // vault_role_id: &str,
     k8s_api_url: &str,
     cfs_session_name: &str,
 ) -> Result<(), Error> {
-    let shasta_k8s_secrets =
-        fetch_shasta_k8s_secrets(vault_base_url, vault_secret_path, vault_role_id).await?;
+    let shasta_k8s_secrets = fetch_shasta_k8s_secrets(
+        shasta_token,
+        vault_base_url,
+        site_name,
+        // vault_role_id,
+    )
+    .await?;
 
     let client = get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets).await?;
 

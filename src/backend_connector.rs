@@ -901,6 +901,8 @@ impl CfsTrait for Csm {
 
     async fn get_session_logs_stream(
         &self,
+        shasta_token: &str,
+        site_name: &str,
         cfs_session_name: &str,
         k8s_api_url: &str,
         k8s: &K8sDetails,
@@ -915,13 +917,11 @@ impl CfsTrait for Csm {
             } => {
                 serde_json::json!({ "certificate-authority-data": certificate_authority_data, "client-certificate-data": client_certificate_data, "client-key-data": client_key_data })
             }
-            K8sAuth::Vault {
-                base_url,
-                secret_path,
-                role_id,
-            } => fetch_shasta_k8s_secrets_from_vault(&base_url, &secret_path, &role_id)
-                .await
-                .map_err(|e| Error::Message(format!("{e}")))?,
+            K8sAuth::Vault { base_url } => {
+                fetch_shasta_k8s_secrets_from_vault(shasta_token, &base_url, &site_name)
+                    .await
+                    .map_err(|e| Error::Message(format!("{e}")))?
+            }
         };
 
         let client = kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
@@ -943,6 +943,7 @@ impl CfsTrait for Csm {
     async fn get_session_logs_stream_by_xname(
         &self,
         auth_token: &str,
+        site_name: &str,
         xname: &str,
         k8s_api_url: &str,
         k8s: &K8sDetails,
@@ -983,6 +984,8 @@ impl CfsTrait for Csm {
         }
 
         self.get_session_logs_stream(
+            auth_token,
+            site_name,
             session_vec.first().unwrap().name.as_ref().unwrap().as_str(),
             k8s_api_url,
             k8s,
@@ -1448,7 +1451,7 @@ impl SatTrait for Csm {
         shasta_root_cert: &[u8],
         vault_base_url: &str,
         vault_secret_path: &str,
-        vault_role_id: &str,
+        // vault_role_id: &str,
         k8s_api_url: &str,
         shasta_k8s_secrets: serde_json::Value,
         sat_file_content: String,
@@ -1472,7 +1475,7 @@ impl SatTrait for Csm {
             shasta_root_cert,
             vault_base_url,
             vault_secret_path,
-            vault_role_id,
+            // vault_role_id,
             k8s_api_url,
             shasta_k8s_secrets,
             sat_file_content,
