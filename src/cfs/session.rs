@@ -1656,11 +1656,15 @@ pub mod mesa {
             )
             .await;
 
-            let cfs_session = if let Ok(cfs_session_vec) = cfs_session_vec_rslt {
-                cfs_session_vec.first().unwrap().clone()
-            } else {
-                eprintln!("ERROR - CFS session '{}' missing. Exit", cfs_session_id);
-                std::process::exit(1);
+            let cfs_session = match cfs_session_vec_rslt {
+                Ok(cfs_session_vec) => cfs_session_vec.first().unwrap().clone(),
+                Err(e) => {
+                    eprintln!(
+                        "ERROR - Could not find CFS session '{}'.\nReason:\n{}\nExit",
+                        cfs_session_id, e
+                    );
+                    std::process::exit(1);
+                }
             };
 
             log::debug!("CFS session details:\n{:#?}", cfs_session);
