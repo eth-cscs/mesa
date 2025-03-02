@@ -266,6 +266,7 @@ pub async fn get_query(
         response
             .json()
             .await
+            .map(|component_vec: ComponentVec| component_vec.components)
             .map_err(|error| Error::NetError(error))
     } else {
         let payload = response

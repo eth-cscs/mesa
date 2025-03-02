@@ -731,6 +731,7 @@ impl BackendTrait for Csm {
             .base_url
             .strip_suffix("/apis")
             .unwrap_or(&self.base_url);
+
         let keycloak_base_url = base_url.to_string() + "/keycloak";
 
         authentication::get_api_token(
@@ -1450,7 +1451,8 @@ impl SatTrait for Csm {
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         vault_base_url: &str,
-        vault_secret_path: &str,
+        site_name: &str,
+        // vault_secret_path: &str,
         // vault_role_id: &str,
         k8s_api_url: &str,
         shasta_k8s_secrets: serde_json::Value,
@@ -1474,7 +1476,8 @@ impl SatTrait for Csm {
             shasta_base_url,
             shasta_root_cert,
             vault_base_url,
-            vault_secret_path,
+            site_name,
+            // vault_secret_path,
             // vault_role_id,
             k8s_api_url,
             shasta_k8s_secrets,
