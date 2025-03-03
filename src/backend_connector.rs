@@ -84,8 +84,11 @@ impl GroupTrait for Csm {
             log::debug!("User is not admin, getting HSM groups available from JWT");
 
             // remove keycloak roles not related with HSM groups
-            realm_access_role_vec
-                .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
+            realm_access_role_vec.retain(|role| {
+                !role.eq("offline_access")
+                    && !role.eq("uma_authorization")
+                    && !role.eq("default-roles-shasta")
+            });
 
             // Remove site wide HSM groups like 'alps', 'prealps', 'alpsm', etc because they pollute
             // the roles to check if a user has access to individual compute nodes
