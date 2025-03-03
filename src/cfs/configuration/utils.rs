@@ -408,13 +408,25 @@ pub async fn get_configuration_layer_details(
     let mut tag_name_vec: Vec<String> = Vec::new();
     let commit_sha;
 
-    let repo_ref_vec = gitea::http_client::get_all_refs_from_repo_url(
+    let repo_ref_vec_rslt = gitea::http_client::get_all_refs_from_repo_url(
         gitea_base_url,
         gitea_token,
         &layer.clone_url,
         shasta_root_cert,
     )
-    .await?;
+    .await;
+
+    let repo_ref_vec = match repo_ref_vec_rslt {
+        Ok(value) => value,
+        Err(error) => {
+            log::warn!(
+                "Could not fetch repo '{}' refs. Reason:\n{:#?}",
+                layer.clone_url,
+                error
+            );
+            vec![]
+        }
+    };
 
     let mut ref_value_vec: Vec<&Value> = repo_ref_vec
         .iter()
