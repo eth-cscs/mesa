@@ -85,6 +85,7 @@ pub mod v2 {
             gitea_token: &str,
             configuration_yaml: &serde_yaml::Value,
             cray_product_catalog: &BTreeMap<String, String>,
+            site_name: &str,
         ) -> Self {
             let mut cfs_configuration = Self::new();
 
@@ -120,6 +121,7 @@ pub mod v2 {
                             git_tag,
                             gitea_token,
                             shasta_root_cert,
+                            site_name,
                         )
                         .await;
 
@@ -468,6 +470,7 @@ pub mod v3 {
             gitea_token: &str,
             configuration_yaml: &serde_yaml::Value,
             cray_product_catalog: &BTreeMap<String, String>,
+            site_name: &str,
         ) -> (String, Self) {
             let cfs_configuration_name;
             let mut cfs_configuration = Self::new();
@@ -504,6 +507,7 @@ pub mod v3 {
                             git_tag,
                             gitea_token,
                             shasta_root_cert,
+                            site_name,
                         )
                         .await;
 

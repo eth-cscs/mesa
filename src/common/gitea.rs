@@ -106,9 +106,11 @@ pub mod http_client {
         tag: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
+        site_name: &str,
     ) -> Result<Value, reqwest::Error> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
-        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        // let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        let gitea_external_base_url = format!("https://api.cmn.{}.cscs.ch/vcs/", site_name);
 
         let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
 
@@ -116,7 +118,7 @@ pub mod http_client {
             .trim_start_matches(gitea_internal_base_url)
             .trim_end_matches(".git");
         let repo_name = repo_name
-            .trim_start_matches(gitea_external_base_url)
+            .trim_start_matches(&gitea_external_base_url)
             .trim_end_matches(".git");
 
         /* log::info!("repo_url: {}", repo_url);
@@ -160,17 +162,20 @@ pub mod http_client {
         tag: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
+        site_name: &str,
     ) -> Result<Value, Error> {
+        let gitea_repo_url_prefix = format!(
+            "https://vcs.cmn.{}.cscs.ch/vcs/api/v1/repos/cray/",
+            site_name
+        );
+
         let repo_name: &str = gitea_api_tag_url
-            .trim_start_matches("https://vcs.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/")
+            .trim_start_matches(&gitea_repo_url_prefix)
             .split('/')
             .next()
             .unwrap();
 
-        let api_url = format!(
-            "https://api.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/{}/tags/{}",
-            repo_name, tag
-        );
+        let api_url = format!("{}{}/tags/{}", gitea_repo_url_prefix, repo_name, tag);
 
         let client;
 
@@ -211,8 +216,10 @@ pub mod http_client {
         commitid: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
+        site_name: &str,
     ) -> Result<Value, crate::error::Error> {
-        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        // let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        let gitea_external_base_url = format!("https://api.cmn.{}.cscs.ch/vcs/", site_name);
 
         /* let repo_name = repo_url
         .trim_end_matches(".git")
@@ -225,7 +232,7 @@ pub mod http_client {
         } */
 
         get_commit_details(
-            gitea_external_base_url,
+            &gitea_external_base_url,
             repo_name,
             commitid,
             gitea_token,

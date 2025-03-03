@@ -358,12 +358,23 @@ pub async fn print_cfs_session_logs(
         println!("{}", line);
     }
 
-    let mut logs_stream =
-        get_cfs_session_container_teardown_logs_stream(client, cfs_session_name).await?;
+    let logs_stream_rslt =
+        get_cfs_session_container_teardown_logs_stream(client, cfs_session_name).await;
 
-    while let Some(line) = logs_stream.try_next().await? {
-        println!("{}", line);
+    // We don't want to return an error if the teardown container is not found
+    match logs_stream_rslt {
+        Ok(mut logs_stream) => {
+            while let Some(line) = logs_stream.try_next().await? {
+                println!("{}", line);
+            }
+        }
+        Err(e) => {
+            log::warn!("{}", e);
+        }
     }
+    /* while let Some(line) = logs_stream.try_next().await? {
+        println!("{}", line);
+    } */
 
     Ok(())
 }
@@ -696,11 +707,21 @@ pub async fn get_cfs_session_container_teardown_logs_stream(
         containers
     );
 
-    let ansible_container: &Container = containers
-        .find(|container| container.name.eq(container_name))
-        .unwrap();
+    let teardown_container_opt: Option<&Container> =
+        containers.find(|container| container.name.eq(container_name));
 
-    let mut container_status = get_container_status(cfs_session_pod, &ansible_container.name);
+    let teardown_container = match teardown_container_opt {
+        Some(container) => container,
+        None => {
+            return Err(format!(
+                "Container '{}' not found in pod '{}'. Aborting operation.",
+                container_name, cfs_session_pod_name
+            )
+            .into())
+        }
+    };
+
+    let mut container_status = get_container_status(cfs_session_pod, &teardown_container.name);
 
     let mut i = 0;
     let max = 300;
@@ -711,14 +732,14 @@ pub async fn get_cfs_session_container_teardown_logs_stream(
     {
         println!(
             "Container ({}) status missing or 'waiting'. Checking again in 2 secs. Attempt {} of {}",
-            ansible_container.name,
+            teardown_container.name,
             i + 1,
             max
         );
         i += 1;
         tokio::time::sleep(time::Duration::from_secs(2)).await;
         let pods = pods_api.list(&params).await?;
-        container_status = get_container_status(&pods.items[0], &ansible_container.name);
+        container_status = get_container_status(&pods.items[0], &teardown_container.name);
         log::debug!(
             "Container status:\n{:#?}",
             container_status.as_ref().unwrap()
@@ -728,12 +749,12 @@ pub async fn get_cfs_session_container_teardown_logs_stream(
     if container_status.as_ref().unwrap().waiting.is_some() {
         return Err(format!(
             "Container ({}) status is waiting. Aborting operation.",
-            ansible_container.name
+            teardown_container.name
         )
         .into());
     }
 
-    get_container_logs_stream(ansible_container, cfs_session_pod, &pods_api).await
+    get_container_logs_stream(teardown_container, cfs_session_pod, &pods_api).await
 }
 
 fn get_container_status(
