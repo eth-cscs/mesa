@@ -1,7 +1,26 @@
 use crate::{cfs, error::Error, hsm};
 use std::io::{self, Write};
 
-use super::http_client::v3::types::CfsSessionGetResponse;
+use super::http_client::v3::types::{CfsSessionGetResponse, Group};
+
+// Check if a session is related to a group the user has access to
+pub fn check_cfs_session_against_groups_available(
+    cfs_session: &CfsSessionGetResponse,
+    group_available: Vec<Group>,
+) -> bool {
+    group_available.iter().any(|group| {
+        cfs_session
+            .get_target_hsm()
+            .is_some_and(|group_vec| group_vec.contains(&group.name))
+            || cfs_session
+                .get_target_xname()
+                .is_some_and(|session_xname_vec| {
+                    session_xname_vec
+                        .iter()
+                        .all(|xname| group.members.contains(xname))
+                })
+    })
+}
 
 /// Checks if a session is "generic". A generic session is a session used to create an
 /// image and it is not dedicated to a specific group.

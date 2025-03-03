@@ -1,11 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Instant,
-};
+use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
-use tokio::sync::Semaphore;
 
 use crate::{
     cfs::session::http_client::v3::types::CfsSessionGetResponse,

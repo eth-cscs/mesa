@@ -22,7 +22,7 @@ use crate::{
 use image::Image;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Value;
 use uuid::Uuid;
 
 use self::sessiontemplate::SessionTemplate;

@@ -2,18 +2,12 @@ use std::path::PathBuf;
 
 use crate::{
     cfs::{self, session::http_client::v3::types::CfsSessionPostRequest},
-    common::{
-        jwt_ops,
-        kubernetes::{self},
-        local_git_repo,
-        vault::http_client::fetch_shasta_k8s_secrets_from_vault,
-    },
+    common::local_git_repo,
     error::Error,
     hsm,
     node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,
 };
 
-use backend_dispatcher::audit::Audit;
 use dialoguer::{theme::ColorfulTheme, Confirm};
 
 use k8s_openapi::chrono;

@@ -5,7 +5,6 @@ use crate::{
     hsm::group::types::{Group, Member, Members},
 };
 
-use super::hacks::filter_system_hsm_groups;
 
 /// Get list of HSM group using --> shttps://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
 pub async fn get_raw(

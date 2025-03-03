@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 
 use serde_json::Value;
 
-use super::types::NodeSummary;
 
 pub fn get_list_processor_model_from_hw_inventory_value(
     hw_inventory: &Value,

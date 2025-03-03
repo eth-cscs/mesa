@@ -23,12 +23,8 @@ use backend_dispatcher::{
             cfs_configuration_request::CfsConfigurationRequest, CfsConfigurationResponse,
             CfsSessionGetResponse, CfsSessionPostRequest, Layer, LayerDetails,
         },
-        hsm::inventory::{
-            RedfishEndpoint as FrontEndRedfishEndpoint,
-            RedfishEndpointArray as FrontEndRedfishEndpointArray,
-        },
+        hsm::inventory::RedfishEndpointArray as FrontEndRedfishEndpointArray,
         ims::Image as FrontEndImage,
-        kafka::Kafka,
         BootParameters as FrontEndBootParameters, BosSessionTemplate, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList, K8sAuth, K8sDetails,
