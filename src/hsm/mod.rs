@@ -217,6 +217,61 @@ pub mod group {
 
                     let hsm_group_vec_rslt = Ok(vec![payload]);
 
+                    hsm_group_vec_rslt
+                } else {
+                    response
+                        .json()
+                        .await
+                        .map_err(|error| Error::NetError(error))
+                }
+            } else {
+                let payload = response
+                    .text()
+                    .await
+                    .map_err(|error| Error::NetError(error))?;
+
+                Err(Error::Message(payload))
+            }
+        }
+
+        pub async fn get_all(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+        ) -> Result<Vec<HsmGroup>, Error> {
+            get(shasta_token, shasta_base_url, shasta_root_cert, None).await
+        }
+
+        /// Gets list of HSM groups from CSM api. It also does a hack where the list returned by
+        /// CSM API gets shrinked by removing the CSM wide HSM groups like `alps`, `alpsm`,
+        /// `alpsb`, etc
+        #[deprecated(
+            since = "0.43.7",
+            note = "This function filters out system wide HSM groups which may not be desired. Consider using get_without instead."
+        )]
+        pub async fn get_without_system_wide(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            group_name_opt: Option<&String>,
+        ) -> Result<Vec<HsmGroup>, Error> {
+            let response = get_raw(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+                group_name_opt,
+            )
+            .await?;
+
+            if response.status().is_success() {
+                if group_name_opt.is_some() {
+                    let payload = response
+                        .json::<HsmGroup>()
+                        .await
+                        .map_err(|error| Error::NetError(error))?;
+
+                    let hsm_group_vec_rslt = Ok(vec![payload]);
+
                     //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
                     //wide operations instead of using roles
                     filter_system_hsm_groups(hsm_group_vec_rslt)
@@ -240,24 +295,34 @@ pub mod group {
             }
         }
 
-        pub async fn get_all(
+        #[deprecated(
+            since = "0.43.7",
+            note = "This function filters out system wide HSM groups which may not be desired. Consider using get_all instead."
+        )]
+        pub async fn get_all_without_system_wide(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
         ) -> Result<Vec<HsmGroup>, Error> {
-            get(shasta_token, shasta_base_url, shasta_root_cert, None).await
+            get_without_system_wide(shasta_token, shasta_base_url, shasta_root_cert, None).await
         }
 
         /// Get list of HSM groups using --> https://apidocs.svc.cscs.ch/iaas/hardware-state-manager/operation/doGroupsGet/
         /// NOTE: this returns all HSM groups which name contains hsm_groupu_name param value
         /// FIXME: change `hsm_group_name_opt` type from `Option<&String>` to Option<`&str`>
-        pub async fn get_hsm_group_vec(
+        #[deprecated(
+            since = "0.43.7",
+            note = "This function filters out system wide HSM groups which may not be desired. Consider using get_hsm_group_vec instead."
+        )]
+        pub async fn get_hsm_group_without_system_wide_vec(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
             hsm_group_name_opt: Option<&String>,
         ) -> Result<Vec<HsmGroup>, Error> {
-            let json_response = get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
+            let json_response =
+                get_all_without_system_wide(shasta_token, shasta_base_url, shasta_root_cert)
+                    .await?;
 
             let mut hsm_groups: Vec<HsmGroup> = Vec::new();
 
@@ -583,7 +648,7 @@ pub mod group {
         pub fn filter_system_hsm_groups(
             hsm_group_vec_rslt: Result<Vec<HsmGroup>, Error>,
         ) -> Result<Vec<HsmGroup>, Error> {
-            //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+            // FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
             //wide operations instead of using roles
             let hsm_group_to_ignore_vec = ["alps", "prealps", "alpse", "alpsb"];
             let hsm_group_vec_filtered_rslt: Result<Vec<HsmGroup>, Error> = hsm_group_vec_rslt
@@ -608,7 +673,7 @@ pub mod group {
         }
 
         pub fn filter_system_hsm_group_names(hsm_group_name_vec: Vec<String>) -> Vec<String> {
-            //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
+            // FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
             //wide operations instead of using roles
             let hsm_group_to_ignore_vec = ["alps", "prealps", "alpse", "alpsb"];
 
@@ -636,7 +701,7 @@ pub mod group {
             cfs::session::mesa::r#struct::v3::CfsSessionGetResponse,
             error::Error,
             hsm::group::{
-                http_client::{get, post_member},
+                http_client::{get_without_system_wide, post_member},
                 r#struct::HsmGroup,
             },
             node::utils::validate_xnames_format_and_membership_agaisnt_single_hsm,
@@ -918,8 +983,34 @@ pub mod group {
             shasta_root_cert: &[u8],
             hsm_name_vec: Vec<&str>,
         ) -> Result<HashMap<String, Vec<String>>, Error> {
+            // NOTE: we need to get all HSMs in case we need to expand original HSM group names
+            // with 'siblings'
             let hsm_group_vec =
                 http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert).await?;
+
+            Ok(filter_and_convert_to_map(hsm_name_vec, hsm_group_vec))
+        }
+
+        // Returns a HashMap with keys being the hsm names/labels the user has access a curated list of xnames
+        // for each hsm name as values
+        #[deprecated(
+            since = "0.43.7",
+            note = "This function filters out system wide HSM groups which may not be desired. Consider using get_hsm_map_and_filter_by_hsm_name_without_system_wide_vec instead"
+        )]
+        pub async fn get_hsm_map_and_filter_by_hsm_name_without_system_wide_vec(
+            shasta_token: &str,
+            shasta_base_url: &str,
+            shasta_root_cert: &[u8],
+            hsm_name_vec: Vec<&str>,
+        ) -> Result<HashMap<String, Vec<String>>, Error> {
+            // NOTE: we need to get all HSMs in case we need to expand original HSM group names
+            // with 'siblings'
+            let hsm_group_vec = http_client::get_all_without_system_wide(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+            )
+            .await?;
 
             Ok(filter_and_convert_to_map(hsm_name_vec, hsm_group_vec))
         }
@@ -1015,7 +1106,7 @@ pub mod group {
                 tasks.spawn(async move {
                     let _permit = permit; // Wait semaphore to allow new tasks https://github.com/tokio-rs/tokio/discussions/2648#discussioncomment-34885
 
-                    get(
+                    get_without_system_wide(
                         &shasta_token_string,
                         &shasta_base_url_string,
                         &shasta_root_cert_vec,
@@ -1106,7 +1197,7 @@ pub mod group {
             hsm_group: &str,
         ) -> Option<Vec<String>> {
             // Take all nodes for all hsm_groups found and put them in a Vec
-            http_client::get(
+            http_client::get_without_system_wide(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1130,7 +1221,7 @@ pub mod group {
             hsm_group: &str,
         ) -> Vec<String> {
             // Take all nodes for all hsm_groups found and put them in a Vec
-            http_client::get(
+            http_client::get_without_system_wide(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1155,10 +1246,13 @@ pub mod group {
             shasta_root_cert: &[u8],
             xname: &String,
         ) -> Option<Vec<String>> {
-            let mut hsm_group_vec =
-                http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
-                    .await
-                    .unwrap();
+            let mut hsm_group_vec = http_client::get_all_without_system_wide(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+            )
+            .await
+            .unwrap();
 
             hsm_group_vec.retain(|hsm_group| {
                 hsm_group
@@ -1200,10 +1294,13 @@ pub mod group {
             shasta_root_cert: &[u8],
             xname_vec: &[&str],
         ) -> Vec<String> {
-            let mut hsm_group_vec =
-                http_client::get_all(shasta_token, shasta_base_url, shasta_root_cert)
-                    .await
-                    .unwrap();
+            let mut hsm_group_vec = http_client::get_all_without_system_wide(
+                shasta_token,
+                shasta_base_url,
+                shasta_root_cert,
+            )
+            .await
+            .unwrap();
 
             hsm_group_vec.retain(|hsm_group_value| {
                 hsm_group_value
@@ -1322,14 +1419,15 @@ pub mod group {
             cfs_sessions: &[CfsSessionGetResponse],
         ) {
             if let Some(hsm_group_name) = hsm_group {
-                let hsm_group_details = crate::hsm::group::http_client::get_hsm_group_vec(
-                    shasta_token,
-                    shasta_base_url,
-                    shasta_root_cert,
-                    hsm_group,
-                )
-                .await
-                .unwrap();
+                let hsm_group_details =
+                    crate::hsm::group::http_client::get_hsm_group_without_system_wide_vec(
+                        shasta_token,
+                        shasta_base_url,
+                        shasta_root_cert,
+                        hsm_group,
+                    )
+                    .await
+                    .unwrap();
                 let hsm_group_members = get_member_vec_from_hsm_group_vec(&hsm_group_details);
                 let cfs_session_hsm_groups: Vec<String> = cfs_sessions
                     .last()
