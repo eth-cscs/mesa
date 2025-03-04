@@ -687,6 +687,7 @@ pub async fn create_cfs_configuration_from_sat_file(
     sat_file_configuration_yaml: &serde_yaml::Value,
     // tag: &str,
     dry_run: bool,
+    site_name: &str,
 ) -> Result<CfsConfigurationResponse, Error> {
     log::debug!(
         "Convert CFS configuration in SAT file (yaml):\n{:#?}",
@@ -700,6 +701,7 @@ pub async fn create_cfs_configuration_from_sat_file(
             gitea_token,
             sat_file_configuration_yaml,
             cray_product_catalog,
+            site_name,
         )
         .await?;
 

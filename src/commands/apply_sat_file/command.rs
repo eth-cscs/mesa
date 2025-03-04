@@ -346,6 +346,7 @@ pub async fn exec(
                 configuration_yaml,
                 // tag,
                 dry_run,
+                site_name,
             )
             .await?;
 

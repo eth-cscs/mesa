@@ -10,9 +10,8 @@ pub mod http_client {
         gitea_token: &str,
         repo_url: &str,
         shasta_root_cert: &[u8],
-    ) -> Result<Vec<Value>, crate::error::Error> {
+    ) -> Result<Vec<Value>, Error> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/cray/";
-        // let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
 
         let repo_name = repo_url
             .trim_start_matches(gitea_internal_base_url)
@@ -79,7 +78,7 @@ pub mod http_client {
         shasta_root_cert: &[u8],
         repo_url: &str,
         branch_name: &str,
-    ) -> Result<String, crate::error::Error> {
+    ) -> Result<String, Error> {
         let all_ref_vec =
             get_all_refs_from_repo_url(gitea_base_url, gitea_token, repo_url, shasta_root_cert)
                 .await?;
@@ -102,9 +101,10 @@ pub mod http_client {
         tag: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
+        site_name: &str,
     ) -> Result<Value, reqwest::Error> {
         let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
-        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        let gitea_external_base_url = format!("https://api.cmn.{}.cscs.ch/vcs/", site_name);
 
         let gitea_api_base_url = gitea_internal_base_url.to_owned() + "api/v1";
 
@@ -112,7 +112,7 @@ pub mod http_client {
             .trim_start_matches(gitea_internal_base_url)
             .trim_end_matches(".git");
         let repo_name = repo_name
-            .trim_start_matches(gitea_external_base_url)
+            .trim_start_matches(&gitea_external_base_url)
             .trim_end_matches(".git");
 
         /* log::info!("repo_url: {}", repo_url);
@@ -156,17 +156,26 @@ pub mod http_client {
         tag: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
+        site_name: &str,
     ) -> Result<Value, Error> {
+        let external_vcs_base_url = format!(
+            "https://vcs.cmn.{}.cscs.ch/vcs/api/v1/repos/cray/",
+            site_name
+        );
         let repo_name: &str = gitea_api_tag_url
-            .trim_start_matches("https://vcs.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/")
+            .trim_start_matches(&external_vcs_base_url)
             .split('/')
             .next()
             .unwrap();
 
         let api_url = format!(
+            "https://api.cmn.{}.cscs.ch/vcs/api/v1/repos/cray/{}/tags/{}",
+            site_name, repo_name, tag
+        );
+        /* let api_url = format!(
             "https://api.cmn.alps.cscs.ch/vcs/api/v1/repos/cray/{}/tags/{}",
             repo_name, tag
-        );
+        ); */
 
         let client;
 
@@ -199,7 +208,7 @@ pub mod http_client {
     }
 
     // Get commit details.
-    // NOTE: repo_name value must not contain the group (eg in CSSC gitlab we have
+    // NOTE: repo_name value must not contain the group (eg in CSCS gitlab we have
     // alps/csm-config/template-management and in gitea is vcs/api/v1/repos/template-management
     pub async fn get_commit_details_from_external_url(
         // repo_url: &str,
@@ -207,8 +216,9 @@ pub mod http_client {
         commitid: &str,
         gitea_token: &str,
         shasta_root_cert: &[u8],
+        site_name: &str,
     ) -> Result<Value, crate::error::Error> {
-        let gitea_external_base_url = "https://api.cmn.alps.cscs.ch/vcs/";
+        let gitea_external_base_url = format!("https://api.cmn.{}.cscs.ch/vcs/", site_name);
 
         /* let repo_name = repo_url
         .trim_end_matches(".git")
@@ -221,7 +231,7 @@ pub mod http_client {
         } */
 
         get_commit_details(
-            gitea_external_base_url,
+            &gitea_external_base_url,
             repo_name,
             commitid,
             gitea_token,

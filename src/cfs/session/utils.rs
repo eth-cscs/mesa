@@ -1,7 +1,11 @@
-use crate::{cfs, error::Error, hsm};
+use crate::{
+    cfs,
+    error::Error,
+    hsm::{self, group::types::Group},
+};
 use std::io::{self, Write};
 
-use super::http_client::v3::types::{CfsSessionGetResponse, Group};
+use super::http_client::v3::types::CfsSessionGetResponse;
 
 // Check if a session is related to a group the user has access to
 pub fn check_cfs_session_against_groups_available(
@@ -11,13 +15,13 @@ pub fn check_cfs_session_against_groups_available(
     group_available.iter().any(|group| {
         cfs_session
             .get_target_hsm()
-            .is_some_and(|group_vec| group_vec.contains(&group.name))
+            .is_some_and(|group_vec| group_vec.contains(&group.label))
             || cfs_session
                 .get_target_xname()
                 .is_some_and(|session_xname_vec| {
                     session_xname_vec
                         .iter()
-                        .all(|xname| group.members.contains(xname))
+                        .all(|xname| group.get_members().contains(xname))
                 })
     })
 }

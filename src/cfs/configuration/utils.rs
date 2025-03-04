@@ -400,6 +400,7 @@ pub async fn get_configuration_layer_details(
     gitea_base_url: &str,
     gitea_token: &str,
     layer: Layer,
+    site_name: &str,
 ) -> Result<LayerDetails, Error> {
     let commit_id: String = layer.commit.clone().unwrap_or("Not defined".to_string());
     // let branch_name_opt: Option<&str> = layer.branch.as_deref();
@@ -464,6 +465,7 @@ pub async fn get_configuration_layer_details(
                 &tag_name,
                 gitea_token,
                 shasta_root_cert,
+                site_name,
             )
             .await?;
 
@@ -558,6 +560,7 @@ pub async fn get_configuration_layer_details(
             commit_id,
             gitea_token,
             shasta_root_cert,
+            site_name,
         )
         .await?
     } else {

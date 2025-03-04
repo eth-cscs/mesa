@@ -1292,12 +1292,14 @@ impl CfsTrait for Csm {
         gitea_base_url: &str,
         gitea_token: &str,
         layer: Layer,
+        site_name: &str,
     ) -> Result<LayerDetails, Error> {
         crate::cfs::configuration::utils::get_configuration_layer_details(
             shasta_root_cert,
             gitea_base_url,
             gitea_token,
             layer.into(),
+            site_name,
         )
         .await
         .map(|layer_details| layer_details.into())

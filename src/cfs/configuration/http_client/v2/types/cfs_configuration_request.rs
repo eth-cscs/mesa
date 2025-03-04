@@ -81,6 +81,7 @@ impl CfsConfigurationRequest {
         gitea_token: &str,
         configuration_yaml: &serde_yaml::Value,
         cray_product_catalog: &BTreeMap<String, String>,
+        site_name: &str,
     ) -> Result<Self, Error> {
         let mut cfs_configuration = Self::new();
 
@@ -116,6 +117,7 @@ impl CfsConfigurationRequest {
                         git_tag,
                         gitea_token,
                         shasta_root_cert,
+                        site_name,
                     )
                     .await;
 
