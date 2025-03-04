@@ -40,12 +40,13 @@ pub fn get_preferred_username(token: &str) -> Result<String, Box<dyn Error>> {
         .to_string())
 }
 
-/// Returns the list of available HSM groups in JWT user token. The list is filtered and system HSM
-/// groups (eg alps, alpsm, alpse, etc)
+/// Returns the list of available HSM groups in JWT user token.. System wide (alps, alpsb, alpse, prealps,
+/// etc) are filtered out.
+/// NOTE: The list is filtered and system HSM groups (eg alps, alpsm, alpse, etc)
 /// NOTE: this function does not check if the user is admin or not, it just returns the list of HSM
 // FIXME: replace Error to my own one
-pub fn get_roles(token: &str) -> Result<Vec<String>, Box<dyn Error>> {
-    /* // If JWT does not have `/realm_access/roles` claim, then we will assume, user is admin
+pub fn get_roles_without_system_wide(token: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    // If JWT does not have `/realm_access/roles` claim, then we will assume, user is admin
     let mut hsm_name_available_vec: Vec<String> = get_claims_from_jwt_token(token)
         .unwrap()
         .pointer("/realm_access/roles")
@@ -64,8 +65,13 @@ pub fn get_roles(token: &str) -> Result<Vec<String>, Box<dyn Error>> {
     //wide operations instead of using roles
     Ok(hsm::group::hacks::filter_system_hsm_group_names(
         hsm_name_available_vec,
-    )) */
+    ))
+}
 
+/// Returns the list of available HSM groups in JWT user token.
+/// NOTE: this function does not check if the user is admin or not, it just returns the list of HSM
+// FIXME: replace Error to my own one
+pub fn get_roles(token: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let hsm_name_available_vec: Vec<String> = get_claims_from_jwt_token(token)
         .unwrap()
         .pointer("/realm_access/roles")
