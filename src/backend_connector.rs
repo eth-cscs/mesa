@@ -73,7 +73,7 @@ impl GroupTrait for Csm {
     }
 
     async fn get_group_name_available(&self, auth_token: &str) -> Result<Vec<String>, Error> {
-        log::debug!("Get HSM names available from JWT or all");
+        /* log::debug!("Get HSM names available from JWT or all");
 
         const ADMIN_ROLE_NAME: &str = "pa_admin";
 
@@ -112,7 +112,10 @@ impl GroupTrait for Csm {
             all_hsm_groups.sort();
 
             Ok(all_hsm_groups)
-        }
+        } */
+        hsm::group::utils::get_group_name_available(auth_token, &self.base_url, &self.root_cert)
+            .await
+            .map_err(|e| Error::Message(e.to_string()))
     }
 
     async fn add_group(
