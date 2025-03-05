@@ -85,3 +85,9 @@ pub fn get_roles(token: &str) -> Result<Vec<String>, Box<dyn Error>> {
 
     Ok(hsm_name_available_vec)
 }
+
+pub fn is_user_admin(shasta_token: &str) -> Result<bool, Box<dyn Error>> {
+    let roles = get_roles(shasta_token)?;
+
+    Ok(roles.contains(&"pa_admin".to_string()))
+}
