@@ -72,3 +72,10 @@ pub fn get_roles(token: &str) -> Vec<String> {
         .map(|role_value| role_value.as_str().unwrap().to_string())
         .collect()
 }
+
+/// This function will return true if the user is an admin, otherwise false
+pub fn is_user_admin(shasta_token: &str) -> bool {
+    let roles = get_roles(shasta_token);
+
+    roles.contains(&"pa_admin".to_string())
+}
