@@ -404,6 +404,13 @@ pub async fn print_cfs_session_logs(
     // let _ = print_cfs_session_container_ansible_logs_stream(client, cfs_session_name).await;
 
     let mut logs_stream =
+        get_cfs_session_container_inventory_logs_stream(client.clone(), cfs_session_name).await?;
+
+    while let Some(line) = logs_stream.try_next().await.unwrap() {
+        println!("{}", line);
+    }
+
+    let mut logs_stream =
         get_cfs_session_container_ansible_logs_stream(client.clone(), cfs_session_name).await?;
 
     while let Some(line) = logs_stream.try_next().await.unwrap() {
@@ -621,6 +628,20 @@ pub async fn get_cfs_session_init_container_git_clone_logs_stream(
 
     get_init_container_logs_stream(git_clone_container, cfs_session_pod, &pods_api).await
 } */
+
+pub async fn get_cfs_session_container_inventory_logs_stream(
+    client: kube::Client,
+    cfs_session_name: &str,
+) -> Result<Lines<impl AsyncBufReadExt>, Error> {
+    get_container_logs_stream(
+        client,
+        cfs_session_name,
+        "inventory",
+        "services",
+        format!("cfsession={}", cfs_session_name).as_str(),
+    )
+    .await
+}
 
 pub async fn get_cfs_session_container_ansible_logs_stream(
     client: kube::Client,
