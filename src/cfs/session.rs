@@ -1318,7 +1318,10 @@ pub mod mesa {
 
     pub mod utils {
 
-        use crate::{common, hsm};
+        use crate::{
+            common,
+            hsm::{self, group::hacks::filter_roles_and_subroles},
+        };
 
         use super::r#struct::v3::CfsSessionGetResponse;
 
@@ -1342,15 +1345,17 @@ pub mod mesa {
                 .get_target_def()
                 .is_some_and(|target_def| target_def == "image".to_string())
             {
-                let hsm_group_name_vec: Vec<String> = cfs_session
-                    .get_target_hsm()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .filter(|hsm_group_name| {
-                        !["Application", "Compute", "UAN", "UserDefined"]
-                            .contains(&hsm_group_name.as_str())
-                    })
-                    .collect();
+                /* let hsm_group_name_vec: Vec<String> = cfs_session
+                .get_target_hsm()
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|hsm_group_name| {
+                    !["Application", "Compute", "UAN", "UserDefined"]
+                        .contains(&hsm_group_name.as_str())
+                })
+                .collect(); */
+                let hsm_group_name_vec: Vec<String> =
+                    filter_roles_and_subroles(cfs_session.get_target_hsm().unwrap_or_default());
 
                 hsm_group_name_vec.is_empty()
             } else {
