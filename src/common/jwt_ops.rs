@@ -58,8 +58,11 @@ pub fn get_roles_without_system_wide(token: &str) -> Result<Vec<String>, Box<dyn
         .map(|role_value| role_value.as_str().unwrap().to_string())
         .collect();
 
-    hsm_name_available_vec
-        .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
+    hsm_name_available_vec.retain(|role| {
+        !role.eq("offline_access")
+            && !role.eq("uma_authorization")
+            && !role.eq("default_roles_shasta")
+    });
 
     //FIXME: Get rid of this by making sure CSM admins don't create HSM groups for system
     //wide operations instead of using roles

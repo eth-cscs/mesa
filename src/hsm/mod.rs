@@ -684,6 +684,37 @@ pub mod group {
                 })
                 .collect()
         }
+
+        pub fn filter_roles_and_subroles(hsm_group_name_vec: Vec<String>) -> Vec<String> {
+            // FIXME: the list of roles and subroles should come from 'kubectl edit configmap -n services cray-hms-base-config'
+            let roles = vec![
+                "Compute",
+                "Service",
+                "System",
+                "Application",
+                "Storage",
+                "Management",
+            ];
+
+            let subroles = vec![
+                "Worker",
+                "Master",
+                "Storage",
+                "UAN",
+                "Gateway",
+                "LNETRouter",
+                "Visualization",
+                "UserDefined",
+            ];
+
+            hsm_group_name_vec
+                .into_iter()
+                .filter(|hsm_group_name| {
+                    !roles.contains(&hsm_group_name.as_str())
+                        && !subroles.contains(&hsm_group_name.as_str())
+                })
+                .collect()
+        }
     }
 
     pub mod utils {

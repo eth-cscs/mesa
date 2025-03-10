@@ -1318,7 +1318,7 @@ pub mod mesa {
 
     pub mod utils {
 
-        use crate::hsm;
+        use crate::{common, hsm};
 
         use super::r#struct::v3::CfsSessionGetResponse;
 
@@ -1631,6 +1631,36 @@ pub mod mesa {
                 })
                 .map(|cfs_session| cfs_session.get_first_result_id().unwrap())
                 .collect::<Vec<String>>()
+        }
+
+        /// Check user has access to all groups in CFS session
+        /// This function validates groups in CFS session against user auth token
+        /// Returns the list of groups in the CFS session the user does not have access to
+        pub fn validate_groups(group_names: &[String], shasta_token: &str) -> Vec<String> {
+            if common::jwt_ops::is_user_admin(shasta_token).unwrap() {
+                // Admins have access to all groups
+                vec![]
+            } else {
+                // User is not admin. Check if groups in CFS session are in user auth token
+                // Remove "site wide" (eg: alps, realps, alpsm, alpsb, etc.) from CFS session groups
+                //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+                //wide operations instead of using roles
+                let groups_in_user_auth_token =
+                    common::jwt_ops::get_roles_without_system_wide(shasta_token).unwrap();
+                // Remove 'roles' and 'subroles' from CFS session groups
+                let groups_without_roles_subroles =
+                    hsm::group::hacks::filter_roles_and_subroles(group_names.to_vec());
+                //TODO: Get rid of this by making sure CSM admins don't create HSM groups for system
+                //wide operations instead of using roles
+                let groups_without_system_wide = hsm::group::hacks::filter_system_hsm_group_names(
+                    groups_without_roles_subroles.to_vec(),
+                );
+                // Get list of groups in CFS session not in user auth token
+                groups_without_system_wide
+                    .into_iter()
+                    .filter(|group| !groups_in_user_auth_token.contains(group))
+                    .collect()
+            }
         }
     }
 
