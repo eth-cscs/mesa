@@ -1337,7 +1337,7 @@ pub mod mesa {
         /// 1) We extract the HSM groups the CFS session is linked to
         /// 2) We substract the roles mentioned above to the list of HSM groups
         /// 3) If the list is empty then, we are dealing with a generic CFS session
-        pub fn is_session_generic(cfs_session: &CfsSessionGetResponse) -> bool {
+        pub fn is_session_image_generic(cfs_session: &CfsSessionGetResponse) -> bool {
             if cfs_session
                 .get_target_def()
                 .is_some_and(|target_def| target_def == "image".to_string())
@@ -1385,7 +1385,7 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    (keep_generic_sessions && is_session_generic(cfs_session))
+                    (keep_generic_sessions && is_session_image_generic(cfs_session))
                         || cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                             target_hsm_vec
                                 .iter()
@@ -1461,7 +1461,7 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_from_xnames_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    (keep_generic_sessions && is_session_generic(cfs_session))
+                    (keep_generic_sessions && is_session_image_generic(cfs_session))
                         || cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                             target_hsm_vec.iter().any(|target_hsm| {
                                 hsm_group_name_from_xnames_vec.contains(target_hsm)

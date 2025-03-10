@@ -110,7 +110,8 @@ pub async fn filter(
         &mut cfs_session_vec,
         hsm_group_name_vec,
         None,
-        false,
+        crate::common::jwt_ops::is_user_admin(shasta_token).unwrap(),
+ 
     )
     .await;
 
