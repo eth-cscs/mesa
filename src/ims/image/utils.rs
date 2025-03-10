@@ -111,7 +111,6 @@ pub async fn filter(
         hsm_group_name_vec,
         None,
         crate::common::jwt_ops::is_user_admin(shasta_token).unwrap(),
- 
     )
     .await;
 
@@ -214,6 +213,7 @@ pub async fn filter(
             false
         };
 
+        dbg!(&image_id, &cfs_configuration, &target_groups, &boot_image);
         image_detail_vec.push((
             image.clone(),
             cfs_configuration.to_string(),
