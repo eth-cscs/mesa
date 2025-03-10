@@ -24,14 +24,15 @@ pub async fn get_group_name_available(
     const ADMIN_ROLE_NAME: &str = "pa_admin";
 
     // Get HSM groups/Keycloak roles the user has access to from JWT token
-    let mut realm_access_role_vec = crate::common::jwt_ops::get_roles(shasta_auth_token);
+    let realm_access_role_vec = crate::common::jwt_ops::get_roles(shasta_auth_token);
 
     if !realm_access_role_vec.contains(&ADMIN_ROLE_NAME.to_string()) {
         log::debug!("User is not admin, getting HSM groups available from JWT");
 
         // remove keycloak roles not related with HSM groups
-        realm_access_role_vec
-            .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization"));
+        /* realm_access_role_vec
+        .retain(|role| !role.eq("offline_access") && !role.eq("uma_authorization")); */
+        let realm_access_role_vec = hsm::group::hacks::filter_keycloak_roles(realm_access_role_vec);
 
         // Remove site wide HSM groups like 'alps', 'prealps', 'alpsm', etc because they pollute
         // the roles to check if a user has access to individual compute nodes
