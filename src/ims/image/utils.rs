@@ -1,6 +1,7 @@
 use crate::{
     bos,
     bss::http_client::get_multiple,
+    common,
     error::Error,
     hsm::group::utils::get_member_vec_from_hsm_name_vec,
     ims::{self, image::http_client::types::Image},
@@ -145,25 +146,25 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
         &mut cfs_session_vec,
         hsm_group_name_vec,
         None,
-        true,
+        common::jwt_ops::is_user_admin(shasta_token),
     )
     .await?;
 
     let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_vec.clone(),
+            &cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
-    let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
+    /* let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
             cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session_vec
-        .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty());
+        .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty()); */
 
     // Get IMAGES in nodes boot params. This is because CSCS staff deletes the CFS sessions and/or
     // BOS sessiontemplate breaking the history with actual state, therefore I need to go to boot
@@ -209,14 +210,14 @@ pub async fn get_image_cfs_config_name_hsm_group_name(
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
             target_groups = target_group_name_vec.join(", ");
-        } else if let Some(tuple) = image_id_cfs_configuration_from_cfs_session_vec
+        /* } else if let Some(tuple) = image_id_cfs_configuration_from_cfs_session_vec
             .iter()
             .find(|tuple| tuple.0.eq(image_id))
         {
             // Image details in BOS session template
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
-            target_groups = target_group_name_vec.join(", ");
+            target_groups = target_group_name_vec.join(", "); */
         } else if let Some(boot_params) = boot_param_vec
             .iter()
             .find(|boot_params| boot_params.get_boot_image().eq(image_id))
@@ -326,7 +327,7 @@ pub async fn get_image_available_vec(
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_vec,
+            &cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session_vec

@@ -84,24 +84,23 @@ pub fn is_session_generic(cfs_session: &CfsSessionGetResponse) -> bool {
 /// 3) We substract the system wide HSM groups
 /// 4) If the list is empty then, we are dealing with a generic CFS session
 pub fn is_session_image_generic(cfs_session: &CfsSessionGetResponse) -> bool {
-    if cfs_session
-        .get_target_def()
-        .is_some_and(|target_def| target_def == "image".to_string())
-    {
+    let target_group_vec_opt = cfs_session.get_target_hsm();
+    let is_image = cfs_session.is_target_def_image();
+
+    if let (Some(mut target_group_vec), true) = (target_group_vec_opt, is_image) {
         // Remove roles and subroles from the list of HSM groups
-        let hsm_group_name_vec: Vec<String> =
-            filter_roles_and_subroles(cfs_session.get_target_hsm().unwrap_or_default());
+        target_group_vec = filter_roles_and_subroles(target_group_vec);
 
         // Remove system wide HSM groups from the list of HSM groups
-        let hsm_group_name_vec: Vec<String> = filter_system_hsm_group_names(hsm_group_name_vec);
+        target_group_vec = filter_system_hsm_group_names(target_group_vec);
 
         log::debug!(
             "CFS session {} is generic: {}",
             cfs_session.name.as_ref().unwrap(),
-            hsm_group_name_vec.is_empty()
+            target_group_vec.is_empty()
         );
 
-        hsm_group_name_vec.is_empty()
+        target_group_vec.is_empty()
     } else {
         false
     }
@@ -136,7 +135,7 @@ pub async fn filter_by_hsm(
         cfs_session_vec.retain(|cfs_session| {
             cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                 (keep_generic_sessions && is_session_image_generic(cfs_session))
-                    && target_hsm_vec
+                    || target_hsm_vec
                         .iter()
                         .any(|target_hsm| hsm_group_name_vec.contains(target_hsm))
             }) || cfs_session
@@ -329,7 +328,7 @@ pub fn get_image_id_cfs_configuration_target_tuple_vec(
 /// sessions. Only returns values from CFS sessions with an artifact.result_id value
 /// (meaning CFS sessions completed and successful of type image)
 pub fn get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-    cfs_session_vec: Vec<CfsSessionGetResponse>,
+    cfs_session_vec: &[CfsSessionGetResponse],
 ) -> Vec<(String, String, Vec<String>)> {
     let mut image_id_cfs_configuration_target_from_cfs_session: Vec<(String, String, Vec<String>)> =
         Vec::new();
