@@ -68,6 +68,8 @@ pub async fn filter(
         *image_vec = image_vec[image_vec.len().saturating_sub(*limit_number as usize)..].to_vec();
     }
 
+    // Fetch and filter BOS session templates
+    //
     // We need BOS session templates to find an image created by SAT
     let mut bos_sessiontemplate_value_vec = crate::bos::template::mesa::http_client::get(
         shasta_token,
@@ -87,6 +89,8 @@ pub async fn filter(
     )
     .await;
 
+    // Fetch and filter CFS sessions
+    //
     // We need CFS sessions to find images without a BOS session template (hopefully the CFS
     // session has not been deleted by CSCS staff, otherwise it will be technically impossible to
     // find unless we search images by HSM name and expect HSM name to be in image name...)
@@ -114,21 +118,22 @@ pub async fn filter(
     )
     .await;
 
+    // Get IMAGES in nodes boot params
     let mut image_id_cfs_configuration_from_cfs_session: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_vec.clone(),
+            &cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session
         .retain(|(image_id, _cfs_configuration, _hsm_groups)| !image_id.is_empty());
 
-    let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
+    /* let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_vec,
+            &cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session_vec
-        .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty());
+        .retain(|(image_id, _cfs_confguration, _hsm_groups)| !image_id.is_empty()); */
 
     // Get IMAGES in nodes boot params. This is because CSCS staff deletes the CFS sessions and/or
     // BOS sessiontemplate breaking the history with actual state, therefore I need to go to boot
@@ -174,14 +179,14 @@ pub async fn filter(
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
             target_groups = target_group_name_vec.join(", ");
-        } else if let Some(tuple) = image_id_cfs_configuration_from_cfs_session_vec
+        /* } else if let Some(tuple) = image_id_cfs_configuration_from_cfs_session
             .iter()
             .find(|tuple| tuple.0.eq(image_id))
         {
             // Image details in BOS session template
             cfs_configuration = tuple.clone().1;
             target_group_name_vec = tuple.2.clone();
-            target_groups = target_group_name_vec.join(", ");
+            target_groups = target_group_name_vec.join(", "); */
         } else if let Some(boot_params) = boot_param_vec
             .iter()
             .find(|boot_params| boot_params.get_boot_image().eq(image_id))
@@ -213,7 +218,6 @@ pub async fn filter(
             false
         };
 
-        dbg!(&image_id, &cfs_configuration, &target_groups, &boot_image);
         image_detail_vec.push((
             image.clone(),
             cfs_configuration.to_string(),
@@ -301,7 +305,7 @@ pub async fn get_image_available_vec(
 
     let mut image_id_cfs_configuration_from_cfs_session_vec: Vec<(String, String, Vec<String>)> =
         crate::cfs::session::mesa::utils::get_image_id_cfs_configuration_target_for_existing_images_tuple_vec(
-            cfs_session_vec,
+            &cfs_session_vec,
         );
 
     image_id_cfs_configuration_from_cfs_session_vec
