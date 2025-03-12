@@ -22,7 +22,7 @@ pub async fn exec(
     // vault_role_id: &str,
     k8s_api_url: &str,
     shasta_k8s_secrets: serde_json::Value,
-    // sat_file_content: String,
+    sat_file_content: String,
     sat_template_file_yaml: serde_yaml::Value,
     hsm_group_param_opt: Option<&String>,
     hsm_group_available_vec: &Vec<String>,
