@@ -2,9 +2,8 @@ use core::time;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use futures::{AsyncBufRead, TryStreamExt};
+use futures::{io::Lines, AsyncBufRead, AsyncBufReadExt, StreamExt, TryStreamExt};
 
-use futures::{io::Lines, AsyncBufReadExt};
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
 use k8s_openapi::api::core::v1::{ConfigMap, Container, Pod};
@@ -18,8 +17,6 @@ use kube::{
     },
     Api,
 };
-
-use futures::StreamExt;
 
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
@@ -387,6 +384,10 @@ pub async fn get_k8s_client_programmatically(
     Ok(container_log_stream)
 } */
 
+#[deprecated(
+    since = "v0.42.3-beta.71",
+    note = "please use migrate this functionality to cli client since writting output to filesystem is not a good practice in library"
+)]
 pub async fn print_cfs_session_logs(
     client: kube::Client,
     cfs_session_name: &str,
