@@ -7,7 +7,7 @@ use http_client::v3::types::{CfsSessionGetResponse, CfsSessionPostRequest};
 use crate::{
     common::{
         kubernetes::{self, print_cfs_session_logs},
-        vault::http_client::fetch_shasta_k8s_secrets,
+        vault::http_client::fetch_shasta_k8s_secrets_from_vault,
     },
     error::Error,
 };
@@ -101,7 +101,7 @@ pub async fn post_sync(
     if watch_logs {
         log::info!("Fetching logs ...");
         let shasta_k8s_secrets =
-            fetch_shasta_k8s_secrets(shasta_token, vault_base_url, site_name).await?;
+            fetch_shasta_k8s_secrets_from_vault(vault_base_url, shasta_token, site_name).await?;
 
         let client = kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
             .await

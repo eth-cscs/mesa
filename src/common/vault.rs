@@ -7,34 +7,41 @@ pub mod http_client {
         vault_base_url: &str,
         // vault_role_id: &str,
         shasta_token: &str,
+        site_name: &str,
     ) -> Result<String, Error> {
         let role = "manta";
 
         // rest client create new cfs sessions
         let client = reqwest::Client::builder().build()?;
 
-        let api_url = vault_base_url.to_owned() + "/v1/auth/jwt-manta/login";
+        let api_url = format!("{}/v1/auth/jwt-manta-{}/login", vault_base_url, site_name);
 
-        let payload = json!({
-            "jwt": shasta_token,
-            "role": role});
+        dbg!(&api_url);
 
         log::debug!("Accessing/login to {}", api_url);
 
-        Ok(client
-            .post(api_url.clone())
+        let request_payload = json!({
+            "jwt": shasta_token,
+            "role": role});
+
+        let resp = client
+            .post(api_url)
             .header("X-Vault-Request", "true")
-            .json(&payload)
+            .json(&request_payload)
             .send()
-            .await?
-            .error_for_status()?
-            .json::<Value>()
-            .await?
-            .pointer("/auth/client_token")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string())
+            .await?;
+
+        match resp.error_for_status() {
+            Ok(resp) => {
+                let resp_value = resp.json::<Value>().await?;
+                return Ok(String::from(
+                    resp_value["auth"]["client_token"].as_str().unwrap(),
+                ));
+            }
+            Err(e) => {
+                return Err(Error::NetError(e));
+            }
+        }
     }
 
     /* pub async fn auth_approle(vault_base_url: &str, vault_role_id: &str) -> Result<String, Error> {
@@ -61,56 +68,33 @@ pub mod http_client {
             .to_string())
     } */
 
-    pub async fn fetch_shasta_k8s_secrets_from_vault(
-        shasta_token: &str,
-        vault_base_url: &str,
-        site_name: &str,
-        // vault_role_id: &str,
-    ) -> Result<Value, Error> {
-        let vault_token_resp = auth_oidc_jwt(vault_base_url, shasta_token).await;
-
-        match vault_token_resp {
-            Ok(vault_token) => {
-                let vault_secret = fetch_secret(
-                    &vault_token,
-                    vault_base_url,
-                    &format!("/v1/{}/k8s", site_name),
-                )
-                .await
-                .unwrap(); // this works for hashicorp-vault for fulen may need /v1/secret/data/shasta/k8s
-
-                Ok(serde_json::from_str::<Value>(vault_secret["value"].as_str().unwrap()).unwrap())
-                // this works for vault v1.12.0 for older versions may need vault_secret["data"]["value"]
-            }
-            Err(e) => {
-                return Err(Error::Message(e.to_string()));
-                /* eprintln!("{}", e);
-                std::process::exit(1); */
-            }
-        }
-    }
-
     pub async fn fetch_secret(
-        auth_token: &str,
+        vault_auth_token: &str,
         vault_base_url: &str,
-        vault_secret_path: &str,
-    ) -> Result<Value, reqwest::Error> {
+        secret_path: &str,
+    ) -> Result<Value, Error> {
         // rest client create new cfs sessions
         let client = reqwest::Client::builder().build()?;
 
-        let api_url = vault_base_url.to_owned() + vault_secret_path;
+        let api_url = vault_base_url.to_owned() + secret_path;
 
         log::debug!("Vault url to fetch VCS secrets is '{}'", api_url);
 
-        Ok(client
+        let resp = client
             .get(api_url)
-            .header("X-Vault-Token", auth_token)
+            .header("X-Vault-Token", vault_auth_token)
             .send()
-            .await?
-            .error_for_status()?
-            .json::<Value>()
-            .await?["data"]
-            .clone())
+            .await?;
+
+        match resp.error_for_status() {
+            Ok(resp) => {
+                let secret_value: Value = resp.json().await?;
+                return Ok(secret_value["data"].clone());
+            }
+            Err(e) => {
+                return Err(Error::NetError(e));
+            }
+        }
     }
 
     pub async fn fetch_shasta_vcs_token(
@@ -118,40 +102,41 @@ pub mod http_client {
         vault_base_url: &str,
         site_name: &str,
         // vault_role_id: &str,
+        // secret_path: &str,
     ) -> Result<String, Error> {
-        let vault_token = auth_oidc_jwt(vault_base_url, shasta_token)
-            .await
-            .map_err(|e| Error::Message(format!("{e}")))?;
+        let vault_token = auth_oidc_jwt(vault_base_url, shasta_token, site_name).await?;
+
+        let vault_secret_path = format!("manta/data/{}", site_name);
 
         let vault_secret = fetch_secret(
             &vault_token,
             vault_base_url,
-            &format!("/v1/{}/vcs", site_name),
+            &format!("/v1/{}/vcs", vault_secret_path),
         )
         .await?; // this works for hashicorp-vault for fulen may need /v1/secret/data/shasta/vcs
 
-        Ok(String::from(vault_secret["token"].as_str().unwrap())) // this works for vault v1.12.0 for older versions may need vault_secret["data"]["token"]
+        Ok(String::from(
+            vault_secret["data"]["token"].as_str().unwrap(),
+        )) // this works for vault v1.12.0 for older versions may need vault_secret["data"]["token"]
     }
 
-    pub async fn fetch_shasta_k8s_secrets(
-        shasta_token: &str,
+    pub async fn fetch_shasta_k8s_secrets_from_vault(
         vault_base_url: &str,
-        site_name: &str,
         // vault_role_id: &str,
+        shasta_token: &str,
+        // secret_path: &str,
+        site_name: &str,
     ) -> Result<Value, Error> {
-        let vault_token = auth_oidc_jwt(vault_base_url, /* vault_role_id, */ shasta_token)
-            .await
-            .map_err(|e| Error::Message(format!("{e}")))?;
+        let vault_token = auth_oidc_jwt(vault_base_url, shasta_token, site_name).await?;
 
-        let vault_secret = fetch_secret(
+        let vault_secret_path = format!("manta/data/{}", site_name);
+
+        fetch_secret(
             &vault_token,
             vault_base_url,
-            &format!("/v1/{}/k8s", site_name),
+            &format!("/v1/{}/k8s", vault_secret_path),
         )
-        .await?; // this works for hashicorp-vault for fulen may need /v1/secret/data/shasta/k8s
-
-        serde_json::from_str(vault_secret.get("value").unwrap().clone().as_str().unwrap())
-            .map_err(Error::SerdeError)
-        // this works for vault v1.12.0 for older versions may need vault_secret["data"]["value"]
+        .await
+        .map(|secret| secret["data"].clone())
     }
 }

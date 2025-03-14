@@ -921,7 +921,7 @@ impl CfsTrait for Csm {
                 serde_json::json!({ "certificate-authority-data": certificate_authority_data, "client-certificate-data": client_certificate_data, "client-key-data": client_key_data })
             }
             K8sAuth::Vault { base_url } => {
-                fetch_shasta_k8s_secrets_from_vault(shasta_token, &base_url, &site_name)
+                fetch_shasta_k8s_secrets_from_vault(&base_url, shasta_token, &site_name)
                     .await
                     .map_err(|e| Error::Message(format!("{e}")))?
             }

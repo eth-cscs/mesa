@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use termion::color;
 
-use crate::common::vault::http_client::fetch_shasta_k8s_secrets;
+use crate::common::vault::http_client::fetch_shasta_k8s_secrets_from_vault;
 use crate::error::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,6 +50,14 @@ pub async fn get_k8s_client_programmatically(
     k8s_api_url: &str,
     shasta_k8s_secrets: Value,
 ) -> Result<kube::Client, Error> {
+    let certificate_authority_data = shasta_k8s_secrets["certificate-authority-data"]
+        .as_str()
+        .unwrap();
+    let client_certificate_data = shasta_k8s_secrets["client-certificate-data"]
+        .as_str()
+        .unwrap();
+    let client_key_data = shasta_k8s_secrets["client-key-data"].as_str().unwrap();
+
     let shasta_cluster = Cluster {
         server: Some(k8s_api_url.to_string()),
         tls_server_name: Some("kube-apiserver".to_string()), // The value "kube-apiserver" has been taken from the
@@ -57,11 +65,7 @@ pub async fn get_k8s_client_programmatically(
         // this command echo | openssl s_client -showcerts -servername 10.252.1.12 -connect 10.252.1.12:6442 2>/dev/null | openssl x509 -inform pem -noout -text
         insecure_skip_tls_verify: Some(true),
         certificate_authority: None,
-        certificate_authority_data: Some(String::from(
-            shasta_k8s_secrets["certificate-authority-data"]
-                .as_str()
-                .unwrap(),
-        )),
+        certificate_authority_data: Some(String::from(certificate_authority_data)),
         proxy_url: None,
         extensions: None,
     };
@@ -77,16 +81,9 @@ pub async fn get_k8s_client_programmatically(
         token: None,
         token_file: None,
         client_certificate: None,
-        client_certificate_data: Some(String::from(
-            shasta_k8s_secrets["client-certificate-data"]
-                .as_str()
-                .unwrap(),
-        )),
+        client_certificate_data: Some(String::from(client_certificate_data)),
         client_key: None,
-        client_key_data: Some(
-            SecretString::from_str(shasta_k8s_secrets["client-key-data"].as_str().unwrap())
-                .unwrap(),
-        ),
+        client_key_data: Some(SecretString::from_str(client_key_data).unwrap()),
         impersonate: None,
         impersonate_groups: None,
         auth_provider: None,
@@ -1641,9 +1638,9 @@ pub async fn delete_session_pod(
     k8s_api_url: &str,
     cfs_session_name: &str,
 ) -> Result<(), Error> {
-    let shasta_k8s_secrets = fetch_shasta_k8s_secrets(
-        shasta_token,
+    let shasta_k8s_secrets = fetch_shasta_k8s_secrets_from_vault(
         vault_base_url,
+        shasta_token,
         site_name,
         // vault_role_id,
     )
