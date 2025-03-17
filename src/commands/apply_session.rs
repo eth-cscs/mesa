@@ -21,7 +21,7 @@ pub async fn exec(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    k8s_api_url: &str,
+    // k8s_api_url: &str,
     cfs_conf_sess_name: Option<&String>,
     playbook_yaml_file_name_opt: Option<&String>,
     hsm_group: Option<&String>,
@@ -29,7 +29,7 @@ pub async fn exec(
     ansible_limit: Option<String>,
     ansible_verbosity: Option<String>,
     ansible_passthrough: Option<String>,
-    watch_logs: bool,
+    // watch_logs: bool,
     /* kafka_audit: &backend_dispatcher::types::kafka::Kafka,
     k8s: &backend_dispatcher::types::K8sDetails, */
 ) -> Result<(String, String), Error> {

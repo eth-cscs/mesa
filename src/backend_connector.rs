@@ -31,7 +31,7 @@ use backend_dispatcher::{
         NodeMetadataArray,
     },
 };
-use futures::AsyncBufRead;
+use futures::{AsyncBufRead, AsyncReadExt};
 use hostlist_parser::parse;
 use regex::Regex;
 use serde_json::Value;
@@ -907,7 +907,7 @@ impl CfsTrait for Csm {
         shasta_token: &str,
         site_name: &str,
         cfs_session_name: &str,
-        k8s_api_url: &str,
+        // k8s_api_url: &str,
         k8s: &K8sDetails,
     ) -> Result<Pin<Box<dyn AsyncBufRead>>, Error> {
         // FIXME: this only takes the stream from the CFS session and not from the
@@ -927,19 +927,36 @@ impl CfsTrait for Csm {
             }
         };
 
-        let client = kubernetes::get_k8s_client_programmatically(k8s_api_url, shasta_k8s_secrets)
+        let client = kubernetes::get_k8s_client_programmatically(&k8s.api_url, shasta_k8s_secrets)
             .await
             .map_err(|e| Error::Message(format!("{e}")))?;
+
+        let log_stream_git_clone =
+            kubernetes::get_cfs_session_init_container_git_clone_logs_stream(
+                client.clone(),
+                cfs_session_name,
+            )
+            .await
+            .map_err(|e| Error::Message(format!("{e}")))?;
+
+        let log_stream_inventory = kubernetes::get_cfs_session_container_inventory_logs_stream(
+            client.clone(),
+            cfs_session_name,
+        )
+        .await
+        .map_err(|e| Error::Message(format!("{e}")))?;
+
+        let log_stream_ansible =
+            kubernetes::get_cfs_session_container_ansible_logs_stream(client, cfs_session_name)
+                .await
+                .map_err(|e| Error::Message(format!("{e}")))?;
 
         // NOTE: here is where we convert from impl AsyncBufRead to Pin<Box<dyn AsyncBufRead>>
         // through dynamic dispatch
         Ok(Box::pin(
-            kubernetes::get_cfs_session_init_container_git_clone_logs_stream(
-                client,
-                cfs_session_name,
-            )
-            .await
-            .map_err(|e| Error::Message(format!("{e}")))?,
+            log_stream_git_clone
+                .chain(log_stream_inventory)
+                .chain(log_stream_ansible),
         ))
     }
 
@@ -948,7 +965,7 @@ impl CfsTrait for Csm {
         auth_token: &str,
         site_name: &str,
         xname: &str,
-        k8s_api_url: &str,
+        // k8s_api_url: &str,
         k8s: &K8sDetails,
     ) -> Result<Pin<Box<dyn AsyncBufRead>>, Error> {
         let mut session_vec = crate::cfs::session::http_client::v3::get(
@@ -990,7 +1007,7 @@ impl CfsTrait for Csm {
             auth_token,
             site_name,
             session_vec.first().unwrap().name.as_ref().unwrap().as_str(),
-            k8s_api_url,
+            // k8s_api_url,
             k8s,
         )
         .await
@@ -1460,7 +1477,7 @@ impl SatTrait for Csm {
         // vault_role_id: &str,
         k8s_api_url: &str,
         shasta_k8s_secrets: serde_json::Value,
-        sat_file_content: String,
+        // sat_file_content: String,
         sat_template_file_yaml: serde_yaml::Value,
         hsm_group_param_opt: Option<&String>,
         hsm_group_available_vec: &Vec<String>,
@@ -1485,7 +1502,7 @@ impl SatTrait for Csm {
             // vault_role_id,
             k8s_api_url,
             shasta_k8s_secrets,
-            sat_file_content,
+            // sat_file_content,
             sat_template_file_yaml,
             hsm_group_param_opt,
             hsm_group_available_vec,
@@ -1562,7 +1579,7 @@ impl ApplySessionTrait for Csm {
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
-        k8s_api_url: &str,
+        // k8s_api_url: &str,
         cfs_conf_sess_name: Option<&String>,
         playbook_yaml_file_name_opt: Option<&String>,
         hsm_group: Option<&String>,
@@ -1570,7 +1587,7 @@ impl ApplySessionTrait for Csm {
         ansible_limit: Option<String>,
         ansible_verbosity: Option<String>,
         ansible_passthrough: Option<String>,
-        watch_logs: bool,
+        // watch_logs: bool,
         /* kafka_audit: &Kafka,
         k8s: &K8sDetails, */
     ) -> Result<(String, String), Error> {
@@ -1580,7 +1597,7 @@ impl ApplySessionTrait for Csm {
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
-            k8s_api_url,
+            // k8s_api_url,
             cfs_conf_sess_name,
             playbook_yaml_file_name_opt,
             hsm_group,
@@ -1588,7 +1605,7 @@ impl ApplySessionTrait for Csm {
             ansible_limit,
             ansible_verbosity,
             ansible_passthrough,
-            watch_logs,
+            // watch_logs,
             /* kafka_audit,
             k8s, */
         )

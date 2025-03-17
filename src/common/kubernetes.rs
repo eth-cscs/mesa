@@ -2,7 +2,7 @@ use core::time;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use futures::{io::Lines, AsyncBufRead, AsyncBufReadExt, StreamExt, TryStreamExt};
+use futures::{AsyncBufRead, AsyncBufReadExt, StreamExt, TryStreamExt};
 
 use hyper::Uri;
 use hyper_socks2::SocksConnector;
@@ -402,14 +402,18 @@ pub async fn print_cfs_session_logs(
     // let _ = print_cfs_session_container_ansible_logs_stream(client, cfs_session_name).await;
 
     let mut logs_stream =
-        get_cfs_session_container_inventory_logs_stream(client.clone(), cfs_session_name).await?;
+        get_cfs_session_container_inventory_logs_stream(client.clone(), cfs_session_name)
+            .await?
+            .lines();
 
     while let Some(line) = logs_stream.try_next().await.unwrap() {
         println!("{}", line);
     }
 
     let mut logs_stream =
-        get_cfs_session_container_ansible_logs_stream(client.clone(), cfs_session_name).await?;
+        get_cfs_session_container_ansible_logs_stream(client.clone(), cfs_session_name)
+            .await?
+            .lines();
 
     while let Some(line) = logs_stream.try_next().await.unwrap() {
         println!("{}", line);
@@ -630,7 +634,7 @@ pub async fn get_cfs_session_init_container_git_clone_logs_stream(
 pub async fn get_cfs_session_container_inventory_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<Lines<impl AsyncBufReadExt>, Error> {
+) -> Result<impl AsyncBufRead, Error> {
     get_container_logs_stream(
         client,
         cfs_session_name,
@@ -644,7 +648,7 @@ pub async fn get_cfs_session_container_inventory_logs_stream(
 pub async fn get_cfs_session_container_ansible_logs_stream(
     client: kube::Client,
     cfs_session_name: &str,
-) -> Result<Lines<impl AsyncBufReadExt>, Error> {
+) -> Result<impl AsyncBufRead, Error> {
     get_container_logs_stream(
         client,
         cfs_session_name,
@@ -975,15 +979,6 @@ pub async fn get_init_container_logs_stream(
     // get_container_logs_stream(git_clone_container, cfs_session_pod, &pods_api).await
     log::info!("Looking for container '{}'", init_container_name);
 
-    println!(
-        "\n{}####{} Container {}'{}'{} logs\n",
-        color::Fg(color::Green),
-        color::Fg(color::Reset),
-        color::Fg(color::Blue),
-        init_container_name,
-        color::Fg(color::Reset),
-    );
-
     pods_api
         .log_stream(
             cfs_session_pod.metadata.name.as_ref().unwrap(),
@@ -1003,7 +998,7 @@ pub async fn get_container_logs_stream(
     container_name: &str,
     namespace: &str,
     label_selector: &str,
-) -> Result<Lines<impl AsyncBufReadExt>, Error> {
+) -> Result<impl AsyncBufRead, Error> {
     let pods_api: kube::Api<Pod> = kube::Api::namespaced(client, namespace);
 
     let params = kube::api::ListParams::default()
@@ -1138,16 +1133,7 @@ pub async fn get_container_logs_stream(
     {
         log::info!("Looking for container '{}'", container_name);
 
-        println!(
-            "\n{}####{} Container {}'{}'{} logs\n",
-            color::Fg(color::Green),
-            color::Fg(color::Reset),
-            color::Fg(color::Blue),
-            container_name,
-            color::Fg(color::Reset),
-        );
-
-        Ok(pods_api
+        pods_api
             .log_stream(
                 cfs_session_pod.metadata.name.as_ref().unwrap(),
                 &kube::api::LogParams {
@@ -1157,8 +1143,7 @@ pub async fn get_container_logs_stream(
                 },
             )
             .await
-            .map_err(|e| Error::K8sError(format!("{e}")))?
-            .lines())
+            .map_err(|e| Error::K8sError(format!("{e}")))
     } else {
         return Err(Error::Message(format!(
             "Container ({}) status is not running nor terminated. Aborting operation.\nContainer status:\n{:#?}",
@@ -1274,15 +1259,6 @@ pub async fn print_cfs_session_container_ansible_logs_stream(
         /* let logs_stream_rslt =
         get_container_logs_stream(ansible_container, cfs_session_pod, &pods_api).await; */
         log::info!("Looking for container '{}'", container_name);
-
-        println!(
-            "\n{}####{} Container {}'{}'{} logs\n",
-            color::Fg(color::Green),
-            color::Fg(color::Reset),
-            color::Fg(color::Blue),
-            container_name,
-            color::Fg(color::Reset),
-        );
 
         let logs_stream_rslt = pods_api
             .log_stream(

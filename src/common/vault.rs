@@ -16,8 +16,6 @@ pub mod http_client {
 
         let api_url = format!("{}/v1/auth/jwt-manta-{}/login", vault_base_url, site_name);
 
-        dbg!(&api_url);
-
         log::debug!("Accessing/login to {}", api_url);
 
         let request_payload = json!({
