@@ -170,6 +170,21 @@ impl GroupTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
+    async fn get_group_map_and_filter_by_member_vec(
+        &self,
+        auth_token: &str,
+        member_vec: &[&str],
+    ) -> Result<HashMap<String, Vec<String>>, Error> {
+        hsm::group::utils::get_hsm_group_map_and_filter_by_hsm_group_member_vec(
+            auth_token,
+            &self.base_url,
+            &self.root_cert,
+            member_vec,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     async fn get_all_groups(&self, auth_token: &str) -> Result<Vec<FrontEndGroup>, Error> {
         // Get all HSM groups
         let hsm_group_backend_vec =
