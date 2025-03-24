@@ -915,7 +915,7 @@ impl BackendTrait for Csm {
 }
 
 impl CfsTrait for Csm {
-    type T = Pin<Box<dyn AsyncBufRead>>;
+    type T = Pin<Box<dyn AsyncBufRead + Send>>;
 
     async fn get_session_logs_stream(
         &self,
@@ -924,7 +924,7 @@ impl CfsTrait for Csm {
         cfs_session_name: &str,
         // k8s_api_url: &str,
         k8s: &K8sDetails,
-    ) -> Result<Pin<Box<dyn AsyncBufRead>>, Error> {
+    ) -> Result<Pin<Box<dyn AsyncBufRead + Send>>, Error> {
         // FIXME: this only takes the stream from the CFS session and not from the
         // git-clone init container
         let shasta_k8s_secrets = match &k8s.authentication {
@@ -982,7 +982,7 @@ impl CfsTrait for Csm {
         xname: &str,
         // k8s_api_url: &str,
         k8s: &K8sDetails,
-    ) -> Result<Pin<Box<dyn AsyncBufRead>>, Error> {
+    ) -> Result<Pin<Box<dyn AsyncBufRead + Send>>, Error> {
         let mut session_vec = crate::cfs::session::http_client::v3::get(
             auth_token,
             self.base_url.as_str(),

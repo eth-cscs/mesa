@@ -131,6 +131,7 @@ pub async fn get_multiple(
 
     for sub_node_list in node_vec.chunks(num_xnames_per_request) {
         let num_nodes_in_flight = sub_node_list.len();
+
         log::info!(
             "Getting CFS components: processing batch [{i:>width$}/{num_requests}] (batch size - {num_nodes_in_flight})"
         );
