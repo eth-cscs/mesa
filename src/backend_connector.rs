@@ -970,6 +970,7 @@ impl CfsTrait for Csm {
         // through dynamic dispatch
         Ok(Box::pin(
             log_stream_git_clone
+                .chain(log_stream_git_clone)
                 .chain(log_stream_inventory)
                 .chain(log_stream_ansible),
         ))

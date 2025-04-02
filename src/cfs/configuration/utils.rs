@@ -308,9 +308,8 @@ pub async fn get_and_filter(
         )
         .await?;
 
-    if configuration_name.is_none() {
-        // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
-        // CFS configuration name or the image name built would include the HSM name
+    if !common::jwt_ops::is_user_admin(shasta_token) {
+        // Filter CFS configurations if user is not admin
         cfs::configuration::utils::filter(
             shasta_token,
             shasta_base_url,
