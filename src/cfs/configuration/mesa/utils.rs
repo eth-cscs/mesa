@@ -4,7 +4,7 @@ use crate::{
         self, component::shasta::r#struct::v2::ComponentResponse,
         session::mesa::r#struct::v3::CfsSessionGetResponse,
     },
-    hsm,
+    common, hsm,
     ims::image::r#struct::Image,
 };
 
@@ -221,9 +221,13 @@ pub async fn get_and_filter(
         .await
         .unwrap_or_default();
 
-    if configuration_name.is_none() {
-        // We have to do this becuase CSCS staff deleted CFS sessions therefore we have to guess
-        // CFS configuration name or the image name built would include the HSM name
+    let is_user_admin_rslt = common::jwt_ops::is_user_admin(shasta_token);
+
+    if let Ok(true) = is_user_admin_rslt {
+        // Do nothing
+    } else {
+        // If user is not admin or function checking if user is admin fails, then filter CFS
+        // configurations
         crate::cfs::configuration::mesa::utils::filter(
             shasta_token,
             shasta_base_url,
