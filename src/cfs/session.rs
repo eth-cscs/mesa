@@ -396,7 +396,7 @@ pub mod shasta {
         }
     }
 
-    pub mod utils {
+    /* pub mod utils {
 
         use std::collections::HashSet;
 
@@ -406,7 +406,7 @@ pub mod shasta {
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions filtered by HSM group ordered by start time
-        pub async fn filter_by_hsm(
+        /* pub async fn filter_by_hsm(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
@@ -457,11 +457,11 @@ pub mod shasta {
                     .saturating_sub(*limit_number as usize)..]
                     .to_vec();
             }
-        }
+        } */
 
         /// Fetch CFS sessions ref --> https://apidocs.svc.cscs.ch/paas/cfs/operation/get_sessions/
         /// Returns list of CFS sessions ordered by start time
-        pub async fn filter(
+        /* pub async fn filter(
             shasta_token: &str,
             shasta_base_url: &str,
             shasta_root_cert: &[u8],
@@ -512,9 +512,9 @@ pub mod shasta {
                     .saturating_sub(*limit_number as usize)..]
                     .to_vec();
             }
-        }
+        } */
 
-        pub fn get_image_id_cfs_configuration_target_tuple_vec(
+        /* pub fn get_image_id_cfs_configuration_target_tuple_vec(
             cfs_session_value_vec: Vec<Value>,
         ) -> Vec<(String, String, Vec<String>)> {
             let mut image_id_cfs_configuration_target_from_cfs_session: Vec<(
@@ -564,9 +564,9 @@ pub mod shasta {
             });
 
             image_id_cfs_configuration_target_from_cfs_session
-        }
+        } */
 
-        pub fn get_image_id_from_cfs_session_vec(cfs_session_value_vec: &[Value]) -> Vec<String> {
+        /* pub fn get_image_id_from_cfs_session_vec(cfs_session_value_vec: &[Value]) -> Vec<String> {
             cfs_session_value_vec
                 .iter()
                 .filter(|cfs_session| {
@@ -595,8 +595,8 @@ pub mod shasta {
                         .to_string()
                 })
                 .collect::<Vec<String>>()
-        }
-    }
+        } */
+    } */
 }
 
 pub mod mesa {
@@ -1395,11 +1395,15 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
+                    dbg!(&hsm_group_name_vec);
+                    dbg!(&cfs_session.get_target_hsm());
                     let retain = (keep_generic_sessions && is_session_image_generic(cfs_session))
                         || (cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
-                            target_hsm_vec
-                                .iter()
-                                .any(|target_hsm| hsm_group_name_vec.contains(target_hsm))
+                            target_hsm_vec.iter().any(|target_hsm| {
+                                hsm_group_name_vec
+                                    .iter()
+                                    .any(|hsm_group_name| hsm_group_name.contains(target_hsm))
+                            })
                         }) || cfs_session
                             .get_target_xname()
                             .is_some_and(|target_xname_vec| {

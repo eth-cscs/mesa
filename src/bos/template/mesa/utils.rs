@@ -2,54 +2,30 @@ use crate::bos::template::mesa::r#struct::v2::BosSessionTemplate;
 
 pub async fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
-    hsm_group_name_vec: &[String],
-    xname_vec: &[String],
+    hsm_group_available_vec: &[String],
+    xname_available_vec: &[String],
     // cfs_configuration_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<BosSessionTemplate> {
     log::info!("Filter BOS sessiontemplates");
     // Filter by list of HSM group or xnames as target
-    if !hsm_group_name_vec.is_empty() || !xname_vec.is_empty() {
+    if !hsm_group_available_vec.is_empty() || !xname_available_vec.is_empty() {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
             let bos_sessiontemplate_target_hsm = bos_sessiontemplate.get_target_hsm();
             let bos_sessiontemplate_target_xname = bos_sessiontemplate.get_target_xname();
 
             !bos_sessiontemplate_target_hsm.is_empty()
-                && bos_sessiontemplate_target_hsm
-                    .iter()
-                    .all(|target_hsm| hsm_group_name_vec.contains(target_hsm))
+                && bos_sessiontemplate_target_hsm.iter().all(|target_hsm| {
+                    hsm_group_available_vec
+                        .iter()
+                        .any(|hsm_group_available| target_hsm.contains(hsm_group_available))
+                })
                 || !bos_sessiontemplate_target_xname.is_empty()
                     && bos_sessiontemplate_target_xname
                         .iter()
-                        .all(|target_xname| xname_vec.contains(target_xname))
-            /* bos_sessiontemplate
-            .boot_sets
-            .as_ref()
-            .unwrap()
-            .iter()
-            .any(|(_, boot_set)| {
-                boot_set.node_groups.as_ref().is_some_and(|node_group| {
-                    !node_group.is_empty()
-                        && node_group
-                            .iter()
-                            .all(|node_group| hsm_group_name_vec.contains(node_group))
-                }) || boot_set.node_list.as_ref().is_some_and(|node_list| {
-                    !node_list.is_empty()
-                        && node_list.iter().all(|node| xname_vec.contains(node))
-                })
-            }) */
+                        .all(|target_xname| xname_available_vec.contains(target_xname))
         });
     }
-
-    /* if let Some(cfs_configuration_name) = cfs_configuration_name_opt {
-        bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
-            bos_sessiontemplate.cfs.as_ref().is_some_and(|cfs| {
-                cfs.configuration
-                    .as_ref()
-                    .is_some_and(|configuration| configuration.eq(cfs_configuration_name))
-            })
-        })
-    } */
 
     if let Some(limit_number) = limit_number_opt {
         // Limiting the number of results to return to client
