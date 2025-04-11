@@ -135,9 +135,11 @@ pub async fn filter_by_hsm(
         cfs_session_vec.retain(|cfs_session| {
             cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                 (keep_generic_sessions && is_session_image_generic(cfs_session))
-                    || target_hsm_vec
-                        .iter()
-                        .any(|target_hsm| hsm_group_name_vec.contains(target_hsm))
+                    || target_hsm_vec.iter().any(|target_hsm| {
+                        hsm_group_name_vec
+                            .iter()
+                            .any(|hsm_group_name| hsm_group_name.contains(target_hsm))
+                    })
             }) || cfs_session
                 .get_target_xname()
                 .is_some_and(|target_xname_vec| {
