@@ -2,14 +2,14 @@ use crate::bos::template::http_client::v2::types::BosSessionTemplate;
 
 pub fn filter(
     bos_sessiontemplate_vec: &mut Vec<BosSessionTemplate>,
-    hsm_group_name_vec: &[String],
+    target_hsm_group_name_vec: &[String],
     xname_vec: &[String],
     // cfs_configuration_name_opt: Option<&str>,
     limit_number_opt: Option<&u8>,
 ) -> Vec<BosSessionTemplate> {
     log::info!("Filter BOS sessiontemplates");
     // Filter by list of HSM group or xnames as target
-    if !hsm_group_name_vec.is_empty() || !xname_vec.is_empty() {
+    if !target_hsm_group_name_vec.is_empty() || !xname_vec.is_empty() {
         bos_sessiontemplate_vec.retain(|bos_sessiontemplate| {
             let bos_sessiontemplate_target_hsm = bos_sessiontemplate.get_target_hsm();
             let bos_sessiontemplate_target_xname = bos_sessiontemplate.get_target_xname();
@@ -17,7 +17,11 @@ pub fn filter(
             !bos_sessiontemplate_target_hsm.is_empty()
                 && bos_sessiontemplate_target_hsm
                     .iter()
-                    .all(|target_hsm| hsm_group_name_vec.contains(target_hsm))
+                    .all(|bos_st_hsm_group| {
+                        target_hsm_group_name_vec
+                            .iter()
+                            .any(|target_hsm_group| bos_st_hsm_group.contains(target_hsm_group))
+                    })
                 || !bos_sessiontemplate_target_xname.is_empty()
                     && bos_sessiontemplate_target_xname
                         .iter()
