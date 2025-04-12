@@ -63,9 +63,6 @@ pub fn resolve_hw_description_to_xnames(
     // Calculate new target HSM group
     let hw_component_counters_to_move_out_from_combined_hsm = calculate_target_hsm_pin(
         &final_combined_target_parent_hsm_hw_component_summary.clone(),
-        &final_combined_target_parent_hsm_hw_component_summary
-            .into_keys()
-            .collect::<Vec<String>>(),
         &mut combined_target_parent_hsm_node_hw_component_count_vec,
         &mut target_hsm_node_hw_component_count_vec,
         &mut parent_hsm_node_hw_component_count_vec,
@@ -158,8 +155,6 @@ pub fn calculate_target_hsm_pin(
     // equivalent to target_hsm_node_hw_component_count_vec minus
     // hw_components_deltas_from_target_hsm_to_parent_hsm). Note hw componets needs to be grouped/filtered
     // based on user input
-    user_defined_hw_component_vec: &[String], // list of hw components the user is asking
-    // for
     combination_target_parent_hsm_node_hw_component_count_vec: &mut Vec<(
         String,
         HashMap<String, usize>,
