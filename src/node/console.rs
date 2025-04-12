@@ -1,5 +1,6 @@
 use core::time;
 
+use futures::channel::mpsc::Sender;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{
     api::{AttachParams, AttachedProcess},
