@@ -8,6 +8,7 @@ use backend_dispatcher::{
         apply_session::ApplySessionTrait,
         bss::BootParametersTrait,
         cfs::CfsTrait,
+        get_bos_session_templates::GetTemplatesTrait,
         get_images_and_details::GetImagesAndDetailsTrait,
         hsm::{
             component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
@@ -26,7 +27,8 @@ use backend_dispatcher::{
         },
         hsm::inventory::RedfishEndpointArray as FrontEndRedfishEndpointArray,
         ims::Image as FrontEndImage,
-        BootParameters as FrontEndBootParameters, BosSessionTemplate, Component,
+        BootParameters as FrontEndBootParameters, BosSessionTemplate,
+        BosSessionTemplate as FrontEndBosSessionTemplate, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList, K8sAuth, K8sDetails,
         NodeMetadataArray,
@@ -38,6 +40,7 @@ use regex::Regex;
 use serde_json::Value;
 
 use crate::{
+    bos,
     bss::{self},
     common::{authentication, kubernetes, vault::http_client::fetch_shasta_k8s_secrets_from_vault},
     hsm::{self, component::types::ComponentArrayPostArray, group::types::Member},
@@ -1664,5 +1667,49 @@ impl GetImagesAndDetailsTrait for Csm {
                 .collect()
         })
         .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl GetTemplatesTrait for Csm {
+    async fn get_templates(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_vec: &Vec<String>,
+        hsm_member_vec: &[String],
+        bos_sessiontemplate_name_opt: Option<&String>,
+        limit_number_opt: Option<&u8>,
+    ) -> Result<Vec<FrontEndBosSessionTemplate>, Error> {
+        let bos_sessiontemplate_vec_rslt = bos::template::http_client::v2::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            bos_sessiontemplate_name_opt.map(|value| value.as_str()),
+        )
+        .await;
+
+        let mut bos_sessiontemplate_vec = match bos_sessiontemplate_vec_rslt {
+            Ok(bos_sessiontemplate_vec) => bos_sessiontemplate_vec,
+            Err(e) => {
+                eprintln!(
+                    "ERROR - Could not fetch BOS sessiontemplate list. Reason:\n{:#?}\nExit",
+                    e
+                );
+                std::process::exit(1);
+            }
+        };
+
+        bos::template::utils::filter(
+            &mut bos_sessiontemplate_vec,
+            hsm_group_name_vec,
+            hsm_member_vec,
+            limit_number_opt,
+        );
+
+        Ok(bos_sessiontemplate_vec
+            .into_iter()
+            .map(|template| template.into())
+            .collect::<Vec<FrontEndBosSessionTemplate>>())
     }
 }
