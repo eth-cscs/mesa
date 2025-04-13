@@ -8,6 +8,7 @@ use backend_dispatcher::{
         apply_session::ApplySessionTrait,
         bss::BootParametersTrait,
         cfs::CfsTrait,
+        get_images_and_details::GetImagesAndDetailsTrait,
         hsm::{
             component::ComponentTrait, group::GroupTrait, hardware_inventory::HardwareInventory,
             redfish_endpoint::RedfishEndpointTrait,
@@ -1633,6 +1634,35 @@ impl MigrateBackupTrait for Csm {
             destination,
         )
         .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl GetImagesAndDetailsTrait for Csm {
+    async fn get_images_and_details(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        hsm_group_name_vec: &[String],
+        id_opt: Option<&String>,
+        limit_number: Option<&u8>,
+    ) -> Result<Vec<(FrontEndImage, String, String, bool)>, Error> {
+        crate::commands::get_images_and_details::get_images_and_details(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            hsm_group_name_vec,
+            id_opt,
+            limit_number,
+        )
+        .await
+        .map(|image_details_vec| {
+            image_details_vec
+                .into_iter()
+                .map(|(image, x, y, z)| (image.into(), x, y, z))
+                .collect()
+        })
         .map_err(|e| Error::Message(e.to_string()))
     }
 }
