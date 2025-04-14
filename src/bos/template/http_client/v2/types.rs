@@ -1,4 +1,4 @@
-use backend_dispatcher::types::{
+use backend_dispatcher::types::bos::session_template::{
     BootSet as FrontEndBootSet, BosSessionTemplate as FrontEndBosSessionTemplate,
     Cfs as FrontEndCfs, Link as FrontEndLink,
 };

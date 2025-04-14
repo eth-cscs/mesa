@@ -204,7 +204,7 @@ pub mod sessiontemplate {
     }
 }
 
-/// Convert from `sessiontemplate` in SAT file to manta BosSessionTemplate
+/// Convert from `sessiontemplate` in SAT file to mesa BosSessionTemplate
 /// example from https://doc.rust-lang.org/rust-by-example/conversion/try_from_try_into.html
 impl TryFrom<SessionTemplate> for BosSessionTemplate {
     type Error = ();

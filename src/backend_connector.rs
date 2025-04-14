@@ -6,6 +6,7 @@ use backend_dispatcher::{
     interfaces::{
         apply_hw_cluster_pin::ApplyHwClusterPin,
         apply_session::ApplySessionTrait,
+        bos::ClusterSessionTrait,
         bss::BootParametersTrait,
         cfs::CfsTrait,
         get_bos_session_templates::GetTemplatesTrait,
@@ -21,14 +22,14 @@ use backend_dispatcher::{
         sat::SatTrait,
     },
     types::{
+        bos::session_template::BosSessionTemplate,
         cfs::{
             cfs_configuration_request::CfsConfigurationRequest, CfsConfigurationResponse,
             CfsSessionGetResponse, CfsSessionPostRequest, Layer, LayerDetails,
         },
         hsm::inventory::RedfishEndpointArray as FrontEndRedfishEndpointArray,
         ims::Image as FrontEndImage,
-        BootParameters as FrontEndBootParameters, BosSessionTemplate,
-        BosSessionTemplate as FrontEndBosSessionTemplate, Component,
+        BootParameters as FrontEndBootParameters, Component,
         ComponentArrayPostArray as FrontEndComponentArrayPostArray, Group as FrontEndGroup,
         HWInventoryByLocationList as FrontEndHWInventoryByLocationList, K8sAuth, K8sDetails,
         NodeMetadataArray,
@@ -1680,7 +1681,7 @@ impl GetTemplatesTrait for Csm {
         hsm_member_vec: &[String],
         bos_sessiontemplate_name_opt: Option<&String>,
         limit_number_opt: Option<&u8>,
-    ) -> Result<Vec<FrontEndBosSessionTemplate>, Error> {
+    ) -> Result<Vec<BosSessionTemplate>, Error> {
         let bos_sessiontemplate_vec_rslt = bos::template::http_client::v2::get(
             shasta_token,
             shasta_base_url,
@@ -1710,6 +1711,25 @@ impl GetTemplatesTrait for Csm {
         Ok(bos_sessiontemplate_vec
             .into_iter()
             .map(|template| template.into())
-            .collect::<Vec<FrontEndBosSessionTemplate>>())
+            .collect::<Vec<BosSessionTemplate>>())
+    }
+}
+
+impl ClusterSessionTrait for Csm {
+    async fn post_template_session(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_session: backend_dispatcher::types::bos::session::BosSession,
+    ) -> Result<Value, Error> {
+        bos::session::http_client::v2::post(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            bos_session.into(),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
     }
 }
