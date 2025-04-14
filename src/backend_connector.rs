@@ -6,7 +6,7 @@ use backend_dispatcher::{
     interfaces::{
         apply_hw_cluster_pin::ApplyHwClusterPin,
         apply_session::ApplySessionTrait,
-        bos::ClusterSessionTrait,
+        bos::{ClusterSessionTrait, ClusterTemplateTrait},
         bss::BootParametersTrait,
         cfs::CfsTrait,
         get_bos_session_templates::GetTemplatesTrait,
@@ -1745,6 +1745,85 @@ impl ClusterSessionTrait for Csm {
             shasta_base_url,
             shasta_root_cert,
             bos_session.into(),
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+}
+
+impl ClusterTemplateTrait for Csm {
+    async fn get_template(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_session_template_id_opt: Option<&str>,
+    ) -> Result<Vec<BosSessionTemplate>, Error> {
+        bos::template::http_client::v2::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            bos_session_template_id_opt,
+        )
+        .await
+        .map(|bos_session_template_vec| {
+            bos_session_template_vec
+                .into_iter()
+                .map(|template| template.into())
+                .collect::<Vec<BosSessionTemplate>>()
+        })
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_all_templates(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+    ) -> Result<Vec<BosSessionTemplate>, Error> {
+        bos::template::http_client::v2::get_all(shasta_token, shasta_base_url, shasta_root_cert)
+            .await
+            .map(|bos_session_template_vec| {
+                bos_session_template_vec
+                    .into_iter()
+                    .map(|template| template.into())
+                    .collect::<Vec<BosSessionTemplate>>()
+            })
+            .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn put_template(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_template: &BosSessionTemplate,
+        bos_template_name: &str,
+    ) -> Result<BosSessionTemplate, Error> {
+        bos::template::http_client::v2::put(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            &bos_template.clone().into(),
+            bos_template_name,
+        )
+        .await
+        .map(|bos_session_template| bos_session_template.into())
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn delete_template(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        bos_template_id: &str,
+    ) -> Result<(), Error> {
+        bos::template::http_client::v2::delete(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            bos_template_id,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
