@@ -1549,6 +1549,23 @@ impl ImsTrait for Csm {
         .map(|image_vec| image_vec.into_iter().map(|image| image.into()).collect())
         .map_err(|e| Error::Message(e.to_string()))
     }
+
+    async fn delete_image(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        image_id: &str,
+    ) -> Result<(), Error> {
+        crate::ims::image::http_client::delete(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            image_id,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
 }
 
 impl ApplySessionTrait for Csm {
