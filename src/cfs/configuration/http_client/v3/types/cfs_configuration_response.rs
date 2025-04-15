@@ -1,4 +1,4 @@
-use backend_dispatcher::types::cfs::{
+use backend_dispatcher::types::cfs::cfs_configuration_response::{
     AdditionalInventory as FrontEndAdditionalInventory,
     CfsConfigurationResponse as FrontendCfsConfigurationResponse,
     CfsConfigurationVecResponse as FrontendCfsConfigurationVecResponse, Layer as FrontendLayer,

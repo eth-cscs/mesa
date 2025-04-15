@@ -24,8 +24,10 @@ use backend_dispatcher::{
     types::{
         bos::session_template::BosSessionTemplate,
         cfs::{
-            cfs_configuration_request::CfsConfigurationRequest, CfsConfigurationResponse,
-            CfsSessionGetResponse, CfsSessionPostRequest, Layer, LayerDetails,
+            cfs_configuration_details::LayerDetails,
+            cfs_configuration_request::CfsConfigurationRequest,
+            cfs_configuration_response::{CfsConfigurationResponse, Layer},
+            session::{CfsSessionGetResponse, CfsSessionPostRequest},
         },
         hsm::inventory::RedfishEndpointArray as FrontEndRedfishEndpointArray,
         ims::Image as FrontEndImage,
