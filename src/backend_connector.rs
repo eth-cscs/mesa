@@ -1226,13 +1226,15 @@ impl CfsTrait for Csm {
             .collect())
     }
 
-    async fn delete_and_cancel_session(
+    async fn i_delete_and_cancel_session(
         &self,
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
         target_hsm_group_vec: Vec<String>,
         cfs_session_name: &str,
+        dry_run: bool,
+        assume_yes: bool,
     ) -> Result<(), Error> {
         crate::commands::delete_and_cancel_session::command::exec(
             shasta_token,
@@ -1240,8 +1242,8 @@ impl CfsTrait for Csm {
             shasta_root_cert,
             target_hsm_group_vec,
             cfs_session_name,
-            false,
-            false,
+            dry_run,
+            assume_yes,
         )
         .await
         .map_err(|e| Error::Message(e.to_string()))
