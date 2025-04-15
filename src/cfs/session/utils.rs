@@ -436,3 +436,30 @@ pub async fn wait_cfs_session_to_finish(
         }
     }
 }
+
+pub async fn get_list_xnames_related_to_session(
+    shasta_token: &str,
+    shasta_base_url: &str,
+    shasta_root_cert: &[u8],
+    cfs_session: CfsSessionGetResponse,
+) -> Result<Vec<String>, Error> {
+    let target_group_xname_vec = if let Some(target_hsm_vec) = cfs_session.get_target_hsm() {
+        hsm::group::utils::get_member_vec_from_hsm_name_vec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            target_hsm_vec,
+        )
+        .await?
+    } else {
+        vec![]
+    };
+
+    let target_xname_vec = if let Some(target_xname) = cfs_session.get_target_xname() {
+        target_xname
+    } else {
+        vec![]
+    };
+
+    Ok([target_xname_vec, target_group_xname_vec].concat())
+}

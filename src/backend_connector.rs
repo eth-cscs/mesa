@@ -1224,6 +1224,27 @@ impl CfsTrait for Csm {
             .collect())
     }
 
+    async fn delete_and_cancel_session(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        target_hsm_group_vec: Vec<String>,
+        cfs_session_name: &str,
+    ) -> Result<(), Error> {
+        crate::commands::delete_and_cancel_session::command::exec(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            target_hsm_group_vec,
+            cfs_session_name,
+            false,
+            false,
+        )
+        .await
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
     async fn create_configuration_from_repos(
         &self,
         gitea_token: &str,
@@ -1440,6 +1461,31 @@ impl CfsTrait for Csm {
                 image_vec
                     .map(|image_vec| image_vec.into_iter().map(|image| image.into()).collect()),
             )
+        })
+        .map_err(|e| Error::Message(e.to_string()))
+    }
+
+    async fn get_cfs_component(
+        &self,
+        shasta_token: &str,
+        shasta_base_url: &str,
+        shasta_root_cert: &[u8],
+        components_ids: Option<&str>,
+        status: Option<&str>,
+    ) -> Result<Vec<backend_dispatcher::types::cfs::component::Component>, Error> {
+        crate::cfs::component::http_client::v3::get(
+            shasta_token,
+            shasta_base_url,
+            shasta_root_cert,
+            components_ids,
+            status,
+        )
+        .await
+        .map(|component_vec| {
+            component_vec
+                .into_iter()
+                .map(|component| component.into())
+                .collect()
         })
         .map_err(|e| Error::Message(e.to_string()))
     }

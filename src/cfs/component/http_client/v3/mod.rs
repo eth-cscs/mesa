@@ -419,8 +419,8 @@ pub async fn put_component_list(
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
     component_list: Vec<Component>,
-) -> Vec<Result<Component, Error>> {
-    let mut result_vec = Vec::new();
+) -> Result<Vec<Component>, Error> {
+    let mut result_vec: Vec<Result<Component, Error>> = Vec::new();
 
     for component in component_list {
         let result =
@@ -428,7 +428,8 @@ pub async fn put_component_list(
         result_vec.push(result);
     }
 
-    result_vec
+    // Convert from Vec<Result<Component, Error>> to Result<Vec<Component>, Error>>
+    result_vec.into_iter().collect()
 }
 
 pub async fn delete_single_component(
