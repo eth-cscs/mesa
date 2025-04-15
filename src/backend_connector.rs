@@ -1469,18 +1469,20 @@ impl CfsTrait for Csm {
         .map_err(|e| Error::Message(e.to_string()))
     }
 
-    async fn get_cfs_component(
+    async fn get_cfs_components(
         &self,
         shasta_token: &str,
         shasta_base_url: &str,
         shasta_root_cert: &[u8],
+        configuration_name: Option<&str>,
         components_ids: Option<&str>,
         status: Option<&str>,
     ) -> Result<Vec<backend_dispatcher::types::cfs::component::Component>, Error> {
-        crate::cfs::component::http_client::v3::get(
+        crate::cfs::component::http_client::v3::get_query(
             shasta_token,
             shasta_base_url,
             shasta_root_cert,
+            configuration_name,
             components_ids,
             status,
         )
