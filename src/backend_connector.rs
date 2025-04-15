@@ -5,6 +5,7 @@ use backend_dispatcher::{
     error::Error,
     interfaces::{
         apply_hw_cluster_pin::ApplyHwClusterPin,
+        apply_sat_file::SatTrait,
         apply_session::ApplySessionTrait,
         bos::{ClusterSessionTrait, ClusterTemplateTrait},
         bss::BootParametersTrait,
@@ -19,7 +20,6 @@ use backend_dispatcher::{
         migrate_backup::MigrateBackupTrait,
         migrate_restore::MigrateRestoreTrait,
         pcs::PCSTrait,
-        sat::SatTrait,
     },
     types::{
         bos::session_template::BosSessionTemplate,

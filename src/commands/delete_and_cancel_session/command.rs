@@ -82,9 +82,6 @@ pub async fn exec(
             ))
         })?;
 
-    // Get CFS configuration related to the CFS session
-    let cfs_configuration_name = cfs_session.get_configuration_name().unwrap();
-
     // Get xnames related to CFS session to delete:
     // - xnames belonging to HSM group related to CFS session
     // - xnames in CFS session
