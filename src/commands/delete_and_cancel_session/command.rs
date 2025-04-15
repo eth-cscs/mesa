@@ -1,4 +1,5 @@
 use crate::{
+    bss::types::BootParameters,
     cfs::{
         self, component::http_client::v3::types::Component,
         session::utils::get_list_xnames_related_to_session,
@@ -17,12 +18,15 @@ pub async fn exec(
     dry_run: bool,
     assume_yes: bool,
 ) -> Result<(), Error> {
+    log::info!("Deleting session '{}'", cfs_session_name);
+
     // Get collectives (CFS configuration, CFS session, BOS session template, IMS image and CFS component)
     let get_cfs_configuration = false;
     let get_cfs_session = true;
     let get_bos_sessiontemplate = false;
     let get_ims_image = false;
     let get_cfs_component = true;
+    let get_bss_bootparameters = true;
 
     let (
         _cfs_configuration_vec_opt,
@@ -30,7 +34,8 @@ pub async fn exec(
         _bos_sessiontemplate_vec_opt,
         _image_vec_opt,
         cfs_component_vec_opt,
-    ) = crate::common::utils::get_configurations_sessions_bos_sessiontemplates_images_components(
+        bss_bootparameters_vec_opt
+    ) = crate::common::utils::get_configurations_sessions_bos_sessiontemplates_images_components_bootparameters(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -39,6 +44,7 @@ pub async fn exec(
         get_bos_sessiontemplate,
         get_ims_image,
         get_cfs_component,
+        get_bss_bootparameters,
     )
     .await;
 
@@ -91,8 +97,6 @@ pub async fn exec(
     .await?;
 
     let cfs_session_target_definition = cfs_session.get_target_def().unwrap();
-
-    log::info!("Deleting session '{}'", cfs_session_name);
 
     // DELETE DATA
     //
@@ -163,12 +167,14 @@ pub async fn exec(
                 }
             }
 
+            let bss_bootparameters_vec = bss_bootparameters_vec_opt.unwrap_or_default();
+
             delete_images(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
-                &cfs_configuration_name,
                 &image_created_by_cfs_session_vec,
+                &bss_bootparameters_vec,
                 dry_run,
             )
             .await?;
@@ -203,26 +209,37 @@ async fn delete_images(
     shasta_token: &str,
     shasta_base_url: &str,
     shasta_root_cert: &[u8],
-    cfs_configuration_name: &str,
-    image_created_by_cfs_session_vec: &Vec<String>,
+    image_created_by_cfs_session_vec: &[String],
+    bss_bootparameters_vec_opt: &[BootParameters],
     dry_run: bool,
 ) -> Result<(), Error> {
-    if !dry_run {
-        // Delete images
-        for image_name in image_created_by_cfs_session_vec {
-            let _ = ims::image::http_client::delete(
-                shasta_token,
-                shasta_base_url,
-                shasta_root_cert,
-                &image_name,
-            )
-            .await?;
+    // Delete images
+    for image_id in image_created_by_cfs_session_vec {
+        let is_image_boot_node = bss_bootparameters_vec_opt
+            .iter()
+            .any(|boot_parameters| boot_parameters.get_boot_image().eq(image_id));
+
+        if !is_image_boot_node {
+            if !dry_run {
+                ims::image::http_client::delete(
+                    shasta_token,
+                    shasta_base_url,
+                    shasta_root_cert,
+                    image_id,
+                )
+                .await?;
+            } else {
+                println!(
+                    "DRYRUN - CFS session target definition is 'image'. Deleting image '{}'",
+                    image_id
+                );
+            }
+        } else {
+            println!(
+                "Image '{}' is a boot node image. It will not be deleted.",
+                image_id
+            );
         }
-    } else {
-        println!(
-            "DRYRUN - CFS session target definition is 'image'. Deleting image '{}'",
-            cfs_configuration_name
-        );
     }
 
     Ok(())
