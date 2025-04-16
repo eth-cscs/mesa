@@ -14,11 +14,13 @@ pub mod shasta {
                 shasta_token: &str,
                 shasta_base_url: &str,
                 shasta_root_cert: &[u8],
-                min_age_opt: Option<&String>,
-                max_age_opt: Option<&String>,
-                status_opt: Option<&String>,
                 session_name_opt: Option<&String>,
+                min_age_opt: Option<String>,
+                max_age_opt: Option<String>,
+                status_opt: Option<String>,
+                name_contains_opt: Option<String>,
                 is_succeded_opt: Option<bool>,
+                tags_opt: Option<String>,
             ) -> Result<Vec<CfsSessionGetResponse>, Error> {
                 log::info!(
                     "Get CFS sessions '{}'",
@@ -49,20 +51,28 @@ pub mod shasta {
                 // Add params to request
                 let mut request_payload = Vec::new();
 
+                if let Some(min_age) = min_age_opt {
+                    request_payload.push(("min_age", min_age));
+                }
+
+                if let Some(max_age) = max_age_opt {
+                    request_payload.push(("max_age", max_age));
+                }
+
+                if let Some(status) = status_opt {
+                    request_payload.push(("status", status));
+                }
+
+                if let Some(name_contains) = name_contains_opt {
+                    request_payload.push(("name_contains", name_contains));
+                }
+
                 if let Some(is_succeded) = is_succeded_opt {
                     request_payload.push(("succeced", is_succeded.to_string()));
                 }
 
-                if let Some(min_age) = min_age_opt {
-                    request_payload.push(("min_age", min_age.to_string()));
-                }
-
-                if let Some(max_age) = max_age_opt {
-                    request_payload.push(("max_age", max_age.to_string()));
-                }
-
-                if let Some(status) = status_opt {
-                    request_payload.push(("status", status.to_string()));
+                if let Some(tags) = tags_opt {
+                    request_payload.push(("tags", tags));
                 }
 
                 let response = client
@@ -1169,7 +1179,7 @@ pub mod mesa {
         };
 
         use super::{
-            r#struct::v3::{CfsSessionGetResponse, CfsSessionPostRequest},
+            r#struct::v2::{CfsSessionGetResponse, CfsSessionPostRequest},
             wait_cfs_session_to_finish,
         };
 
@@ -1186,13 +1196,11 @@ pub mod mesa {
             session_name_opt: Option<&String>,
             is_succeded_opt: Option<bool>,
         ) -> Result<Vec<CfsSessionGetResponse>, Error> {
-            let mut cfs_session_vec = cfs::session::shasta::http_client::v3::get(
+            let mut cfs_session_vec = cfs::session::shasta::http_client::v2::get(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
                 session_name_opt,
-                None,
-                None,
                 min_age_opt.cloned(),
                 max_age_opt.cloned(),
                 status_opt.cloned(),
@@ -1238,7 +1246,7 @@ pub mod mesa {
             log::info!("Create CFS session '{}'", session.name);
             log::debug!("Create CFS session request payload:\n{:#?}", session);
 
-            cfs::session::shasta::http_client::v3::post(
+            cfs::session::shasta::http_client::v2::post(
                 shasta_token,
                 shasta_base_url,
                 shasta_root_cert,
@@ -1326,7 +1334,7 @@ pub mod mesa {
             },
         };
 
-        use super::r#struct::v3::CfsSessionGetResponse;
+        use super::r#struct::v2::CfsSessionGetResponse;
 
         /// Checks if a session is "generic". A generic "session" is a session used to create an
         /// image and it is not dedicated to a specific group.
@@ -1395,8 +1403,6 @@ pub mod mesa {
             // hsm_group.members.ids
             if !hsm_group_name_vec.is_empty() {
                 cfs_session_vec.retain(|cfs_session| {
-                    dbg!(&hsm_group_name_vec);
-                    dbg!(&cfs_session.get_target_hsm());
                     let retain = (keep_generic_sessions && is_session_image_generic(cfs_session))
                         || (cfs_session.get_target_hsm().is_some_and(|target_hsm_vec| {
                             target_hsm_vec.iter().any(|target_hsm| {

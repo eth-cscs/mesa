@@ -11,9 +11,12 @@ pub mod v2 {
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     pub struct Layer {
-        pub name: String,
+        #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
+        pub name: Option<String>,
         #[serde(rename = "cloneUrl")]
-        pub clone_url: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        // Either commit or branch is passed
+        pub clone_url: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub commit: Option<String>,
         playbook: String,
@@ -41,9 +44,9 @@ pub mod v2 {
 
     impl Layer {
         pub fn new(
-            clone_url: String,
+            clone_url: Option<String>,
             commit: Option<String>,
-            name: String,
+            name: Option<String>,
             playbook: String,
             branch: Option<String>,
             tag: Option<String>,
@@ -86,8 +89,11 @@ pub mod v2 {
             configuration_yaml: &serde_yaml::Value,
             cray_product_catalog: &BTreeMap<String, String>,
             site_name: &str,
-        ) -> Self {
+        ) -> (String, Self) {
+            let cfs_configuration_name;
             let mut cfs_configuration = Self::new();
+
+            cfs_configuration_name = configuration_yaml["name"].as_str().unwrap().to_string();
 
             cfs_configuration.name = configuration_yaml["name"].as_str().unwrap().to_string();
 
@@ -174,9 +180,9 @@ pub mod v2 {
                     };
 
                     let layer = Layer::new(
-                        repo_url,
+                        Some(repo_url),
                         commit_id_opt,
-                        layer_name,
+                        Some(layer_name),
                         layer_yaml["playbook"]
                             .as_str()
                             .unwrap_or_default()
@@ -261,9 +267,9 @@ pub mod v2 {
 
                     // Create CFS configuration layer struct
                     let layer = Layer::new(
-                        repo_url,
+                        Some(repo_url),
                         commit_id_opt,
-                        product_name.to_string(),
+                        Some(product_name.to_string()),
                         layer_yaml["playbook"].as_str().unwrap().to_string(),
                         branch_name,
                         None,
@@ -276,7 +282,7 @@ pub mod v2 {
                 }
             }
 
-            cfs_configuration
+            (cfs_configuration_name, cfs_configuration)
         }
 
         /* pub async fn create_from_repos(

@@ -14,7 +14,6 @@ pub mod v2 {
         pub playbook: String,
         #[serde(skip_serializing_if = "Option::is_none")] // Either commit or branch is passed
         pub branch: Option<String>,
-        // pub source: Option<String>,
     }
 
     #[derive(Debug, Serialize, Deserialize, Clone, Default)]

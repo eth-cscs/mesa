@@ -1,8 +1,8 @@
 use crate::{cfs, error::Error};
 
 use super::r#struct::{
-    cfs_configuration_request::v3::CfsConfigurationRequest,
-    cfs_configuration_response::v3::CfsConfigurationResponse,
+    cfs_configuration_request::v2::CfsConfigurationRequest,
+    cfs_configuration_response::v2::CfsConfigurationResponse,
 };
 
 pub async fn get(
@@ -11,7 +11,7 @@ pub async fn get(
     shasta_root_cert: &[u8],
     configuration_name_opt: Option<&str>,
 ) -> Result<Vec<CfsConfigurationResponse>, Error> {
-    cfs::configuration::shasta::http_client::v3::get(
+    cfs::configuration::shasta::http_client::v2::get(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
@@ -54,7 +54,7 @@ pub async fn put(
         configuration_name
     );
 
-    cfs::configuration::shasta::http_client::v3::put(
+    cfs::configuration::shasta::http_client::v2::put(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,

@@ -2,7 +2,7 @@ use crate::{
     bos::{self, template::mesa::r#struct::v2::BosSessionTemplate},
     cfs::{
         self, component::shasta::r#struct::v2::ComponentResponse,
-        session::mesa::r#struct::v3::CfsSessionGetResponse,
+        session::mesa::r#struct::v2::CfsSessionGetResponse,
     },
     common, hsm,
     ims::image::r#struct::Image,
@@ -11,8 +11,8 @@ use crate::{
 use globset::Glob;
 
 use super::r#struct::{
-    cfs_configuration_request::v3::CfsConfigurationRequest,
-    cfs_configuration_response::v3::CfsConfigurationResponse,
+    cfs_configuration_request::v2::CfsConfigurationRequest,
+    cfs_configuration_response::v2::CfsConfigurationResponse,
 };
 
 pub async fn create(

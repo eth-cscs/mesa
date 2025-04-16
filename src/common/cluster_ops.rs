@@ -1,6 +1,6 @@
 use crate::cfs::{
-    configuration::mesa::r#struct::cfs_configuration_response::v3::CfsConfigurationResponse,
-    session::mesa::r#struct::v3::CfsSessionGetResponse,
+    configuration::mesa::r#struct::cfs_configuration_response::v2::CfsConfigurationResponse,
+    session::mesa::r#struct::v2::CfsSessionGetResponse,
 };
 
 #[derive(Debug)]
