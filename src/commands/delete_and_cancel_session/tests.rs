@@ -1,5 +1,5 @@
 use crate::cfs::{
-    component::http_client::v2::types::{ComponentResponse, StateResponse},
+    component::http_client::v2::types::{Component, State},
     session::http_client::v3::types::{
         CfsSessionGetResponse, Configuration, Session, Status, Target,
     },
@@ -9,18 +9,18 @@ use crate::cfs::{
 /// name appears as desired configuration in a list of CFS components
 #[test]
 fn test_is_cfs_configuration_a_desired_configuration_of_other_true() {
-    let cfs_component_state_1 = StateResponse {
+    let cfs_component_state_1 = State {
         clone_url: None,
         playbook: None,
         commit: None,
         session_name: None,
-        last_updated: None,
+        // last_updated: None,
     };
 
     let mut state_vec = Vec::new();
     state_vec.push(cfs_component_state_1);
 
-    let cfs_component_1 = ComponentResponse {
+    let cfs_component_1 = Component {
         id: Some("1".to_string()),
         state: Some(state_vec),
         state_append: None,
@@ -32,7 +32,7 @@ fn test_is_cfs_configuration_a_desired_configuration_of_other_true() {
         tags: None,
     };
 
-    let cfs_component_2 = ComponentResponse {
+    let cfs_component_2 = Component {
         id: Some("2".to_string()),
         state: None,
         state_append: None,
@@ -63,18 +63,18 @@ fn test_is_cfs_configuration_a_desired_configuration_of_other_true() {
 /// name appears as desired configuration in a list of CFS components
 #[test]
 fn test_is_cfs_configuration_a_desired_configuration_of_other_false() {
-    let cfs_component_state_1 = StateResponse {
+    let cfs_component_state_1 = State {
         clone_url: None,
         playbook: None,
         commit: None,
         session_name: None,
-        last_updated: None,
+        // last_updated: None,
     };
 
     let mut state_vec = Vec::new();
     state_vec.push(cfs_component_state_1);
 
-    let cfs_component_1 = ComponentResponse {
+    let cfs_component_1 = Component {
         id: Some("1".to_string()),
         state: Some(state_vec),
         state_append: None,
@@ -107,18 +107,18 @@ fn test_is_cfs_configuration_a_desired_configuration_of_other_false() {
 /// name appears as desired configuration in a list of CFS components
 #[test]
 fn test_is_cfs_configuration_a_desired_configuration_of_other_false_2() {
-    let cfs_component_state_1 = StateResponse {
+    let cfs_component_state_1 = State {
         clone_url: None,
         playbook: None,
         commit: None,
         session_name: None,
-        last_updated: None,
+        // last_updated: None,
     };
 
     let mut state_vec = Vec::new();
     state_vec.push(cfs_component_state_1);
 
-    let cfs_component_1 = ComponentResponse {
+    let cfs_component_1 = Component {
         id: Some("1".to_string()),
         state: Some(state_vec),
         state_append: None,
@@ -297,7 +297,7 @@ pub fn is_cfs_configuration_a_desired_configuration(
 /// We need this validation because, when deleting a CFS session, we need to make sure it is not
 /// used by a node that belongs to the HSM
 pub fn is_cfs_configuration_a_desired_configuration_of_other(
-    cfs_component_vec: &Vec<ComponentResponse>,
+    cfs_component_vec: &Vec<Component>,
     cfs_configuration_name: &str,
     xname_vec: Vec<&str>,
 ) -> Vec<String> {
