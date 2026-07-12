@@ -5,10 +5,8 @@ use crate::cfs::v3::{CfsConfigurationRequest, CfsConfigurationResponse};
 use crate::hsm::group::types::Group;
 use crate::ims;
 use crate::ims::image::utils::{get_by_name, get_fuzzy};
-use crate::ims::s3_client::BAR_FORMAT;
 use crate::ims::{Image, Link};
 use chrono::Local;
-use indicatif::{ProgressBar, ProgressStyle};
 use md5::Digest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -723,11 +721,7 @@ fn file_md5sum(filename: PathBuf) -> Result<Digest, Error> {
   let buf_len = len.min(100_000_000) as usize;
   let mut buf = BufReader::with_capacity(buf_len, f);
   let mut context = md5::Context::new();
-  let bar = ProgressBar::new(len);
-  // BAR_FORMAT is a compile-time constant — template parse is infallible.
-  bar.set_style(
-    ProgressStyle::with_template(BAR_FORMAT).expect("BAR_FORMAT is valid"),
-  );
+  let mut restored: u64 = 0;
 
   loop {
     // Get a chunk of the file
@@ -746,10 +740,10 @@ fn file_md5sum(filename: PathBuf) -> Result<Digest, Error> {
     // Tell the buffer that the chunk is consumed
     let part_len = part.len();
     buf.consume(part_len);
-    bar.inc(part_len as u64);
+    restored += part_len as u64;
+    log::info!("restored {restored}/{len} bytes");
   }
   let digest = context.compute();
-  bar.finish();
 
   Ok(digest)
 }
