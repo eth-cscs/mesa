@@ -56,7 +56,7 @@ async fn delete_and_cancel_image_session_with_no_results_only_hits_cfs_delete()
   };
 
   let client =
-    csm_rs::ShastaClient::new(server.uri(), TEST_PEM.as_bytes(), None)
+    csm_rs::ShastaClient::new(server.uri(), TEST_PEM.as_bytes())
       .expect("client construction");
 
   delete_and_cancel_session::exec(

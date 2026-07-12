@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let root_cert_path = std::env::var("CSM_ROOT_CERT_PATH")?;
   let root_cert = std::fs::read(&root_cert_path)?;
 
-  let client = ShastaClient::new(base_url, root_cert, None)?;
+  let client = ShastaClient::new(base_url, root_cert)?;
 
   let groups = client.hsm_group_get_all(&token).await?;
 

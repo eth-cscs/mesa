@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let token = std::env::var("CSM_TOKEN")?;
   let root_cert = std::fs::read(std::env::var("CSM_ROOT_CERT_PATH")?)?;
 
-  let client = ShastaClient::new(base_url, root_cert, None)?;
+  let client = ShastaClient::new(base_url, root_cert)?;
 
   let sessions = client
     .cfs_session_v3_get(

@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     return Err("usage: power_cycle_nodes <xname> [<xname>...]".into());
   }
 
-  let client = ShastaClient::new(base_url, root_cert, None)?;
+  let client = ShastaClient::new(base_url, root_cert)?;
 
   let response = client
     .pcs_transitions_post_block(&token, &operation, &xnames)

@@ -25,6 +25,6 @@ pub const TEST_TOKEN: &str = "test-token";
 // directly), so the `dead_code` lint trips per crate. Allow it here.
 #[allow(dead_code)]
 pub fn make_client(base_url: &str) -> ShastaClient {
-  ShastaClient::new(base_url, TEST_PEM.as_bytes().to_vec(), None)
+  ShastaClient::new(base_url, TEST_PEM.as_bytes().to_vec())
     .expect("ShastaClient::new should succeed with valid PEM")
 }

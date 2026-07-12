@@ -35,7 +35,7 @@ use wiremock::matchers::{
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn make_csm(base_url: &str) -> ShastaClient {
-  ShastaClient::new(base_url, TEST_PEM.as_bytes(), None)
+  ShastaClient::new(base_url, TEST_PEM.as_bytes())
     .expect("ShastaClient::new ok")
 }
 
