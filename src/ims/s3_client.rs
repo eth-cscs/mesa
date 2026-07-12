@@ -1,7 +1,6 @@
 use aws_config::SdkConfig;
 use aws_sdk_s3::config::Credentials;
 use aws_smithy_types::timeout::TimeoutConfig;
-use hyper::client::HttpConnector;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -60,11 +59,9 @@ pub async fn s3_auth(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
 ) -> Result<Value, Error> {
   // STS
-  let client =
-    crate::common::http::build_client(shasta_root_cert, socks5_proxy)?;
+  let client = crate::common::http::build_client(shasta_root_cert)?;
 
   let api_url = shasta_base_url.to_owned() + "/sts/token";
 
@@ -89,59 +86,34 @@ pub async fn s3_auth(
   Ok(sts_value)
 }
 
-async fn setup_client(
-  sts_value: &Value,
-  socks5_proxy: Option<&str>,
-) -> Result<Client, Error> {
-  use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
-
+async fn setup_client(sts_value: &Value) -> Result<Client, Error> {
   let (credentials, endpoint_url) = parse_sts_credentials(sts_value)?;
 
-  // Default provider fallback to us-east-1 since CSM doesn't use the concept of regions
   let region_provider =
     aws_config::meta::region::RegionProviderChain::default_provider()
       .or_else("us-east-1");
   let app_name = aws_config::AppName::new("manta")
     .map_err(|e| Error::S3Transport(format!("Error setting app name: {e}")))?;
-
   let timeout_config = TimeoutConfig::builder()
     .operation_timeout(S3_OPERATION_TIMEOUT)
     .build();
-  let mut loader = aws_config::from_env()
+
+  let config: SdkConfig = aws_config::from_env()
     .region(region_provider)
     .endpoint_url(endpoint_url)
     .app_name(app_name)
     .credentials_provider(credentials)
-    .timeout_config(timeout_config);
+    .timeout_config(timeout_config)
+    .load()
+    .await;
 
-  if let Some(socks5_env) = socks5_proxy {
-    log::debug!("SOCKS5 enabled");
-
-    let mut http_connector: HttpConnector = hyper::client::HttpConnector::new();
-    http_connector.enforce_http(false);
-
-    let socks_http_connector = hyper_socks2::SocksConnector {
-      proxy_addr: hyper::Uri::try_from(socks5_env)
-        .map_err(|e| Error::S3Transport(e.to_string()))?, // scheme is required by HttpConnector
-      auth: None,
-      connector: http_connector.clone(),
-    };
-
-    let http_client = HyperClientBuilder::new().build(socks_http_connector);
-    loader = loader.http_client(http_client);
-  }
-
-  let config: SdkConfig = loader.load().await;
-
-  let client = aws_sdk_s3::Client::from_conf(
+  Ok(aws_sdk_s3::Client::from_conf(
     aws_sdk_s3::Client::new(&config)
       .config()
       .to_builder()
       .force_path_style(true)
       .build(),
-  );
-
-  Ok(client)
+  ))
 }
 /// Gets the size of a given object in S3
 /// path of the object: <s3://bucket/key>
@@ -154,11 +126,10 @@ async fn setup_client(
 /// for the full set.
 pub async fn s3_get_object_size(
   sts_value: &Value,
-  socks5_proxy: Option<&str>,
   key: &str,
   bucket: &str,
 ) -> Result<i64, Error> {
-  let client = setup_client(sts_value, socks5_proxy).await?;
+  let client = setup_client(sts_value).await?;
 
   match client.get_object().bucket(bucket).key(key).send().await {
     Ok(object) => Ok(object.content_length().ok_or_else(|| {
@@ -192,12 +163,11 @@ pub async fn s3_get_object_size(
 /// or if the S3 GET fails.
 pub async fn s3_download_object(
   sts_value: &Value,
-  socks5_proxy: Option<&str>,
   object_path: &str,
   bucket: &str,
   destination_path: &str,
 ) -> Result<String, Error> {
-  let client = setup_client(sts_value, socks5_proxy).await?;
+  let client = setup_client(sts_value).await?;
 
   let filename = Path::new(object_path).file_name().ok_or_else(|| {
     Error::S3Transport(format!(
@@ -287,12 +257,11 @@ pub async fn s3_download_object(
 /// for the full set.
 pub async fn s3_upload_object(
   sts_value: &Value,
-  socks5_proxy: Option<&str>,
   object_path: &str,
   bucket: &str,
   file_path: &str,
 ) -> Result<String, Error> {
-  let client = setup_client(sts_value, socks5_proxy).await?;
+  let client = setup_client(sts_value).await?;
 
   let body = ByteStream::from_path(Path::new(&file_path)).await?;
 
@@ -330,11 +299,10 @@ pub async fn s3_upload_object(
 /// for the full set.
 pub async fn s3_remove_object(
   sts_value: &Value,
-  socks5_proxy: Option<&str>,
   object_path: &str,
   bucket: &str,
 ) -> Result<String, Error> {
-  let client = setup_client(sts_value, socks5_proxy).await?;
+  let client = setup_client(sts_value).await?;
 
   match client
     .delete_object()
@@ -375,7 +343,6 @@ pub async fn s3_remove_object(
 /// for the full set.
 pub async fn s3_multipart_upload_object(
   sts_value: &Value,
-  socks5_proxy: Option<&str>,
   object_path: &str,
   bucket: &str,
   file_path: &str,
@@ -388,7 +355,7 @@ pub async fn s3_multipart_upload_object(
   const CHUNK_SIZE: u64 = 1024 * 1024 * 5;
   const MAX_CHUNKS: u64 = 10000;
 
-  let client = setup_client(sts_value, socks5_proxy).await?;
+  let client = setup_client(sts_value).await?;
 
   // create multipart upload
   let multipart_upload_res: CreateMultipartUploadOutput = client
