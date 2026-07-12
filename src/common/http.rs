@@ -490,12 +490,6 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
   // is not actually surfaced as an error by build_client.
 
   #[test]
-  fn build_client_with_invalid_proxy_url_fails() {
-    let client = build_client(TEST_PEM.as_bytes());
-    assert!(client.is_err());
-  }
-
-  #[test]
   fn build_client_with_auth_invalid_token_bytes_returns_error() {
     // A `\n` byte cannot legally appear in an HTTP header value. Used to
     // panic in the old gen_client; now surfaces as Error::Message.

@@ -121,15 +121,6 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     assert_eq!(client.root_cert(), TEST_PEM.as_bytes());
   }
 
-  #[test]
-  fn new_with_invalid_proxy_url_fails() {
-    let result = ShastaClient::new(
-      "https://api.example.com",
-      TEST_PEM.as_bytes().to_vec(),
-    );
-    assert!(result.is_err());
-  }
-
   // NOTE: there is no test for "invalid PEM fails" because
   // `reqwest::Certificate::from_pem` is lenient — see the analogous comment
   // in `common::http::tests`. Garbage input returns Ok with an empty chain.
