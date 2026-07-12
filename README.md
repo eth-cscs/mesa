@@ -53,8 +53,7 @@ use csm_rs::ShastaClient;
 async fn main() -> Result<(), csm_rs::error::Error> {
     let client = ShastaClient::new(
         "https://api.shasta.example.com",
-        std::fs::read("/etc/shasta/ca.crt").unwrap(),
-        None, // or Some("socks5://localhost:9050".to_string())
+        std::fs::read("/etc/shasta/ca.crt").unwrap()
     )?;
 
     let token = "your-bearer-token";
@@ -193,16 +192,6 @@ csm-rs
                       └─ rustls-webpki 0.101.7   ← vulnerable
 ```
 
-No direct fix is available: the AWS Rust SDK's smithy HTTP client
-still pins `hyper-rustls 0.24.2`. The fixed `rustls-webpki` releases
-(`0.103.12` / `0.103.13`) require the whole stack to migrate to
-`hyper 1.x`; `aws-smithy-http-client 1.1.13` (latest at time of
-writing) has not done so. A new
-[`aws-smithy-http-client-reqwest 0.1.0`](https://crates.io/crates/aws-smithy-http-client-reqwest)
-crate exists and is the most likely migration target — once it
-stabilises, `src/ims/s3_client.rs` can switch to it and the
-`hyper 0.14`/`hyper-socks2`/`tower 0.4` pins (see comment in
-`Cargo.toml`) can go with it.
 
 ### Severity assessment for csm-rs
 

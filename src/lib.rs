@@ -40,14 +40,21 @@
 //!   argument. One client can serve many tokens, and the underlying
 //!   `reqwest::Client` (with its connection pool) is reused across all
 //!   of them.
+//! - **1.0.0-beta.20**: `ShastaClient::new` signature changed from 3 to 2
+//!   arguments; call sites drop the third positional argument (the removed
+//!   proxy parameter).
 //!
 //! ```ignore
 //! // 0.107.x
 //! let client = ShastaClient::new(base_url, token, cert, proxy)?;
 //! client.ims_image_get_all().await?;
 //!
-//! // 0.108+
+//! // 0.108 – 1.0.0-beta.19
 //! let client = ShastaClient::new(base_url, cert, proxy)?;
+//! client.ims_image_get_all(token).await?;
+//!
+//! // 1.0.0-beta.20+
+//! let client = ShastaClient::new(base_url, cert)?;
 //! client.ims_image_get_all(token).await?;
 //! ```
 //!
