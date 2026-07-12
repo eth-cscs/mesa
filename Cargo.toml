@@ -91,7 +91,6 @@ kube = { version = "2.0.1", features = ["ws", "runtime"], optional = true }
 k8s-openapi = { version = "0.26", features = ["v1_33"], optional = true }
 md5 = { version = "0.7.0", default-features = false }
 uuid = { version = "1.16.0", features = ["fast-rng", "serde", "v4"] }
-# git2 = { version = "0.18.1", default-features = false, features = ["vendored-openssl"] }
 futures = { version = "0.3.31", default-features = false, features = ["std"] }
 futures-channel = "0.3.31"
 regex = "1.6.0"
