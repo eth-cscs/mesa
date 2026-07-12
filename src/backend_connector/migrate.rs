@@ -1,4 +1,4 @@
-//! `MigrateRestoreTrait`, `MigrateBackupTrait` impls for [`crate::ShastaClient`].
+//! `MigrateRestoreTrait`, `MigrateBackupTrait` impls for [`super::Csm`].
 
 use manta_backend_dispatcher::{
   error::Error,
@@ -7,9 +7,9 @@ use manta_backend_dispatcher::{
   },
 };
 
-use crate::ShastaClient;
+use super::Csm;
 
-impl MigrateRestoreTrait for ShastaClient {
+impl MigrateRestoreTrait for Csm {
   async fn migrate_restore(
     &self,
     shasta_token: &str,
@@ -42,7 +42,7 @@ impl MigrateRestoreTrait for ShastaClient {
   }
 }
 
-impl MigrateBackupTrait for ShastaClient {
+impl MigrateBackupTrait for Csm {
   async fn migrate_backup(
     &self,
     shasta_token: &str,

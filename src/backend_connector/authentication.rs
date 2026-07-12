@@ -1,13 +1,13 @@
-//! `AuthenticationTrait` impl for [`crate::ShastaClient`].
+//! `AuthenticationTrait` impl for [`super::Csm`].
 
 use manta_backend_dispatcher::{
   error::Error, interfaces::authentication::AuthenticationTrait,
 };
 
-use crate::ShastaClient;
+use super::Csm;
 use crate::common::authentication::{self, get_token_from_shasta_endpoint};
 
-impl AuthenticationTrait for ShastaClient {
+impl AuthenticationTrait for Csm {
   async fn get_api_token(
     &self,
     username: &str,

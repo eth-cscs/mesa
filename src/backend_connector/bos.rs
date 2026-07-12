@@ -1,4 +1,4 @@
-//! `ApplySessionTrait`, `ClusterSessionTrait`, `ClusterTemplateTrait` impls for [`crate::ShastaClient`].
+//! `ApplySessionTrait`, `ClusterSessionTrait`, `ClusterTemplateTrait` impls for [`super::Csm`].
 
 use manta_backend_dispatcher::{
   error::Error,
@@ -9,9 +9,9 @@ use manta_backend_dispatcher::{
   types::bos::{session::BosSession, session_template::BosSessionTemplate},
 };
 
-use crate::ShastaClient;
+use super::Csm;
 
-impl ApplySessionTrait for ShastaClient {
+impl ApplySessionTrait for Csm {
   async fn apply_session(
     &self,
     gitea_token: &str,
@@ -31,7 +31,7 @@ impl ApplySessionTrait for ShastaClient {
     k8s: &K8sDetails, */
   ) -> Result<(String, String), Error> {
     crate::commands::apply_session::exec(
-      self,
+      self.shasta_client(),
       gitea_token,
       gitea_base_url,
       shasta_token,
@@ -53,13 +53,14 @@ impl ApplySessionTrait for ShastaClient {
   }
 }
 
-impl ClusterSessionTrait for ShastaClient {
+impl ClusterSessionTrait for Csm {
   async fn post_template_session(
     &self,
     shasta_token: &str,
     bos_session: manta_backend_dispatcher::types::bos::session::BosSession,
   ) -> Result<BosSession, Error> {
     self
+      .shasta_client()
       .bos_session_v2_post(shasta_token, bos_session.into())
       .await
       .map(std::convert::Into::into)
@@ -67,13 +68,14 @@ impl ClusterSessionTrait for ShastaClient {
   }
 }
 
-impl ClusterTemplateTrait for ShastaClient {
+impl ClusterTemplateTrait for Csm {
   async fn get_template(
     &self,
     shasta_token: &str,
     bos_session_template_id_opt: Option<&str>,
   ) -> Result<Vec<BosSessionTemplate>, Error> {
     self
+      .shasta_client()
       .bos_template_v2_get(shasta_token, bos_session_template_id_opt)
       .await
       .map(|bos_session_template_vec| {
@@ -94,6 +96,7 @@ impl ClusterTemplateTrait for ShastaClient {
     limit_number_opt: Option<&u8>,
   ) -> Result<Vec<BosSessionTemplate>, Error> {
     let mut bos_sessiontemplate_vec = self
+      .shasta_client()
       .bos_template_v2_get(shasta_token, bos_sessiontemplate_name_opt)
       .await
       .map_err(Error::from)?;
@@ -120,6 +123,7 @@ impl ClusterTemplateTrait for ShastaClient {
     shasta_token: &str,
   ) -> Result<Vec<BosSessionTemplate>, Error> {
     self
+      .shasta_client()
       .bos_template_v2_get_all(shasta_token)
       .await
       .map(|bos_session_template_vec| {
@@ -138,6 +142,7 @@ impl ClusterTemplateTrait for ShastaClient {
     bos_template_name: &str,
   ) -> Result<BosSessionTemplate, Error> {
     self
+      .shasta_client()
       .bos_template_v2_put(
         shasta_token,
         &bos_template.clone().into(),
@@ -154,6 +159,7 @@ impl ClusterTemplateTrait for ShastaClient {
     bos_template_id: &str,
   ) -> Result<(), Error> {
     self
+      .shasta_client()
       .bos_template_v2_delete(shasta_token, bos_template_id)
       .await
       .map_err(Error::from)

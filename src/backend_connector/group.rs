@@ -1,4 +1,4 @@
-//! `GroupTrait` impl for [`crate::ShastaClient`].
+//! `GroupTrait` impl for [`super::Csm`].
 
 use std::collections::HashMap;
 
@@ -8,10 +8,10 @@ use manta_backend_dispatcher::{
   types::{Group as FrontEndGroup, HsmActionResponse},
 };
 
-use crate::ShastaClient;
+use super::Csm;
 use crate::hsm::{self, group::types::Member};
 
-impl GroupTrait for ShastaClient {
+impl GroupTrait for Csm {
   async fn get_group_available(
     &self,
     auth_token: &str,
@@ -52,6 +52,7 @@ impl GroupTrait for ShastaClient {
     group: FrontEndGroup,
   ) -> Result<FrontEndGroup, Error> {
     let group_csm = self
+      .shasta_client()
       .hsm_group_post(auth_token, group.clone().into())
       .await
       .map_err(Error::from)?;
@@ -117,6 +118,7 @@ impl GroupTrait for ShastaClient {
   ) -> Result<FrontEndGroup, Error> {
     // Get all HSM groups
     let hsm_group_backend_vec = self
+      .shasta_client()
       .hsm_group_get(auth_token, Some(&[hsm_name.to_string()]), None)
       .await
       .map_err(Error::from)?;
@@ -147,6 +149,7 @@ impl GroupTrait for ShastaClient {
   ) -> Result<Vec<FrontEndGroup>, Error> {
     // Get all HSM groups
     let hsm_group_backend_vec = self
+      .shasta_client()
       .hsm_group_get(auth_token, hsm_name_vec_opt, None)
       .await
       .map_err(Error::from)?;
@@ -167,6 +170,7 @@ impl GroupTrait for ShastaClient {
     label: &str,
   ) -> Result<HsmActionResponse, Error> {
     self
+      .shasta_client()
       .hsm_group_delete_group(auth_token, label)
       .await
       .map(Into::into)
@@ -199,6 +203,7 @@ impl GroupTrait for ShastaClient {
     };
 
     self
+      .shasta_client()
       .hsm_group_post_member(auth_token, group_label, member)
       .await
       .map(Into::into)
@@ -235,6 +240,7 @@ impl GroupTrait for ShastaClient {
     xname: &str,
   ) -> Result<(), Error> {
     self
+      .shasta_client()
       .hsm_group_delete_member(auth_token, group_label, xname)
       .await
       .map_err(Error::from)

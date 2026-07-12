@@ -7,10 +7,9 @@
 //!
 //! Each submodule below wires one trait family to the corresponding
 //! csm-rs API surface — see the inline annotations for which trait each
-//! file implements. The impls live directly on [`crate::ShastaClient`],
-//! which carries the connection metadata (base URL, root cert) those
-//! impls need; per-request bearer tokens are passed in by the
-//! dispatcher.
+//! file implements. The impls live directly on [`Csm`], which carries
+//! the connection metadata (base URL, root cert) those impls need;
+//! per-request bearer tokens are passed in by the dispatcher.
 //!
 //! As a rule, dispatcher trait impls call into the domain namespaces
 //! (`crate::cfs`, `crate::ims`, `crate::hsm`, ...) rather than into
@@ -54,21 +53,48 @@ pub mod pcs; // PCSTrait
 #[cfg(feature = "commands-admin")]
 pub mod sat; // SatTrait, ApplyHwClusterPin
 
-/// Backward-compatibility alias for [`crate::ShastaClient`].
+/// Connection metadata for one Shasta installation, used by the
+/// [`manta_backend_dispatcher`] trait implementations in this module.
 ///
-/// The dispatcher trait impls used to live on a separate `Csm` wrapper
-/// that owned a `ShastaClient` as a field. The two structs had
-/// identical connection metadata (base URL, PEM root cert), so the
-/// wrapper was redundant. As of v1.0.0-beta.14,
-/// every `impl XxxTrait for Csm` block has moved directly onto
-/// `ShastaClient`, and this alias is preserved for one release cycle so
-/// that downstream code importing `csm_rs::backend_connector::Csm`
-/// keeps compiling.
-///
-/// New code should reach for [`crate::ShastaClient`] directly.
-#[deprecated(
-  since = "1.0.0-beta.14",
-  note = "use `csm_rs::ShastaClient` directly; this alias will be \
-          removed in a future release"
-)]
-pub type Csm = crate::ShastaClient;
+/// Holds the base URL, PEM root cert, and a pre-built
+/// [`crate::ShastaClient`] (constructed once at [`Csm::new`] time and
+/// shared across every dispatcher call). Bearer tokens are passed in
+/// per request by the dispatcher and are **not** stored.
+#[derive(Debug, Clone)]
+pub struct Csm {
+  pub(crate) base_url: String,
+  pub(crate) root_cert: Vec<u8>,
+  pub(crate) client: crate::ShastaClient,
+}
+
+impl Csm {
+  /// Construct a `Csm` from a base URL and a PEM-encoded root cert.
+  ///
+  /// Builds the underlying `reqwest::Client` (cert parse, connection
+  /// pool, DNS resolver, TLS context) once and caches it on
+  /// `self.client`; trait-method implementations reuse it across all
+  /// calls.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error if [`crate::ShastaClient::new`] fails — typically
+  /// because the cert bytes are unparseable.
+  #[must_use = "constructing a Csm without using it is a no-op"]
+  pub fn new(
+    base_url: &str,
+    root_cert: &[u8],
+  ) -> Result<Self, manta_backend_dispatcher::error::Error> {
+    let client = crate::ShastaClient::new(base_url, root_cert.to_vec())
+      .map_err(manta_backend_dispatcher::error::Error::from)?;
+    Ok(Self {
+      base_url: base_url.to_string(),
+      root_cert: root_cert.to_vec(),
+      client,
+    })
+  }
+
+  /// Borrow the cached [`crate::ShastaClient`].
+  pub(crate) fn shasta_client(&self) -> &crate::ShastaClient {
+    &self.client
+  }
+}

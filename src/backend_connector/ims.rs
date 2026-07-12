@@ -1,4 +1,4 @@
-//! `ImsTrait`, `GetImagesAndDetailsTrait` impls for [`crate::ShastaClient`].
+//! `ImsTrait`, `GetImagesAndDetailsTrait` impls for [`super::Csm`].
 
 use manta_backend_dispatcher::{
   error::Error,
@@ -6,15 +6,16 @@ use manta_backend_dispatcher::{
   types::ims::{Image as FrontEndImage, PatchImage},
 };
 
-use crate::ShastaClient;
+use super::Csm;
 
-impl ImsTrait for ShastaClient {
+impl ImsTrait for Csm {
   async fn get_images(
     &self,
     shasta_token: &str,
     image_id_opt: Option<&str>,
   ) -> Result<Vec<FrontEndImage>, Error> {
     self
+      .shasta_client()
       .ims_image_get(shasta_token, image_id_opt)
       .await
       .map(|v| v.into_iter().map(Into::into).collect())
@@ -26,6 +27,7 @@ impl ImsTrait for ShastaClient {
     shasta_token: &str,
   ) -> Result<Vec<FrontEndImage>, Error> {
     self
+      .shasta_client()
       .ims_image_get_all(shasta_token)
       .await
       .map(|v| v.into_iter().map(Into::into).collect())
@@ -51,6 +53,7 @@ impl ImsTrait for ShastaClient {
     image: &PatchImage,
   ) -> Result<(), Error> {
     let _ = self
+      .shasta_client()
       .ims_image_patch(shasta_token, image_id, &image.clone().into())
       .await
       .map_err(Error::from);
@@ -64,6 +67,7 @@ impl ImsTrait for ShastaClient {
     image_id: &str,
   ) -> Result<(), Error> {
     self
+      .shasta_client()
       .ims_image_delete(shasta_token, image_id)
       .await
       .map_err(Error::from)
@@ -71,11 +75,11 @@ impl ImsTrait for ShastaClient {
 }
 
 /// Backend-dispatcher impl of `GetImagesAndDetailsTrait` for
-/// [`crate::ShastaClient`].
+/// [`super::Csm`].
 ///
 /// Delegates to [`crate::ims::image::utils::get_with_details`]; see
 /// that function for the matching strategy.
-impl GetImagesAndDetailsTrait for ShastaClient {
+impl GetImagesAndDetailsTrait for Csm {
   async fn get_images_and_details(
     &self,
     shasta_token: &str,
@@ -84,7 +88,7 @@ impl GetImagesAndDetailsTrait for ShastaClient {
     limit_number: Option<&u8>,
   ) -> Result<Vec<(FrontEndImage, String, String, bool)>, Error> {
     crate::ims::image::utils::get_with_details(
-      self,
+      self.shasta_client(),
       shasta_token,
       hsm_group_name_vec,
       id_opt,

@@ -1,4 +1,4 @@
-//! `PCSTrait` impl for [`crate::ShastaClient`].
+//! `PCSTrait` impl for [`super::Csm`].
 
 use manta_backend_dispatcher::{
   error::Error,
@@ -9,9 +9,9 @@ use manta_backend_dispatcher::{
   },
 };
 
-use crate::ShastaClient;
+use super::Csm;
 
-impl PCSTrait for ShastaClient {
+impl PCSTrait for Csm {
   async fn pcs_transitions_post(
     &self,
     auth_token: &str,
@@ -19,6 +19,7 @@ impl PCSTrait for ShastaClient {
     nodes: &[String],
   ) -> Result<TransitionStartOutput, Error> {
     self
+      .shasta_client()
       .pcs_transitions_post(auth_token, operation, nodes)
       .await
       .map(Into::into)
@@ -31,6 +32,7 @@ impl PCSTrait for ShastaClient {
     transition_id: &str,
   ) -> Result<TransitionResponse, Error> {
     self
+      .shasta_client()
       .pcs_transitions_get_by_id(auth_token, transition_id)
       .await
       .map(Into::into)
@@ -47,6 +49,7 @@ impl PCSTrait for ShastaClient {
     let nodes_str: Vec<&str> = nodes.iter().map(String::as_str).collect();
 
     self
+      .shasta_client()
       .pcs_power_status_post(
         auth_token,
         Some(nodes_str.as_slice()),

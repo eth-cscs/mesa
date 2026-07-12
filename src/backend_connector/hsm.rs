@@ -1,4 +1,4 @@
-//! `HardwareInventory`, `ComponentTrait`, `ComponentEthernetInterfaceTrait`, `RedfishEndpointTrait` impls for [`crate::ShastaClient`].
+//! `HardwareInventory`, `ComponentTrait`, `ComponentEthernetInterfaceTrait`, `RedfishEndpointTrait` impls for [`super::Csm`].
 
 use hostlist_parser::parse;
 use manta_backend_dispatcher::{
@@ -23,16 +23,17 @@ use manta_backend_dispatcher::{
 use regex::Regex;
 use serde_json::Value;
 
-use crate::ShastaClient;
+use super::Csm;
 use crate::hsm::component::types::ComponentArrayPostArray;
 
-impl HardwareInventory for ShastaClient {
+impl HardwareInventory for Csm {
   async fn get_inventory_hardware(
     &self,
     auth_token: &str,
     xname: &str,
   ) -> Result<FrontEndNodeSummary, Error> {
     self
+      .shasta_client()
       .hsm_hw_inventory_get(auth_token, xname)
       .await
       .map(Into::into)
@@ -50,6 +51,7 @@ impl HardwareInventory for ShastaClient {
     _format: Option<&str>,
   ) -> Result<FrontEndHWInventory, Error> {
     self
+      .shasta_client()
       .hsm_hw_inventory_get_query(auth_token, xname)
       .await
       .map(Into::into)
@@ -62,6 +64,7 @@ impl HardwareInventory for ShastaClient {
     hw_inventory: FrontEndHWInventoryByLocationList,
   ) -> Result<HsmActionResponse, Error> {
     self
+      .shasta_client()
       .hsm_hw_inventory_post(auth_token, hw_inventory.into())
       .await
       .map(Into::into)
@@ -69,13 +72,14 @@ impl HardwareInventory for ShastaClient {
   }
 }
 
-impl ComponentTrait for ShastaClient {
+impl ComponentTrait for Csm {
   async fn get_all_nodes(
     &self,
     auth_token: &str,
     nid_only: Option<&str>,
   ) -> Result<NodeMetadataArray, Error> {
     self
+      .shasta_client()
       .hsm_component_get_all_nodes(auth_token, nid_only)
       .await
       .map(std::convert::Into::into)
@@ -139,6 +143,7 @@ impl ComponentTrait for ShastaClient {
   ) -> Result<NodeMetadataArray, Error> {
     let _ = role_only;
     self
+      .shasta_client()
       .hsm_component_get(
         auth_token,
         id,
@@ -174,6 +179,7 @@ impl ComponentTrait for ShastaClient {
     let component_backend: ComponentArrayPostArray = component.into();
 
     self
+      .shasta_client()
       .hsm_component_post(auth_token, component_backend)
       .await
       .map_err(Error::from)
@@ -185,6 +191,7 @@ impl ComponentTrait for ShastaClient {
     id: &str,
   ) -> Result<HsmActionResponse, Error> {
     self
+      .shasta_client()
       .hsm_component_delete_one(auth_token, id)
       .await
       .map(Into::into)
@@ -216,6 +223,7 @@ impl ComponentTrait for ShastaClient {
       // `#[serde(default)]` for an absent `Components` array), so it is
       // already empty by default — no `unwrap_or_default()` needed.
       let hsm_component_vec = self
+        .shasta_client()
         .hsm_component_get_all_nodes(shasta_token, Some("true"))
         .await
         .map_err(Error::from)?
@@ -284,6 +292,7 @@ impl ComponentTrait for ShastaClient {
       log::debug!("short NID list: {nid_short}");
 
       let hsm_components = self
+        .shasta_client()
         .hsm_component_get(
           shasta_token,
           None,
@@ -326,7 +335,7 @@ impl ComponentTrait for ShastaClient {
   }
 }
 
-impl ComponentEthernetInterfaceTrait for ShastaClient {
+impl ComponentEthernetInterfaceTrait for Csm {
   async fn get_all_component_ethernet_interfaces(
     &self,
     _auth_token: &str,
@@ -383,7 +392,7 @@ impl ComponentEthernetInterfaceTrait for ShastaClient {
   }
 }
 
-impl RedfishEndpointTrait for ShastaClient {
+impl RedfishEndpointTrait for Csm {
   async fn get_all_redfish_endpoints(
     &self,
     _auth_token: &str,
@@ -405,6 +414,7 @@ impl RedfishEndpointTrait for ShastaClient {
     last_status: Option<&str>,
   ) -> Result<FrontEndRedfishEndpointArray, Error> {
     self
+      .shasta_client()
       .hsm_redfish_get(
         auth_token,
         id,

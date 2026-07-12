@@ -1,18 +1,19 @@
-//! `BootParametersTrait` impl for [`crate::ShastaClient`].
+//! `BootParametersTrait` impl for [`super::Csm`].
 
 use manta_backend_dispatcher::{
   error::Error, interfaces::bss::BootParametersTrait,
   types::bss::BootParameters as FrontEndBootParameters,
 };
 
-use crate::ShastaClient;
+use super::Csm;
 
-impl BootParametersTrait for ShastaClient {
+impl BootParametersTrait for Csm {
   async fn get_all_bootparameters(
     &self,
     auth_token: &str,
   ) -> Result<Vec<FrontEndBootParameters>, Error> {
     let boot_parameter_vec = self
+      .shasta_client()
       .bss_bootparameters_get_all(auth_token)
       .await
       .map_err(Error::from)?;
@@ -31,6 +32,7 @@ impl BootParametersTrait for ShastaClient {
     nodes: &[String],
   ) -> Result<Vec<FrontEndBootParameters>, Error> {
     let boot_parameter_vec = self
+      .shasta_client()
       .bss_bootparameters_get_multiple(auth_token, nodes)
       .await
       .map_err(Error::from)?;
@@ -49,6 +51,7 @@ impl BootParametersTrait for ShastaClient {
     boot_parameters: &FrontEndBootParameters,
   ) -> Result<(), Error> {
     self
+      .shasta_client()
       .bss_bootparameters_post(auth_token, boot_parameters.clone().into())
       .await
       .map_err(Error::from)
@@ -60,6 +63,7 @@ impl BootParametersTrait for ShastaClient {
     boot_parameter: &FrontEndBootParameters,
   ) -> Result<(), Error> {
     self
+      .shasta_client()
       .bss_bootparameters_patch(auth_token, &boot_parameter.clone().into())
       .await
       .map_err(Error::from)
