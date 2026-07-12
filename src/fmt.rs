@@ -1,5 +1,5 @@
 //! Byte-size formatting helpers used by the migrate commands and the
-//! S3 client. Replaces the previous dependency on the `humansize` crate.
+//! S3 client.
 
 /// Format `bytes` as a decimal-unit size string.
 ///
