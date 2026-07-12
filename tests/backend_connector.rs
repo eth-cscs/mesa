@@ -1,6 +1,6 @@
-//! Wiremock smoke tests for the [`csm_rs::ShastaClient`]
+//! Wiremock smoke tests for the [`csm_rs::backend_connector::Csm`]
 //! dispatcher trait impls. Each test stands up a mock CSM, constructs
-//! a `ShastaClient`, calls one trait method through the dispatcher
+//! a `Csm`, calls one trait method through the dispatcher
 //! interface, and asserts the request hit the expected endpoint with
 //! the right bearer auth and that the wire response decodes through
 //! the csm-rs -> manta-backend-dispatcher type conversion.
@@ -13,7 +13,7 @@
 mod common;
 use common::{TEST_PEM, TEST_TOKEN};
 
-use csm_rs::ShastaClient;
+use csm_rs::backend_connector::Csm;
 use manta_backend_dispatcher::interfaces::{
   authentication::AuthenticationTrait,
   bss::BootParametersTrait,
@@ -34,9 +34,8 @@ use wiremock::matchers::{
 };
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn make_csm(base_url: &str) -> ShastaClient {
-  ShastaClient::new(base_url, TEST_PEM.as_bytes())
-    .expect("ShastaClient::new ok")
+fn make_csm(base_url: &str) -> Csm {
+  Csm::new(base_url, TEST_PEM.as_bytes()).expect("Csm::new ok")
 }
 
 // ---------- BootParametersTrait ----------
@@ -155,8 +154,9 @@ async fn pcs_transitions_get_hits_v1_transitions_by_id() {
     .await;
 
   let csm = make_csm(&server.uri());
-  // Disambiguate against the inherent `ShastaClient::pcs_transitions_get(token)`
-  // (1-arg list call) by calling the trait method explicitly.
+  // Call the trait method via FQN. `Csm` has no inherent
+  // `pcs_transitions_get`; the FQN form is kept for explicitness and
+  // symmetry with the other PCS test.
   let tr = PCSTrait::pcs_transitions_get(&csm, TEST_TOKEN, "tr-123")
     .await
     .expect("ok");
