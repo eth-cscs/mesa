@@ -26,7 +26,7 @@ mod service_values;
 /// not valid in an HTTP header value (control characters, `\n`, etc.)
 /// surface as `Error::Message` rather than a panic.
 ///
-/// TLS / proxy / connect-timeout / request-timeout configuration is
+/// TLS / connect-timeout / request-timeout configuration is
 /// delegated to [`crate::common::http::build_client_with_auth`] so the
 /// wrapper stays in lockstep with the rest of csm-rs. There is no
 /// shared connection pool with `ShastaClient.http` — `reqwest::Client`

@@ -18,8 +18,8 @@
 use crate::{ShastaClient, cfs::generated, error::Error};
 
 /// Build a generated CFS `Client` bound to the caller's token. Re-uses
-/// the shared `http::build_client_with_auth` helper so timeout / TLS /
-/// proxy config stays consistent with the rest of csm-rs.
+/// the shared `http::build_client_with_auth` helper so timeout / TLS
+/// config stays consistent with the rest of csm-rs.
 pub(crate) fn gen_client(
   client: &ShastaClient,
   token: &str,

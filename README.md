@@ -103,10 +103,12 @@ the environment. Run with `cargo run --example <name>`.
 let client = ShastaClient::new(base_url, token, cert, proxy)?;
 client.ims_image_get_all().await?;
 
-// 0.108+
+// 0.108 – 1.0.0-beta.19
 let client = ShastaClient::new(base_url, cert, proxy)?;
 client.ims_image_get_all(token).await?;
 ```
+
+- **1.0.0-beta.20**: `ShastaClient::new` no longer accepts a `socks5_proxy` argument; call sites drop the third positional argument.
 
 - **1.0.0-beta (current)**: HSM, CFS, BSS, BOS, and PCS are now
   generated from the upstream OpenAPI specs via
@@ -137,6 +139,10 @@ client.ims_image_get_all(token).await?;
   swaps; per-call signatures are preserved. The CapMC module is
   currently disabled in `lib.rs` while it waits for its own migration
   pass.
+
+## Notes
+
+`hyper 0.14` remains as a transitive dependency via `aws-smithy-http-client 1.1.13` → `hyper-rustls 0.24.2`. It will drop once `aws-smithy-http-client` migrates to `hyper 1.x`. csm-rs itself no longer depends on `hyper 0.14` directly.
 
 ## Building & testing
 
