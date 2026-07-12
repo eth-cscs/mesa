@@ -124,7 +124,6 @@ pub async fn i_import_images_section_in_sat_file(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   vault_base_url: &str,
   site_name: &str,
   k8s_api_url: &str,
@@ -165,7 +164,6 @@ pub async fn i_import_images_section_in_sat_file(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       vault_base_url,
       site_name,
       k8s_api_url,
@@ -233,7 +231,6 @@ pub async fn i_create_image_from_sat_file_serde_yaml(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   vault_base_url: &str,
   site_name: &str,
   k8s_api_url: &str,
@@ -252,7 +249,6 @@ pub async fn i_create_image_from_sat_file_serde_yaml(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     image_yaml,
     cray_product_catalog,
     ansible_verbosity_opt,
@@ -266,7 +262,6 @@ pub async fn i_create_image_from_sat_file_serde_yaml(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     vault_base_url,
     site_name,
     k8s_api_url,
@@ -281,7 +276,6 @@ pub async fn i_create_image_from_sat_file_serde_yaml(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &cfs_session,
     &image_yaml.name,
     dry_run,
@@ -307,7 +301,6 @@ pub async fn create_cfs_session_for_sat_image(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   image_yaml: &image::Image,
   cray_product_catalog: &BTreeMap<String, String>,
   ansible_verbosity_opt: Option<u8>,
@@ -319,7 +312,6 @@ pub async fn create_cfs_session_for_sat_image(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     image_yaml,
     ref_name_image_id_hashmap,
     cray_product_catalog,
@@ -405,7 +397,6 @@ pub async fn create_cfs_session_for_sat_image(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       &cfs_session,
     )
     .await
@@ -430,7 +421,6 @@ async fn wait_or_stream_cfs_session(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   vault_base_url: &str,
   site_name: &str,
   k8s_api_url: &str,
@@ -451,12 +441,11 @@ async fn wait_or_stream_cfs_session(
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await?;
 
     let client =
-      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy)
+      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets)
         .await?;
 
     i_print_cfs_session_logs(client, &cfs_session_name, timestamps).await?;
@@ -466,7 +455,6 @@ async fn wait_or_stream_cfs_session(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &cfs_session_name,
   )
   .await?;
@@ -475,7 +463,6 @@ async fn wait_or_stream_cfs_session(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &cfs_session_name,
   )
   .await?;
@@ -509,7 +496,6 @@ pub async fn collect_and_stamp_image(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   cfs_session: &CfsSessionGetResponse,
   image_name: &str,
   dry_run: bool,
@@ -542,7 +528,6 @@ pub async fn collect_and_stamp_image(
   let client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let mut image = client
     .ims_image_get(shasta_token, Some(image_id))
@@ -642,7 +627,6 @@ async fn get_session_from_image_yaml(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   // image_yaml: Value,
   image_yaml: &image::Image,
   ref_name_image_id_hashmap: &HashMap<String, String>,
@@ -693,7 +677,6 @@ async fn get_session_from_image_yaml(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     image_yaml,
     ref_name_image_id_hashmap,
     cray_product_catalog,
@@ -726,7 +709,6 @@ pub(super) async fn process_sat_file_image_product_type_ims_recipe(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   recipe_id: &str,
   image_name: &str,
   dry_run: bool,
@@ -737,7 +719,6 @@ pub(super) async fn process_sat_file_image_product_type_ims_recipe(
   let root_public_ssh_key = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .ims_public_keys_v3_get_single(shasta_token, root_ims_key_name)
   .await?
@@ -785,7 +766,6 @@ pub(super) async fn process_sat_file_image_product_type_ims_recipe(
     crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .ims_job_post_sync(shasta_token, &ims_job)
     .await?
@@ -802,7 +782,6 @@ pub(super) async fn process_sat_file_image_ims_type_recipe(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   recipe_name: &str,
   image_name: &str,
   dry_run: bool,
@@ -813,7 +792,6 @@ pub(super) async fn process_sat_file_image_ims_type_recipe(
     crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .ims_recipe_get(shasta_token, None)
     .await?;
@@ -843,7 +821,6 @@ pub(super) async fn process_sat_file_image_ims_type_recipe(
   let root_public_ssh_key = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .ims_public_keys_v3_get_single(shasta_token, root_ims_key_name)
   .await?
@@ -888,7 +865,6 @@ pub(super) async fn process_sat_file_image_ims_type_recipe(
     crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .ims_job_post_sync(shasta_token, &ims_job)
     .await?

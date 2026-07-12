@@ -14,20 +14,12 @@ pub mod http_client {
     // vault_role_id: &str,
     shasta_token: &str,
     site_name: &str,
-    socks5_proxy: Option<&str>,
   ) -> Result<String, Error> {
     let role = "manta";
 
-    let client_builder = reqwest::Client::builder()
-      .connect_timeout(crate::common::http::HTTP_CONNECT_TIMEOUT);
-
-    // Build client
-    let client = match socks5_proxy {
-      Some(proxy) => {
-        client_builder.proxy(reqwest::Proxy::all(proxy)?).build()?
-      }
-      None => client_builder.build()?,
-    };
+    let client = reqwest::Client::builder()
+      .connect_timeout(crate::common::http::HTTP_CONNECT_TIMEOUT)
+      .build()?;
 
     let api_url =
       format!("{vault_base_url}/v1/auth/jwt-manta-{site_name}/login");
@@ -67,18 +59,10 @@ pub mod http_client {
     vault_auth_token: &str,
     vault_base_url: &str,
     secret_path: &str,
-    socks5_proxy: Option<&str>,
   ) -> Result<Value, Error> {
-    let client_builder = reqwest::Client::builder()
-      .connect_timeout(crate::common::http::HTTP_CONNECT_TIMEOUT);
-
-    // Build client
-    let client = match socks5_proxy {
-      Some(proxy) => {
-        client_builder.proxy(reqwest::Proxy::all(proxy)?).build()?
-      }
-      None => client_builder.build()?,
-    };
+    let client = reqwest::Client::builder()
+      .connect_timeout(crate::common::http::HTTP_CONNECT_TIMEOUT)
+      .build()?;
 
     let api_url = vault_base_url.to_owned() + secret_path;
 
@@ -109,12 +93,10 @@ pub mod http_client {
     shasta_token: &str,
     // secret_path: &str,
     site_name: &str,
-    socks5_proxy: Option<&str>,
   ) -> Result<Value, Error> {
     log::debug!("Fetching k8s secrets from vault");
     let vault_token =
-      auth_oidc_jwt(vault_base_url, shasta_token, site_name, socks5_proxy)
-        .await?;
+      auth_oidc_jwt(vault_base_url, shasta_token, site_name).await?;
 
     let vault_secret_path = format!("manta/data/{site_name}");
 
@@ -122,7 +104,6 @@ pub mod http_client {
       &vault_token,
       vault_base_url,
       &format!("/v1/{vault_secret_path}/k8s"),
-      socks5_proxy,
     )
     .await
     .map(|secret| secret["data"].clone())

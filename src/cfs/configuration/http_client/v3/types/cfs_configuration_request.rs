@@ -111,7 +111,6 @@ impl CfsConfigurationRequest {
     configuration_yaml: &serde_yaml::Value,
     cray_product_catalog: &BTreeMap<String, String>,
     site_name: &str,
-    socks5_proxy: Option<&str>,
   ) -> Result<(String, Self), Error> {
     let mut cfs_configuration = Self::new();
 
@@ -151,7 +150,6 @@ impl CfsConfigurationRequest {
             git_tag,
             gitea_token,
             shasta_root_cert,
-            socks5_proxy,
             site_name,
           )
           .await;
@@ -188,7 +186,6 @@ impl CfsConfigurationRequest {
               gitea_base_url,
               gitea_token,
               shasta_root_cert,
-              socks5_proxy,
               &repo_url,
               branch_name,
             )
@@ -276,7 +273,6 @@ impl CfsConfigurationRequest {
               gitea_base_url,
               gitea_token,
               shasta_root_cert,
-              socks5_proxy,
               &repo_url,
               branch_name,
             )
@@ -331,7 +327,6 @@ impl CfsConfigurationRequest {
     gitea_token: &str,
     gitea_base_url: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
     repo_name_vec: &[&str],
     local_git_commit_vec: &[&str],
     playbook_file_name_opt: Option<&str>,
@@ -349,7 +344,6 @@ impl CfsConfigurationRequest {
           local_last_commit,
           gitea_token,
           shasta_root_cert,
-          socks5_proxy,
         )
         .await;
 

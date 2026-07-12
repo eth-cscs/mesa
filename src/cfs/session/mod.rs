@@ -30,13 +30,11 @@ pub async fn get_one(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   session_name: &String,
 ) -> Result<CfsSessionGetResponse, Error> {
   let cfs_session_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .cfs_session_v2_get(shasta_token, None, None, None, Some(session_name), None)
   .await?;
@@ -63,7 +61,6 @@ pub async fn get_and_sort(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   min_age_opt: Option<&String>,
   max_age_opt: Option<&String>,
   status_opt: Option<&String>,
@@ -73,7 +70,6 @@ pub async fn get_and_sort(
   let mut cfs_session_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .cfs_session_v2_get(
     shasta_token,
@@ -103,7 +99,6 @@ pub async fn post(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   session: &CfsSessionPostRequest,
 ) -> Result<CfsSessionGetResponse, Error> {
   log::info!("Create CFS session '{}'", session.name);
@@ -112,7 +107,6 @@ pub async fn post(
   crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .cfs_session_v2_post(shasta_token, session)
   .await
@@ -140,7 +134,6 @@ pub async fn i_post_sync(
   vault_base_url: &str,
   site_name: &str,
   k8s_api_url: &str,
-  socks5_proxy: Option<&str>,
   session: &CfsSessionPostRequest,
   watch_logs: bool,
   timestamps: bool,
@@ -151,7 +144,6 @@ pub async fn i_post_sync(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     session,
   )
   .await?;
@@ -168,13 +160,11 @@ pub async fn i_post_sync(
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await?;
 
     let client =
-      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy)
-        .await?;
+      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets).await?;
 
     i_print_cfs_session_logs(client, &cfs_session_name, timestamps).await?;
   }
@@ -185,7 +175,6 @@ pub async fn i_post_sync(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &cfs_session_name,
   )
   .await?;
@@ -195,7 +184,6 @@ pub async fn i_post_sync(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &cfs_session_name,
   )
   .await?;

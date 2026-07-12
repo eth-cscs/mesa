@@ -16,7 +16,6 @@
 //! let client = csm_rs::ShastaClient::new(
 //!     "https://api.shasta.example.com",
 //!     std::fs::read("/etc/shasta/ca.crt").unwrap(),
-//!     None, // or Some("socks5://localhost:9050".to_string())
 //! )?;
 //!
 //! let token = "your-bearer-token";

@@ -1,7 +1,7 @@
 //! Internal HTTP helpers shared by all `*::http_client` modules.
 //!
 //! Centralizes the three patterns that were duplicated across ~30 files:
-//!   1. Building a `reqwest::Client` with the CSM root cert and optional SOCKS5 proxy.
+//!   1. Building a `reqwest::Client` with the CSM root cert.
 //!   2. Issuing a bearer-authenticated request.
 //!   3. Branching on response status: deserialize success body as `T`, or map
 //!      a non-success status to `Error::CsmError(Value)`.

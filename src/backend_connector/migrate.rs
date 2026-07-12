@@ -27,7 +27,6 @@ impl MigrateRestoreTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       bos_file,
       cfs_file,
       hsm_file,
@@ -54,7 +53,6 @@ impl MigrateBackupTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       bos,
       destination,
     )

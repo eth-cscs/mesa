@@ -36,7 +36,6 @@ pub async fn create_new_configuration(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   configuration: &CfsConfigurationRequest,
   configuration_name: &str,
   overwrite: bool,
@@ -47,7 +46,6 @@ pub async fn create_new_configuration(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let cfs_configuration_vec = shasta_client
     .cfs_configuration_v2_get(shasta_token, Some(configuration_name))
@@ -246,7 +244,6 @@ pub async fn get_and_filter(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   configuration_name: Option<&str>,
   configuration_name_pattern: Option<&str>,
   hsm_group_name_vec: &[String],
@@ -264,7 +261,6 @@ pub async fn get_and_filter(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       hsm_group_name_vec,
     )
     .await?;
@@ -272,7 +268,6 @@ pub async fn get_and_filter(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let (
     mut cfs_configuration_vec,
@@ -320,7 +315,6 @@ pub async fn get_derivatives(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   configuration_name: &str,
 ) -> Result<
   (
@@ -336,7 +330,6 @@ pub async fn get_derivatives(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let (mut cfs_session_vec, mut bos_sessiontemplate_vec, mut ims_image_vec) = tokio::try_join!(
     shasta_client.cfs_session_v2_get_all(shasta_token),
@@ -399,7 +392,6 @@ pub async fn get_configuration_layer_details(
   gitea_token: &str,
   layer: Layer,
   site_name: &str,
-  socks5_proxy: Option<&str>,
 ) -> Result<LayerDetails, Error> {
   let commit_id: String =
     layer.commit.clone().unwrap_or("Not defined".to_string());
@@ -412,7 +404,6 @@ pub async fn get_configuration_layer_details(
     gitea_token,
     &layer.clone_url,
     shasta_root_cert,
-    socks5_proxy,
   )
   .await;
 
@@ -482,7 +473,6 @@ pub async fn get_configuration_layer_details(
         tag_name,
         gitea_token,
         shasta_root_cert,
-        socks5_proxy,
         site_name,
       )
       .await?;
@@ -566,7 +556,6 @@ pub async fn get_configuration_layer_details(
         commit_id,
         gitea_token,
         shasta_root_cert,
-        socks5_proxy,
         site_name,
       )
       .await?

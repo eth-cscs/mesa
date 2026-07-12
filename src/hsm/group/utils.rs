@@ -28,12 +28,10 @@ pub async fn get_group_available(
   shasta_auth_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
 ) -> Result<Vec<Group>, Error> {
   let mut group_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .hsm_group_get_all(shasta_auth_token)
   .await
@@ -50,7 +48,6 @@ pub async fn get_group_available(
       shasta_auth_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
     )
     .await?;
 
@@ -80,7 +77,6 @@ pub async fn get_group_name_available(
   shasta_auth_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
 ) -> Result<Vec<String>, Error> {
   log::debug!("Get HSM names available from JWT or all");
 
@@ -93,7 +89,6 @@ pub async fn get_group_name_available(
     let all_hsm_groups = crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .hsm_group_get_all(shasta_auth_token)
     .await?
@@ -148,7 +143,6 @@ pub async fn add_member(
   auth_token: &str,
   base_url: &str,
   root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   group_label: &str,
   new_member: &str,
 ) -> Result<Vec<String>, Error> {
@@ -156,7 +150,6 @@ pub async fn add_member(
   let shasta_client = crate::ShastaClient::new(
     base_url,
     root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let group_vec = shasta_client
     .hsm_group_get(auth_token, Some(&[group_label.to_string()]), None)
@@ -210,7 +203,6 @@ pub async fn remove_hsm_members(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   target_hsm_group_name: &str,
   new_target_hsm_members: Vec<&str>,
   dryrun: bool,
@@ -220,7 +212,6 @@ pub async fn remove_hsm_members(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     new_target_hsm_members.as_slice(),
     Some(target_hsm_group_name),
   )
@@ -237,7 +228,6 @@ pub async fn remove_hsm_members(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       target_hsm_group_name,
     )
     .await?;
@@ -261,7 +251,6 @@ pub async fn remove_hsm_members(
     let shasta_client = crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?;
     for xname in new_target_hsm_members {
       let _ = shasta_client
@@ -285,7 +274,6 @@ pub async fn migrate_hsm_members(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   target_hsm_group_name: &str,
   parent_hsm_group_name: &str,
   new_target_hsm_members: &[&str],
@@ -296,7 +284,6 @@ pub async fn migrate_hsm_members(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     new_target_hsm_members,
     Some(parent_hsm_group_name),
   )
@@ -313,7 +300,6 @@ pub async fn migrate_hsm_members(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       target_hsm_group_name,
     )
     .await?;
@@ -331,7 +317,6 @@ pub async fn migrate_hsm_members(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       parent_hsm_group_name,
     )
     .await?;
@@ -350,7 +335,6 @@ pub async fn migrate_hsm_members(
     let shasta_client = crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?;
     for xname in new_target_hsm_members {
       let member = Member {
@@ -381,7 +365,6 @@ pub async fn update_hsm_group_members(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_group_name: &str,
   old_target_hsm_group_members: &[&str],
   new_target_hsm_group_members: &[&str],
@@ -389,7 +372,6 @@ pub async fn update_hsm_group_members(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   // Delete members
   for old_member in old_target_hsm_group_members {
@@ -428,13 +410,11 @@ pub async fn get_xname_map_and_filter_by_xname_vec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   xname_vec: Vec<&str>,
 ) -> Result<HashMap<String, Vec<String>>, Error> {
   let hsm_group_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .hsm_group_get_all(shasta_token)
   .await?;
@@ -467,13 +447,11 @@ pub async fn get_hsm_map_and_filter_by_hsm_name_vec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_name_vec: &[&str],
 ) -> Result<HashMap<String, Vec<String>>, Error> {
   let hsm_group_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .hsm_group_get_all(shasta_token)
   .await?;
@@ -496,13 +474,11 @@ pub async fn get_hsm_group_map_and_filter_by_hsm_group_member_vec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   member_vec: &[&str],
 ) -> Result<HashMap<String, Vec<String>>, Error> {
   let hsm_group_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .hsm_group_get_all(shasta_token)
   .await?;
@@ -612,7 +588,6 @@ pub async fn get_member_vec_from_hsm_name_vec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_name_vec: &[String],
 ) -> Result<Vec<String>, Error> {
   log::debug!("Get xnames from HSM groups");
@@ -621,7 +596,6 @@ pub async fn get_member_vec_from_hsm_name_vec(
   let hsm_group_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .hsm_group_get(shasta_token, Some(hsm_name_vec), None)
   .await?;
@@ -713,13 +687,11 @@ pub async fn get_members_for_groups_matching(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_group_name_substring: &str,
 ) -> Result<Vec<GroupMembers>, Error> {
   let hsm_group_value_vec = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .hsm_group_get_hsm_group_vec(
     shasta_token,
@@ -748,7 +720,6 @@ pub async fn get_member_vec_from_hsm_group_name(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_group: &str,
 ) -> Result<Vec<String>, Error> {
   // Take all nodes for all hsm_groups found and put them in a Vec
@@ -756,7 +727,6 @@ pub async fn get_member_vec_from_hsm_group_name(
     crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .hsm_group_get_one(shasta_token, hsm_group)
     .await?

@@ -31,7 +31,6 @@ pub async fn exec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   bos: Option<&str>,
   destination: Option<&str>,
   /* prehook: Option<&String>,
@@ -66,7 +65,6 @@ pub async fn exec(
   let mut bos_templates = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .bos_template_v2_get(shasta_token, Some(bos))
   .await?;
@@ -122,7 +120,6 @@ pub async fn exec(
     let hsm_group_json = crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .hsm_group_get(shasta_token, Some(std::slice::from_ref(&hsm_group_name)), None)
     .await?;
@@ -144,7 +141,6 @@ pub async fn exec(
     let cfs_configurations = crate::ShastaClient::new(
       shasta_base_url,
       shasta_root_cert.to_vec(),
-      socks5_proxy.map(str::to_owned),
     )?
     .cfs_configuration_v3_get(shasta_token, Some(configuration_name))
     .await?;
@@ -202,7 +198,6 @@ pub async fn exec(
         match crate::ShastaClient::new(
           shasta_base_url,
           shasta_root_cert.to_vec(),
-          socks5_proxy.map(str::to_owned),
         )?
         .ims_image_get(
           shasta_token,
@@ -221,7 +216,6 @@ pub async fn exec(
               shasta_token,
               shasta_base_url,
               shasta_root_cert,
-              socks5_proxy,
             )
             .await
             {
@@ -234,7 +228,6 @@ pub async fn exec(
               let src = image_id.clone() + "/" + file;
               let object_size = ims::s3_client::s3_get_object_size(
                 &sts_value,
-                socks5_proxy,
                 &src,
                 bucket_name,
               )
@@ -251,7 +244,6 @@ pub async fn exec(
               );
               match ims::s3_client::s3_download_object(
                 &sts_value,
-                socks5_proxy,
                 &src,
                 bucket_name,
                 &dest,

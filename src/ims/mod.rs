@@ -20,8 +20,7 @@ pub mod public_keys;
 /// images via CFS sessions.
 pub mod recipe;
 /// Low-level S3 client used to upload/download IMS artifacts directly
-/// from the CSM-backing S3 store. Requires the `ims-s3` Cargo feature
-/// (AWS SDK + SOCKS5/hyper-0.14 glue).
+/// from the CSM-backing S3 store. Requires the `ims-s3` Cargo feature.
 #[cfg(feature = "ims-s3")]
 pub mod s3_client;
 

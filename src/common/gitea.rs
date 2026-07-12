@@ -58,7 +58,6 @@ pub mod http_client {
     gitea_token: &str,
     repo_url: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
   ) -> Result<Vec<Value>, Error> {
     let repo_name = get_repo_name_from_url(repo_url)?;
 
@@ -67,7 +66,6 @@ pub mod http_client {
       gitea_token,
       &repo_name,
       shasta_root_cert,
-      socks5_proxy,
     )
     .await
   }
@@ -79,9 +77,8 @@ pub mod http_client {
     gitea_token: &str,
     repo_name: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
   ) -> Result<Vec<Value>, Error> {
-    let client = http::build_client(shasta_root_cert, socks5_proxy)?;
+    let client = http::build_client(shasta_root_cert)?;
     let api_url = format!(
       "{gitea_base_url}/api/v1/repos/cray/{repo_name}/git/refs"
     );
@@ -103,7 +100,6 @@ pub mod http_client {
     gitea_base_url: &str,
     gitea_token: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
     repo_url: &str,
     branch_name: &str,
   ) -> Result<String, Error> {
@@ -112,7 +108,6 @@ pub mod http_client {
       gitea_token,
       repo_url,
       shasta_root_cert,
-      socks5_proxy,
     )
     .await?;
 
@@ -147,7 +142,6 @@ pub mod http_client {
     tag: &str,
     gitea_token: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
     site_name: &str,
   ) -> Result<Value, Error> {
     let gitea_internal_base_url = "https://api-gw-service-nmn.local/vcs/";
@@ -163,7 +157,7 @@ pub mod http_client {
       .trim_start_matches(&gitea_external_base_url)
       .trim_end_matches(".git");
 
-    let client = http::build_client(shasta_root_cert, socks5_proxy)?;
+    let client = http::build_client(shasta_root_cert)?;
     let api_url =
       format!("{gitea_api_base_url}/repos/{repo_name}/tags/{tag}");
 
@@ -187,7 +181,6 @@ pub mod http_client {
     tag: &str,
     gitea_token: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
     site_name: &str,
   ) -> Result<Value, Error> {
     let external_vcs_base_url = format!(
@@ -203,7 +196,7 @@ pub mod http_client {
       "https://api.cmn.{site_name}.cscs.ch/vcs/api/v1/repos/cray/{repo_name}/tags/{tag}"
     );
 
-    let client = http::build_client(shasta_root_cert, socks5_proxy)?;
+    let client = http::build_client(shasta_root_cert)?;
 
     log::debug!("Request to {api_url}");
 
@@ -229,7 +222,6 @@ pub mod http_client {
     commitid: &str,
     gitea_token: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
     site_name: &str,
   ) -> Result<Value, crate::error::Error> {
     let gitea_external_base_url =
@@ -241,7 +233,6 @@ pub mod http_client {
       commitid,
       gitea_token,
       shasta_root_cert,
-      socks5_proxy,
     )
     .await
   }
@@ -255,9 +246,8 @@ pub mod http_client {
     commitid: &str,
     gitea_token: &str,
     shasta_root_cert: &[u8],
-    socks5_proxy: Option<&str>,
   ) -> Result<Value, crate::error::Error> {
-    let client = http::build_client(shasta_root_cert, socks5_proxy)?;
+    let client = http::build_client(shasta_root_cert)?;
     let api_url = format!(
       "{gitea_base_url}api/v1/repos/{repo_name}/git/commits/{commitid}"
     );

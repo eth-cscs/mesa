@@ -37,7 +37,6 @@ pub async fn exec(
 ) -> Result<(String, String), Error> {
   let shasta_base_url = client.base_url();
   let shasta_root_cert = client.root_cert();
-  let socks5_proxy = client.socks5_proxy();
   let mut xname_list: Vec<&str>;
 
   // Check andible limit matches the nodes in hsm_group
@@ -84,7 +83,6 @@ pub async fn exec(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        socks5_proxy,
         hsm_group_value,
       )
       .await?;
@@ -110,7 +108,6 @@ pub async fn exec(
           shasta_token,
           shasta_base_url,
           shasta_root_cert,
-          socks5_proxy,
           &xname_list,
           hsm_group,
         )
@@ -185,13 +182,11 @@ pub async fn check_nodes_are_ready_to_run_cfs_configuration_and_run_cfs_session(
 ) -> Result<String, Error> {
   let shasta_base_url = client.base_url();
   let shasta_root_cert = client.root_cert();
-  let socks5_proxy = client.socks5_proxy();
   // Get ALL sessions
   let cfs_sessions = cfs::session::get_and_sort(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     None,
     None,
     None,
@@ -300,7 +295,6 @@ pub async fn check_nodes_are_ready_to_run_cfs_configuration_and_run_cfs_session(
     gitea_token,
     gitea_base_url,
     shasta_root_cert,
-    socks5_proxy,
     repo_name_vec,
     repo_last_commit_id_vec,
     playbook_yaml_file_name_opt,
@@ -339,7 +333,6 @@ pub async fn check_nodes_are_ready_to_run_cfs_configuration_and_run_cfs_session(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &session,
   )
   .await?

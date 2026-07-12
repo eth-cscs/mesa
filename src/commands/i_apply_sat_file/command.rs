@@ -31,7 +31,6 @@ struct SatApplyContext<'a> {
   shasta_token: &'a str,
   shasta_base_url: &'a str,
   shasta_root_cert: &'a [u8],
-  socks5_proxy: Option<&'a str>,
   vault_base_url: &'a str,
   site_name: &'a str,
   k8s_api_url: &'a str,
@@ -98,7 +97,6 @@ pub async fn exec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   vault_base_url: &str,
   site_name: &str,
   k8s_api_url: &str,
@@ -128,7 +126,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     vault_base_url,
     site_name,
     k8s_api_url,
@@ -195,7 +192,6 @@ pub async fn exec(
       ctx.shasta_token,
       ctx.shasta_base_url,
       ctx.shasta_root_cert,
-      ctx.socks5_proxy,
       ctx.vault_base_url,
       ctx.site_name,
       ctx.k8s_api_url,
@@ -227,7 +223,6 @@ pub async fn exec(
       ctx.shasta_token,
       ctx.shasta_base_url,
       ctx.shasta_root_cert,
-      ctx.socks5_proxy,
       ref_name_processed_hashmap,
       ctx.hsm_group_available_vec,
       sat_template_file_yaml,
@@ -265,7 +260,6 @@ async fn gather_sat_apply_data(
   let kube_client = kubernetes::get_client(
     ctx.k8s_api_url,
     shasta_k8s_secrets,
-    ctx.socks5_proxy,
   )
   .await?;
 
@@ -283,7 +277,6 @@ async fn gather_sat_apply_data(
   let shasta_client = crate::ShastaClient::new(
     ctx.shasta_base_url,
     ctx.shasta_root_cert.to_vec(),
-    ctx.socks5_proxy.map(str::to_owned),
   )?;
   let (configuration_vec, image_vec, ims_recipe_vec) = tokio::try_join!(
     shasta_client.cfs_configuration_v2_get_all(ctx.shasta_token),
@@ -350,7 +343,6 @@ async fn validate_sat_file_sections(
     ctx.shasta_token,
     ctx.shasta_base_url,
     ctx.shasta_root_cert,
-    ctx.socks5_proxy,
     image_struct_vec,
     configuration_struct_vec,
     bos_session_template_struct_vec,
@@ -388,7 +380,6 @@ async fn process_hardware_section(
         let client = crate::ShastaClient::new(
           ctx.shasta_base_url,
           ctx.shasta_root_cert.to_vec(),
-          ctx.socks5_proxy.map(str::to_owned),
         )?;
         apply_hw_cluster_pin::command::exec(
           &client,
@@ -408,7 +399,6 @@ async fn process_hardware_section(
           ctx.shasta_token,
           ctx.shasta_base_url,
           ctx.shasta_root_cert,
-          ctx.socks5_proxy,
           &[target_hsm_group_name.to_string()],
         )
         .await?;
@@ -431,7 +421,6 @@ async fn process_hardware_section(
           ctx.shasta_token,
           ctx.shasta_base_url,
           ctx.shasta_root_cert,
-          ctx.socks5_proxy,
           target_hsm_group_name,
           &hsm_group_members_vec
             .iter()
@@ -472,7 +461,6 @@ async fn process_configurations_section(
         ctx.shasta_token,
         ctx.shasta_base_url,
         ctx.shasta_root_cert,
-        ctx.socks5_proxy,
         ctx.gitea_base_url,
         ctx.gitea_token,
         cray_product_catalog,
@@ -506,8 +494,6 @@ pub struct ValidateSatFileParams<'a> {
   pub shasta_base_url: &'a str,
   /// Root CA certificate for validating Shasta TLS connections.
   pub shasta_root_cert: &'a [u8],
-  /// Optional SOCKS5 proxy URL for routing Shasta API requests.
-  pub socks5_proxy: Option<&'a str>,
   /// Vault base URL for secret retrieval.
   pub vault_base_url: &'a str,
   /// Site name (used for logging and context).
@@ -547,7 +533,6 @@ pub async fn validate_sat_file(
     shasta_token: params.shasta_token,
     shasta_base_url: params.shasta_base_url,
     shasta_root_cert: params.shasta_root_cert,
-    socks5_proxy: params.socks5_proxy,
     vault_base_url: params.vault_base_url,
     site_name: params.site_name,
     k8s_api_url: params.k8s_api_url,

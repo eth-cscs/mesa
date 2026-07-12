@@ -18,7 +18,6 @@ pub async fn create_cfs_configuration_from_sat_file(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   gitea_base_url: &str,
   gitea_token: &str,
   cray_product_catalog: &BTreeMap<String, String>,
@@ -39,7 +38,6 @@ pub async fn create_cfs_configuration_from_sat_file(
       sat_file_configuration_yaml,
       cray_product_catalog,
       site_name,
-      socks5_proxy,
     )
     .await?;
 
@@ -64,7 +62,6 @@ pub async fn create_cfs_configuration_from_sat_file(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       &cfs_configuration,
       &cfs_configuration_name,
       overwrite,

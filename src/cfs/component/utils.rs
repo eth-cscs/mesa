@@ -9,7 +9,6 @@ pub async fn update_component_desired_configuration(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   xname: &str,
   desired_configuration: &str,
   enabled: bool,
@@ -29,7 +28,6 @@ pub async fn update_component_desired_configuration(
   let Ok(client) = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   ) else {
     return;
   };
@@ -51,7 +49,6 @@ pub async fn update_component_list_desired_configuration(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   xnames: &[String],
   desired_configuration: &str,
   enabled: bool,
@@ -77,7 +74,6 @@ pub async fn update_component_list_desired_configuration(
   crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .cfs_component_v3_patch_component_list(shasta_token, component_list)
   .await?;

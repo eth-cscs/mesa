@@ -124,7 +124,6 @@ impl CfsTrait for ShastaClient {
         shasta_token,
         &self.base_url,
         &self.root_cert,
-        self.socks5_proxy.as_deref(),
       )
       .await
       // .map_err(Error::from)?;
@@ -204,7 +203,6 @@ impl CfsTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       min_age_opt,
       max_age_opt,
       status_opt,
@@ -351,7 +349,6 @@ impl CfsTrait for ShastaClient {
             gitea_token,
             gitea_base_url,
             &self.root_cert,
-            self.socks5_proxy.as_deref(),
             repo_name_vec,
             local_git_commit_vec,
             playbook_file_name_opt,
@@ -393,7 +390,6 @@ impl CfsTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       configuration_name,
       configuration_name_pattern,
       hsm_group_name_vec,
@@ -424,7 +420,6 @@ impl CfsTrait for ShastaClient {
       gitea_token,
       layer.into(),
       site_name,
-      self.socks5_proxy.as_deref(),
     )
     .await
     .map(std::convert::Into::into)
@@ -443,7 +438,6 @@ impl CfsTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       &configuration.clone().into(),
       configuration_name,
       overwrite,
@@ -503,7 +497,6 @@ impl CfsTrait for ShastaClient {
         base_url,
         shasta_token,
         site_name,
-        self.socks5_proxy.as_deref(),
       )
       .await
       .map_err(Error::from)?,
@@ -512,7 +505,6 @@ impl CfsTrait for ShastaClient {
     let client = kubernetes::get_client(
       &k8s.api_url,
       shasta_k8s_secrets,
-      self.socks5_proxy.as_deref(),
     )
     .await
     .map_err(Error::from)?;
@@ -571,7 +563,6 @@ impl CfsTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       xnames,
       desired_configuration,
       enabled,
@@ -597,7 +588,6 @@ impl CfsTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       configuration_name,
     )
     .await

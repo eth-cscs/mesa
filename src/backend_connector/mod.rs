@@ -8,9 +8,9 @@
 //! Each submodule below wires one trait family to the corresponding
 //! csm-rs API surface — see the inline annotations for which trait each
 //! file implements. The impls live directly on [`crate::ShastaClient`],
-//! which carries the connection metadata (base URL, root cert, optional
-//! SOCKS5 proxy) those impls need; per-request bearer tokens are passed
-//! in by the dispatcher.
+//! which carries the connection metadata (base URL, root cert) those
+//! impls need; per-request bearer tokens are passed in by the
+//! dispatcher.
 //!
 //! As a rule, dispatcher trait impls call into the domain namespaces
 //! (`crate::cfs`, `crate::ims`, `crate::hsm`, ...) rather than into
@@ -58,8 +58,8 @@ pub mod sat; // SatTrait, ApplyHwClusterPin
 ///
 /// The dispatcher trait impls used to live on a separate `Csm` wrapper
 /// that owned a `ShastaClient` as a field. The two structs had
-/// identical connection metadata (base URL, PEM root cert, optional
-/// SOCKS5 proxy), so the wrapper was redundant. As of v1.0.0-beta.14,
+/// identical connection metadata (base URL, PEM root cert), so the
+/// wrapper was redundant. As of v1.0.0-beta.14,
 /// every `impl XxxTrait for Csm` block has moved directly onto
 /// `ShastaClient`, and this alias is preserved for one release cycle so
 /// that downstream code importing `csm_rs::backend_connector::Csm`

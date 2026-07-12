@@ -20,7 +20,6 @@ impl GroupTrait for ShastaClient {
       auth_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
     )
     .await
     .map_err(Error::from)?;
@@ -42,7 +41,6 @@ impl GroupTrait for ShastaClient {
       auth_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
     )
     .await
     .map_err(Error::from)
@@ -76,7 +74,6 @@ impl GroupTrait for ShastaClient {
       auth_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       hsm_group_name_vec,
     )
     .await
@@ -92,7 +89,6 @@ impl GroupTrait for ShastaClient {
       auth_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       hsm_name_vec,
     )
     .await
@@ -108,7 +104,6 @@ impl GroupTrait for ShastaClient {
       auth_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       member_vec,
     )
     .await
@@ -187,7 +182,6 @@ impl GroupTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       hsm_name_vec,
     )
     .await
@@ -224,7 +218,6 @@ impl GroupTrait for ShastaClient {
         auth_token,
         &self.base_url,
         &self.root_cert,
-        self.socks5_proxy.as_deref(),
         group_label,
         new_member,
       )
@@ -258,7 +251,6 @@ impl GroupTrait for ShastaClient {
       auth_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       group_name,
       members_to_remove,
       members_to_add,
@@ -280,7 +272,6 @@ impl GroupTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
       target_hsm_group_name,
       parent_hsm_group_name,
       new_target_hsm_members,

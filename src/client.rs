@@ -1,7 +1,7 @@
 //! [`ShastaClient`] — connection-pool-owning entry point for talking to a
 //! Shasta CSM API.
 //!
-//! Holds the base URL, root certificate, optional SOCKS5 proxy, and a
+//! Holds the base URL, root certificate, and a
 //! pre-built `reqwest::Client` (with its connection pool, TLS context,
 //! and DNS resolver). The bearer token is **not** stored on the client
 //! — it is passed per request.

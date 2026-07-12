@@ -49,7 +49,6 @@ pub async fn exec(
 ) -> Result<(), Error> {
   let shasta_base_url = client.base_url();
   let shasta_root_cert = client.root_cert();
-  let socks5_proxy = client.socks5_proxy();
   // *********************************************************************************************************
   // PREPREQUISITES - FORMAT USER INPUT
 
@@ -157,7 +156,6 @@ pub async fn exec(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       &[target_hsm_group_name.to_string()],
     )
     .await?;
@@ -170,7 +168,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &user_defined_target_hsm_hw_component_vec,
     &target_hsm_group_member_vec,
     mem_lcm,
@@ -199,7 +196,6 @@ pub async fn exec(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       &[parent_hsm_group_name.to_string()],
     )
     .await?;
@@ -212,7 +208,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &user_defined_target_hsm_hw_component_vec,
     &parent_hsm_group_member_vec,
     mem_lcm,
@@ -303,7 +298,6 @@ pub async fn exec(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       target_hsm_group_name,
       &target_hsm_group_member_vec
         .iter()
@@ -333,7 +327,6 @@ pub async fn exec(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       parent_hsm_group_name,
       &parent_hsm_group_member_vec
         .iter()

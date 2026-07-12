@@ -20,7 +20,6 @@ use kube::{
 use serde_json::Value;
 
 use crate::error::Error;
-use http::Uri;
 use secrecy::SecretBox;
 
 /// Name of the `services`-namespace `ConfigMap` that CSM exposes the
@@ -35,12 +34,10 @@ pub(crate) const CRAY_PRODUCT_CATALOG_CONFIGMAP: &str = "cray-product-catalog";
 /// [`crate::common::vault::http_client::fetch_shasta_k8s_secrets_from_vault`];
 /// it must contain
 /// `certificate-authority-data`, `client-certificate-data`, and
-/// `client-key-data`. `socks5_proxy` is forwarded to the underlying
-/// HTTPS connector when set.
+/// `client-key-data`.
 pub async fn get_client(
   k8s_api_url: &str,
   shasta_k8s_secrets: Value,
-  socks5_proxy: Option<&str>,
 ) -> Result<kube::Client, Error> {
   let k8s_credential_name = "certificate-authority-data";
 
@@ -144,16 +141,10 @@ pub async fn get_client(
     user: Some(String::from("kubernetes-admin")),
   };
 
-  let mut config =
+  let config =
     kube::Config::from_custom_kubeconfig(kube_config, &kube_config_options)
       .await
       .map_err(|e| Error::K8sError(e.to_string()))?;
-
-  if let Some(socks5_address) = socks5_proxy {
-    config.proxy_url = Some(socks5_address.parse::<Uri>().map_err(|_| {
-      Error::Message("Could not parse socks5_proxy".to_string())
-    })?);
-  }
 
   let client = kube::Client::try_from(config)
     .map_err(|e| Error::K8sError(e.to_string()))?;

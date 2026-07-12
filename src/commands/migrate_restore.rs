@@ -67,7 +67,6 @@ pub async fn exec(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   bos_file: Option<&str>,
   cfs_file: Option<&str>,
   hsm_file: Option<&str>,
@@ -148,7 +147,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &ims_image_name,
     overwrite_image,
   )
@@ -168,7 +166,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &ims_image_id,
     &mut ims_image_manifest,
     &vec_backup_image_files,
@@ -182,7 +179,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &ims_image_name,
     &ims_image_id,
   )
@@ -193,7 +189,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &backup_hsm_file,
     overwrite_group,
   )
@@ -206,7 +201,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &backup_cfs_file,
     overwrite_configuration,
   )
@@ -219,7 +213,6 @@ pub async fn exec(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &backup_bos_file,
     &ims_image_id,
     overwrite_template,
@@ -239,7 +232,6 @@ async fn create_bos_sessiontemplate(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   bos_file: &str,
   ims_image_id: &str,
   overwrite: bool,
@@ -261,7 +253,6 @@ async fn create_bos_sessiontemplate(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let vector = shasta_client
     .bos_template_v2_get(shasta_token, Some(&bos_sessiontemplate_name))
@@ -347,7 +338,6 @@ async fn create_cfs_config(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   cfs_file: &str,
   overwrite: bool,
 ) -> Result<(), Error> {
@@ -363,7 +353,6 @@ async fn create_cfs_config(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let cfs_config_vec = shasta_client
     .cfs_configuration_v3_get(shasta_token, Some(&cfs_config_name))
@@ -435,7 +424,6 @@ async fn ims_update_image_add_manifest(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   ims_image_name: &str,
   ims_image_id: &str,
 ) -> Result<(), Error> {
@@ -443,7 +431,6 @@ async fn ims_update_image_add_manifest(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &[String::new()], // hsm_group_name
     Some(ims_image_name),
     None,
@@ -499,7 +486,6 @@ async fn ims_update_image_add_manifest(
   let patch_result = match crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   ) {
     Ok(client) => {
       client
@@ -528,7 +514,6 @@ async fn s3_upload_image_artifacts(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   ims_image_id: &str,
   ims_image_manifest: &mut ImageManifest,
   vec_image_files: &Vec<String>,
@@ -541,7 +526,6 @@ async fn s3_upload_image_artifacts(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
   )
   .await
   {
@@ -579,7 +563,6 @@ async fn s3_upload_image_artifacts(
     let etag: String = if fs::metadata(file)?.len() > 1024 * 1024 * 5 {
       match ims::s3_client::s3_multipart_upload_object(
         &sts_value,
-        socks5_proxy,
         &full_object_path,
         bucket_name,
         file,
@@ -599,7 +582,6 @@ async fn s3_upload_image_artifacts(
     } else {
       match ims::s3_client::s3_upload_object(
         &sts_value,
-        socks5_proxy,
         &full_object_path,
         bucket_name,
         file,
@@ -700,7 +682,6 @@ async fn s3_upload_image_artifacts(
 
   match ims::s3_client::s3_upload_object(
     &sts_value,
-    socks5_proxy,
     &manifest_full_object_path,
     bucket_name,
     &new_manifest_file_path.clone().to_string_lossy(),
@@ -836,7 +817,6 @@ async fn ims_register_image(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   ims_image_name: &str,
   overwrite: bool,
 ) -> Result<String, Error> {
@@ -853,7 +833,6 @@ async fn ims_register_image(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
     &[String::new()], // hsm_group_name
     ims_image_name,
     None,
@@ -869,7 +848,6 @@ async fn ims_register_image(
   let json_response = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?
   .ims_image_post(shasta_token, &ims_record)
   .await?;
@@ -928,7 +906,6 @@ pub async fn create_hsm_group_from_file(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_file: &str,
   overwrite: bool,
 ) -> Result<(), Error> {
@@ -942,7 +919,6 @@ pub async fn create_hsm_group_from_file(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   for group in group_vec {
     // Create the HSM group.

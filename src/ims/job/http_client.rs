@@ -115,7 +115,6 @@ impl ShastaClient {
       token,
       self.base_url(),
       self.root_cert(),
-      self.socks5_proxy(),
       &ims_job_id,
     )
     .await?;

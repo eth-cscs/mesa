@@ -27,7 +27,6 @@ impl AuthenticationTrait for ShastaClient {
       &self.root_cert,
       username,
       password,
-      self.socks5_proxy.as_deref(),
     )
     .await
     .map_err(Error::from)?;
@@ -42,7 +41,6 @@ impl AuthenticationTrait for ShastaClient {
       &self.base_url,
       token,
       &self.root_cert,
-      self.socks5_proxy.as_deref(),
     )
     .await
     .map_err(Error::from)

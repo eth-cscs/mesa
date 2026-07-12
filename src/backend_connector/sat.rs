@@ -103,12 +103,10 @@ impl SatTrait for ShastaClient {
         ))
       })?;
 
-    let socks5_proxy = self.socks5_proxy.as_deref();
     let shasta_k8s_secrets = fetch_shasta_k8s_secrets_from_vault(
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await
     .map_err(Error::from)?;
@@ -118,7 +116,6 @@ impl SatTrait for ShastaClient {
         shasta_token,
         &self.base_url,
         &self.root_cert,
-        socks5_proxy,
         vault_base_url,
         site_name,
         k8s_api_url,
@@ -170,12 +167,10 @@ impl SatTrait for ShastaClient {
         ))
       })?;
 
-    let socks5_proxy = self.socks5_proxy.as_deref();
     let shasta_k8s_secrets = fetch_shasta_k8s_secrets_from_vault(
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await
     .map_err(Error::from)?;
@@ -185,7 +180,6 @@ impl SatTrait for ShastaClient {
         shasta_token,
         shasta_base_url: &self.base_url,
         shasta_root_cert: &self.root_cert,
-        socks5_proxy,
         vault_base_url,
         site_name,
         k8s_api_url,
@@ -213,7 +207,6 @@ impl SatTrait for ShastaClient {
       dry_run,
       overwrite,
     } = params;
-    let socks5_proxy = self.socks5_proxy.as_deref();
 
     // Transcode the structured Value (carried as JSON end-to-end) into
     // the serde_yaml::Value the per-entry creator expects. Lossless for
@@ -232,12 +225,11 @@ impl SatTrait for ShastaClient {
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await
     .map_err(Error::from)?;
     let kube_client =
-      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy)
+      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets)
         .await
         .map_err(Error::from)?;
     let cray_product_catalog = kubernetes::try_get_configmap(
@@ -251,7 +243,6 @@ impl SatTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      socks5_proxy,
       gitea_base_url,
       gitea_token,
       &cray_product_catalog,
@@ -285,7 +276,6 @@ impl SatTrait for ShastaClient {
       timestamps,
       dry_run,
     } = params;
-    let socks5_proxy = self.socks5_proxy.as_deref();
 
     // Transcode JSON -> YAML -> typed SAT image shape.
     let image_yaml: serde_yaml::Value =
@@ -306,12 +296,11 @@ impl SatTrait for ShastaClient {
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await
     .map_err(Error::from)?;
     let kube_client =
-      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy)
+      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets)
         .await
         .map_err(Error::from)?;
     let cray_product_catalog = kubernetes::try_get_configmap(
@@ -325,7 +314,6 @@ impl SatTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      socks5_proxy,
       vault_base_url,
       site_name,
       k8s_api_url,
@@ -360,7 +348,6 @@ impl SatTrait for ShastaClient {
       ansible_passthrough,
       dry_run,
     } = params;
-    let socks5_proxy = self.socks5_proxy.as_deref();
 
     let image_yaml: serde_yaml::Value =
       serde_json::from_value(image).map_err(|e| {
@@ -379,12 +366,11 @@ impl SatTrait for ShastaClient {
       vault_base_url,
       shasta_token,
       site_name,
-      socks5_proxy,
     )
     .await
     .map_err(Error::from)?;
     let kube_client =
-      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy)
+      kubernetes::get_client(k8s_api_url, shasta_k8s_secrets)
         .await
         .map_err(Error::from)?;
     let cray_product_catalog = kubernetes::try_get_configmap(
@@ -398,7 +384,6 @@ impl SatTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      socks5_proxy,
       &image_struct,
       &cray_product_catalog,
       ansible_verbosity,
@@ -420,13 +405,11 @@ impl SatTrait for ShastaClient {
       shasta_token,
       cfs_session_name,
     } = params;
-    let socks5_proxy = self.socks5_proxy.as_deref();
 
     let cfs_session = crate::cfs::session::get_one(
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      socks5_proxy,
       &cfs_session_name.to_string(),
     )
     .await
@@ -449,7 +432,6 @@ impl SatTrait for ShastaClient {
       shasta_token,
       &self.base_url,
       &self.root_cert,
-      socks5_proxy,
       &cfs_session,
       "",
       false,
@@ -472,7 +454,6 @@ impl SatTrait for ShastaClient {
       reboot,
       dry_run,
     } = params;
-    let socks5_proxy = self.socks5_proxy.as_deref();
 
     // The existing per-section function reads the entry out of
     // `sat_file_yaml["session_templates"][...]`. Wrap our single entry
@@ -497,7 +478,6 @@ impl SatTrait for ShastaClient {
         shasta_token,
         &self.base_url,
         &self.root_cert,
-        socks5_proxy,
         ref_lookup,
         hsm_group_available_vec,
         synthetic,

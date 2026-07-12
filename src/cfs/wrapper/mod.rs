@@ -26,7 +26,6 @@ pub(crate) fn gen_client(
 ) -> Result<generated::Client, Error> {
   let inner = crate::common::http::build_client_with_auth(
     client.root_cert(),
-    client.socks5_proxy(),
     Some(token),
   )?;
   // CFS basePath: csm-rs's `base_url` already ends in `/apis`; CFS

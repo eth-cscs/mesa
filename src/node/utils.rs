@@ -22,14 +22,12 @@ pub async fn validate_target_hsm_members(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   hsm_group_members_opt: &[&str],
 ) -> Result<Vec<String>, Error> {
   let hsm_groups_user_has_access = hsm::group::utils::get_group_name_available(
     shasta_token,
     shasta_base_url,
     shasta_root_cert,
-    socks5_proxy,
   )
   .await?;
 
@@ -38,7 +36,6 @@ pub async fn validate_target_hsm_members(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       &hsm_groups_user_has_access,
     )
     .await?;
@@ -116,7 +113,6 @@ pub async fn validate_xnames_format_and_membership_against_single_hsm(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   xnames: &[&str],
   hsm_group_name_opt: Option<&str>,
 ) -> Result<bool, Error> {
@@ -126,7 +122,6 @@ pub async fn validate_xnames_format_and_membership_against_single_hsm(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        socks5_proxy,
         hsm_group_name,
       )
       .await?
@@ -154,7 +149,6 @@ pub async fn get_node_details(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   xname_list: Vec<String>,
 ) -> Result<Vec<NodeDetails>, Error> {
   let start = Instant::now();
@@ -162,7 +156,6 @@ pub async fn get_node_details(
   let shasta_client = crate::ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
 
   let (
@@ -182,7 +175,6 @@ pub async fn get_node_details(
       shasta_token,
       shasta_base_url,
       shasta_root_cert,
-      socks5_proxy,
       None,
       None,
       None,
@@ -207,7 +199,6 @@ pub async fn get_node_details(
     let shasta_token_string = shasta_token.to_string();
     let shasta_base_url_string = shasta_base_url.to_string();
     let shasta_root_cert_vec = shasta_root_cert.to_vec();
-    let socks5_proxy_opt = socks5_proxy.map(str::to_owned);
 
     // find component details
     let component_details_opt = components_status
@@ -358,7 +349,6 @@ pub async fn get_node_details(
       crate::ShastaClient::new(
         &shasta_base_url_string,
         shasta_root_cert_vec.clone(),
-        socks5_proxy_opt.clone(),
       )?
       .hsm_memberships_get_xname(&shasta_token_string, &xname)
       .await

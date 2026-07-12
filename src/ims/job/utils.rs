@@ -13,13 +13,11 @@ pub async fn wait_ims_job_to_finish(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   ims_job_id: &str,
 ) -> Result<(), Error> {
   let client = ShastaClient::new(
     shasta_base_url,
     shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
   )?;
   let mut i = 0;
   let max = 1800;

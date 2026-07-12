@@ -305,7 +305,6 @@ pub async fn wait_cfs_session_to_finish(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   cfs_session_id: &str,
 ) -> Result<(), Error> {
   let backoff = crate::common::poll::PollBackoff {
@@ -321,7 +320,6 @@ pub async fn wait_cfs_session_to_finish(
         shasta_token,
         shasta_base_url,
         shasta_root_cert,
-        socks5_proxy,
         None,
         None,
         None,

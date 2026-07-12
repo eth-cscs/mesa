@@ -28,12 +28,10 @@ pub async fn get_container_attachment_to_conman(
   xname: &str,
   k8s_api_url: &str,
   shasta_k8s_secrets: Value,
-  socks5_proxy: Option<&str>,
 ) -> Result<AttachedProcess, Error> {
   log::info!("xname: {xname}");
 
-  let client =
-    get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy).await?;
+  let client = get_client(k8s_api_url, shasta_k8s_secrets).await?;
 
   let pods_fabric: Api<Pod> = Api::namespaced(client, "services");
 
@@ -130,10 +128,8 @@ pub async fn get_container_attachment_to_cfs_session_image_target(
   cfs_session_name: &str,
   k8s_api_url: &str,
   shasta_k8s_secrets: Value,
-  socks5_proxy: Option<&str>,
 ) -> Result<AttachedProcess, Error> {
-  let client =
-    get_client(k8s_api_url, shasta_k8s_secrets, socks5_proxy).await?;
+  let client = get_client(k8s_api_url, shasta_k8s_secrets).await?;
 
   let pods_fabric: Api<Pod> = Api::namespaced(client.clone(), "services");
 

@@ -33,13 +33,8 @@ pub async fn health_check(
   shasta_token: &str,
   shasta_base_url: &str,
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
 ) -> Result<Value, Error> {
-  crate::ShastaClient::new(
-    shasta_base_url,
-    shasta_root_cert.to_vec(),
-    socks5_proxy.map(str::to_owned),
-  )?
-  .cfs_health_check(shasta_token)
-  .await
+  crate::ShastaClient::new(shasta_base_url, shasta_root_cert.to_vec())?
+    .cfs_health_check(shasta_token)
+    .await
 }

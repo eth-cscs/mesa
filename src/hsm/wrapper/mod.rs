@@ -40,7 +40,6 @@ pub(crate) fn gen_client(
 ) -> Result<generated::Client, Error> {
   let inner = crate::common::http::build_client_with_auth(
     client.root_cert(),
-    client.socks5_proxy(),
     Some(token),
   )?;
   // Override spec basePath: csm-rs's `base_url` already ends in `/apis`.
@@ -150,8 +149,8 @@ mod tests {
   /// as a recoverable `Error::Message`.
   #[test]
   fn gen_client_with_invalid_token_returns_error() {
-    // Build a minimal ShastaClient. We only need root_cert / socks5_proxy /
-    // base_url to be reachable; the cert can be the test PEM used in
+    // Build a minimal ShastaClient. We only need root_cert / base_url
+    // to be reachable; the cert can be the test PEM used in
     // common::http tests.
     const TEST_PEM: &str = "-----BEGIN CERTIFICATE-----\n\
 MIIBhTCCASugAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw\n\
@@ -168,7 +167,6 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     let sc = ShastaClient::new(
       "https://example.invalid/apis".to_string(),
       TEST_PEM.as_bytes().to_vec(),
-      None,
     )
     .expect("ShastaClient::new should accept the test PEM");
 

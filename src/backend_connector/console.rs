@@ -78,7 +78,6 @@ impl ConsoleTrait for ShastaClient {
         base_url,
         shasta_token,
         site_name,
-        self.socks5_proxy.as_deref(),
       )
       .await
       .map_err(Error::from)?,
@@ -89,7 +88,6 @@ impl ConsoleTrait for ShastaClient {
         xname,
         &k8s.api_url,
         shasta_k8s_secrets,
-        self.socks5_proxy.as_deref(),
       )
       .await
       .map_err(Error::from)?;
@@ -163,7 +161,6 @@ impl ConsoleTrait for ShastaClient {
         base_url,
         shasta_token,
         site_name,
-        self.socks5_proxy.as_deref(),
       )
       .await
       .map_err(Error::from)?,
@@ -174,7 +171,6 @@ impl ConsoleTrait for ShastaClient {
         session_name,
         &k8s.api_url,
         shasta_k8s_secrets,
-        self.socks5_proxy.as_deref(),
       )
       .await
       .map_err(Error::from)?;

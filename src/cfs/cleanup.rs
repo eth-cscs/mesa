@@ -66,7 +66,6 @@ pub async fn get_data_to_delete(
       shasta_token,
       client.base_url(),
       client.root_cert(),
-      client.socks5_proxy(),
       hsm_name_available_vec,
     )
     .await?;
