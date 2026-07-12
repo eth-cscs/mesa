@@ -125,6 +125,7 @@ pub mod cfs;
 mod client;
 pub mod commands;
 pub(crate) mod common;
+pub(crate) mod fmt;
 pub mod error;
 pub mod hsm;
 pub mod ims;
