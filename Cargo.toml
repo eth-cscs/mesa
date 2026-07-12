@@ -98,7 +98,7 @@ futures-channel = "0.3.31"
 regex = "1.6.0"
 secrecy = { version = "0.10.3", default-features = false }
 base64 = { version = "0.22", default-features = false, features = ["std"] }
-aws-sdk-s3 = { version = "1.135", features = ["rustls"], default-features = false, optional = true }
+aws-sdk-s3 = { version = "1.135", features = ["default-https-client", "http-1x", "rt-tokio"], default-features = false, optional = true }
 aws-config = { version = "1.8", default-features = false, features = ["behavior-version-latest"], optional = true }
 aws-smithy-runtime = { version = "1.11", optional = true }
 aws-smithy-types = { version = "1.4", features = ["rt-tokio"], optional = true }
