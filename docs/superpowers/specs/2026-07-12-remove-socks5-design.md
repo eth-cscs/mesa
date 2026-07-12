@@ -32,7 +32,7 @@ Keeping SOCKS5 alive has a concrete cost. In `csm-rs`, the IMS S3 client wires S
 
 - **Hard-break the public API in both client crates.** Every function signature and struct field that carries a `socks5_proxy: Option<&str>` / `Option<String>` is removed. Consumers must update.
 - **Version bumps.** Both crates are on `1.0.0-beta.*`, so a beta bump is sufficient — no formal semver-major bump is required. `csm-rs` releases `1.0.0-beta.20`; `ochami-rs` bumps its next beta at the tail of the sweep.
-- **Cross-repo coordination.** The `manta-backend-dispatcher` trait change lands first and is the single upstream prerequisite for both client sweeps. Once the dispatcher release is out, `csm-rs` and `ochami-rs` sweeps are independent and can proceed in parallel.
+- **Cross-repo coordination.** `manta-backend-dispatcher` and both client crates can proceed independently. The dispatcher's own change is limited to dropping `reqwest`'s `socks` feature in its `Cargo.toml` (see Section 3.8) — the dispatcher's trait signatures do not carry `socks5_proxy` today, so no trait-shape coordination is required.
 
 ### 3.2 csm-rs — Cargo.toml changes
 
@@ -116,7 +116,7 @@ The work groups naturally into the following review chunks, listed in the order 
 4. `hsm::*`.
 5. `cfs::*`.
 6. `bos::*`, `bss::*`, `pcs::*`, `node::*`.
-7. `backend_connector::*` (dispatcher-trait impls; requires the new dispatcher release pinned in `Cargo.toml`).
+7. `backend_connector::*` (dispatcher-trait impls; these methods call `self.socks5_proxy.as_deref()` internally when invoking csm-rs helpers, so every such call is dropped together with the `Client` field itself in step 1).
 8. `commands::*` including `migrate_backup`, `migrate_restore`, `apply_session`, `apply_hw_cluster_pin`, `i_apply_sat_file`.
 
 ### 3.6 ochami-rs — Cargo.toml changes
@@ -135,9 +135,11 @@ That is the entire SOCKS5 dependency footprint in `ochami-rs` — no hyper 0.14,
 
 Roughly 20 files, all mechanical.
 
-### 3.8 Shared upstream — `manta-backend-dispatcher` trait change
+### 3.8 Shared upstream — `manta-backend-dispatcher` Cargo.toml
 
-The dispatcher traits currently declare `socks5_proxy: Option<&str>` on the methods that `csm-rs` and `ochami-rs` implement. That parameter is removed from every affected trait method. `manta-backend-dispatcher` cuts a beta release (target: `1.0.0-beta.14`, exact number determined by the state of that repo when the work starts). Both client crates then pin the new dispatcher release and their `backend_connector` impls compile clean against the new trait shape.
+The dispatcher's public trait signatures do **not** carry `socks5_proxy` — csm-rs and ochami-rs hold the proxy string as internal client state and pass it into their own helpers from inside their `backend_connector` impls. So no trait change is needed in the dispatcher, and there is no cross-repo compile-time prerequisite.
+
+The dispatcher's only SOCKS5 footprint is the `reqwest` `socks` feature declared in its own `Cargo.toml`. That feature is dropped and the dispatcher cuts a beta release (target `1.0.0-beta.14`, exact number tracked in that repo). Client crates can bump to the new dispatcher release opportunistically; they are not blocked on it.
 
 ### 3.9 Documentation updates
 
@@ -147,11 +149,14 @@ The dispatcher traits currently declare `socks5_proxy: Option<&str>` on the meth
 
 ## 4. Cross-repo ordering
 
-1. **manta-backend-dispatcher** — drop `socks5_proxy` from every trait method; release (e.g. `1.0.0-beta.14`).
-2. **csm-rs** and **ochami-rs** — sweep in parallel on `feat/remove-socks5` branches. Each pins the new dispatcher release, does its own module-by-module commits, verifies its own ripgrep gate, and cuts its own release (`csm-rs 1.0.0-beta.20`; ochami-rs beta bump tracked in that repo).
-3. **manta CLI** — bumps both client dependencies in a single follow-up PR and drops any `--socks5-proxy` CLI flag. Not covered by this spec.
+The three repo changes are independent. Any order works, and they can run in parallel:
 
-If the dispatcher release lags during development, either client crate can use a `path = "…"` or `branch = "…"` dep on `manta-backend-dispatcher` in its `Cargo.toml` until step 1 lands, then switch back to a pinned version before releasing.
+- **manta-backend-dispatcher** — drop `reqwest`'s `socks` feature from `Cargo.toml`; cut a beta release (target `1.0.0-beta.14`, exact number tracked in that repo). No source code changes; the traits do not carry `socks5_proxy`.
+- **csm-rs** — sweep on a `feat/remove-socks5` branch, verify the ripgrep gate, release `1.0.0-beta.20`.
+- **ochami-rs** — sweep on a `feat/remove-socks5` branch, verify the ripgrep gate, release the next beta (number tracked in that repo).
+- **manta CLI** — bumps all three dependencies in a single follow-up PR and drops any `--socks5-proxy` CLI flag. Not covered by this spec.
+
+The dispatcher release is not a blocker for the client sweeps because the client crates hold the proxy string as internal state, not as a trait parameter (see Section 3.8). Bumping the dispatcher pin in the client crates is a small independent chore that can happen before, during, or after the sweeps.
 
 ## 5. Verification
 
@@ -179,13 +184,11 @@ The ripgrep gate is what proves the removal is complete; the implementation plan
 - **Breaking:** removed SOCKS5 proxy support. `Client::new` no longer takes a `socks5_proxy` argument, and every public function in `common::http`, `ims::s3_client`, and all callers loses its `socks5_proxy` parameter.
 - Dropped `hyper 0.14` and `hyper-socks2` dependencies; the IMS S3 client now uses the AWS SDK's default rustls HTTP client.
 - Dropped `reqwest`'s `socks` feature and `kube`'s `socks5` feature.
-- Requires `manta-backend-dispatcher` ≥ the release that removes the proxy parameter from its trait methods.
 
 ### ochami-rs (next beta)
 
 - **Breaking:** removed SOCKS5 proxy support. The connector constructor and every public function in `http.rs` and the various `http_client.rs` modules lose their `socks5_proxy` parameter.
 - Dropped `reqwest`'s `socks` feature.
-- Requires `manta-backend-dispatcher` ≥ the release that removes the proxy parameter from its trait methods.
 
 ## 8. Spec locations
 
