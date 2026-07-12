@@ -1,4 +1,4 @@
-//! `SatTrait`, `ApplyHwClusterPin` impls for [`crate::ShastaClient`].
+//! `SatTrait`, `ApplyHwClusterPin` impls for [`super::Csm`].
 //!
 //! `apply_sat_file` is a thin shim over
 //! [`crate::commands::i_apply_sat_file::command::exec`]: it destructures
@@ -39,7 +39,7 @@ use manta_backend_dispatcher::{
     apply_sat_file::{
       ApplyConfigurationParams, ApplyImageCreateSessionParams,
       ApplyImageParams, ApplyImageStampParams, ApplySatFileParams,
-      ApplySessionTemplateParams, SatTrait, ValidateSatFileParams,
+      ApplySessionTemplateParams, SatTrait,
     },
   },
   types::{
@@ -52,7 +52,7 @@ use manta_backend_dispatcher::{
   },
 };
 
-use crate::ShastaClient;
+use super::Csm;
 use crate::{
   commands::i_apply_sat_file::utils,
   common::{
@@ -60,7 +60,7 @@ use crate::{
   },
 };
 
-impl SatTrait for ShastaClient {
+impl SatTrait for Csm {
   async fn apply_sat_file(
     &self,
     params: ApplySatFileParams<'_>,
@@ -142,54 +142,6 @@ impl SatTrait for ShastaClient {
       session_templates.into_iter().map(Into::into).collect(),
       sessions.into_iter().map(Into::into).collect(),
     ))
-  }
-
-  async fn validate_sat_file(
-    &self,
-    params: ValidateSatFileParams<'_>,
-  ) -> Result<(), Error> {
-    let ValidateSatFileParams {
-      shasta_token,
-      vault_base_url,
-      site_name,
-      k8s_api_url,
-      sat_file,
-      hsm_group_available_vec,
-    } = params;
-
-    // Same shape-transcode the apply path uses: trait carries the
-    // SAT file as serde_json::Value; csm-rs's command takes
-    // serde_yaml::Value. JSON ⊂ YAML, so this is lossless.
-    let sat_template_file_yaml: serde_yaml::Value =
-      serde_json::from_value(sat_file).map_err(|e| {
-        Error::Message(format!(
-          "SAT file value is not a valid YAML mapping: {e}"
-        ))
-      })?;
-
-    let shasta_k8s_secrets = fetch_shasta_k8s_secrets_from_vault(
-      vault_base_url,
-      shasta_token,
-      site_name,
-    )
-    .await
-    .map_err(Error::from)?;
-
-    crate::commands::i_apply_sat_file::command::validate_sat_file(
-      crate::commands::i_apply_sat_file::command::ValidateSatFileParams {
-        shasta_token,
-        shasta_base_url: &self.base_url,
-        shasta_root_cert: &self.root_cert,
-        vault_base_url,
-        site_name,
-        k8s_api_url,
-        hsm_group_available_vec,
-        sat_template_file_yaml,
-      },
-      shasta_k8s_secrets,
-    )
-    .await
-    .map_err(|e| Error::BadRequest(e.to_string()))
   }
 
   async fn apply_configuration(
@@ -499,7 +451,7 @@ impl SatTrait for ShastaClient {
   }
 }
 
-impl ApplyHwClusterPin for ShastaClient {
+impl ApplyHwClusterPin for Csm {
   async fn apply_hw_cluster_pin(
     &self,
     shasta_token: &str,
@@ -511,7 +463,7 @@ impl ApplyHwClusterPin for ShastaClient {
     delete_empty_parent_hsm_group: bool,
   ) -> Result<(), Error> {
     crate::commands::apply_hw_cluster_pin::command::exec(
-      self,
+      self.shasta_client(),
       shasta_token,
       target_hsm_group_name,
       parent_hsm_group_name,
