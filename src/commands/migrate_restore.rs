@@ -8,7 +8,6 @@ use crate::ims::image::utils::{get_by_name, get_fuzzy};
 use crate::ims::s3_client::BAR_FORMAT;
 use crate::ims::{Image, Link};
 use chrono::Local;
-use humansize::DECIMAL;
 use indicatif::{ProgressBar, ProgressStyle};
 use md5::Digest;
 use serde::{Deserialize, Serialize};
@@ -542,7 +541,7 @@ async fn s3_upload_image_artifacts(
       Error::MigrateOp(format!("Path '{file}' has no file name component"))
     })?;
     let file_size = match fs::metadata(file) {
-      Ok(file_metadata) => humansize::format_size(file_metadata.len(), DECIMAL),
+      Ok(file_metadata) => crate::fmt::format_bytes(file_metadata.len()),
       Err(e) => {
         log::warn!(
           "Unable to fetch file metadata info, faking the value. Error: {e}"
@@ -762,7 +761,7 @@ fn calculate_image_checksums(
 ) -> Result<(), Error> {
   for file in vec_backup_image_files {
     let file_size = match fs::metadata(file) {
-      Ok(file_metadata) => humansize::format_size(file_metadata.len(), DECIMAL),
+      Ok(file_metadata) => crate::fmt::format_bytes(file_metadata.len()),
       Err(e) => {
         log::warn!(
           "Unable to fetch file metadata info, faking the value. Error: {e}"

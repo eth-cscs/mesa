@@ -3,7 +3,6 @@
 use crate::commands::migrate_restore;
 use crate::error::Error;
 use crate::{bos, ims};
-use humansize::DECIMAL;
 use std::fs::File;
 use std::path::Path;
 
@@ -236,7 +235,7 @@ pub async fn exec(
               log::info!(
                 "Downloading image file {} ({}) to {}/{} [{}/{}]",
                 &src,
-                humansize::format_size(object_size as u64, DECIMAL),
+                crate::fmt::format_bytes(object_size as u64),
                 &dest,
                 &file,
                 &download_counter,
