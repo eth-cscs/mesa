@@ -1,5 +1,4 @@
 /target
-/Cargo.lock
 /cfr_semantic_files
 .vscode
 .idea
