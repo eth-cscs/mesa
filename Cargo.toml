@@ -57,7 +57,7 @@ ims-s3 = [
 ]
 
 [dependencies]
-manta-backend-dispatcher = { version = "1.0.0-beta.13", optional = true }
+manta-backend-dispatcher = { version = "1.0.0-beta.15", optional = true }
 
 # manta-backend-dispatcher = { path = "../manta-backend-dispatcher", optional = true } # Only for development purposes
 # manta-backend-dispatcher = { git = "https://github.com/eth-cscs/manta-backend-dispatcher", branch="feature/power-status" } # Only for development purposes
