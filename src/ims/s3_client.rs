@@ -9,7 +9,6 @@ use std::time::Duration;
 use serde_json::Value;
 
 use aws_sdk_s3::{Client, primitives::ByteStream};
-use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::error::Error;
 
@@ -44,9 +43,6 @@ fn parse_sts_credentials(
   Ok((credentials, endpoint_url))
 }
 
-/// `indicatif` progress bar template used by the S3 upload/download
-/// helpers in this module.
-pub const BAR_FORMAT: &str = "[{elapsed_precise}] {bar:40.cyan/blue} ({bytes_per_sec}) {bytes:>7}/{total_bytes:7} {msg} [ETA {eta}]";
 /// Fetch an AWS STS token for the CSM-backing S3 store and return the
 /// raw STS JSON response.
 ///
@@ -143,7 +139,7 @@ pub async fn s3_get_object_size(
 
 /// Download an object from S3 to a local directory.
 ///
-/// Streams the object body to disk with a progress bar. Returns the
+/// Streams the object body to disk, logging byte progress. Returns the
 /// full path of the downloaded file.
 ///
 /// # Arguments
@@ -214,13 +210,8 @@ pub async fn s3_download_object(
   let bar_size = object.content_length().ok_or_else(|| {
     Error::S3Transport("could not get S3 object size.".to_string())
   })?;
-
-  let bar = ProgressBar::new(bar_size as u64);
-  bar.set_style(ProgressStyle::with_template(BAR_FORMAT).map_err(|e| {
-    Error::S3Transport(format!(
-      "ERROR - Could not create progress bar.\nReason:\n{e}"
-    ))
-  })?);
+  let total = bar_size as u64;
+  let mut downloaded: u64 = 0;
 
   while let Some(bytes) = object.body.try_next().await.map_err(|e| {
     Error::S3Transport(format!(
@@ -228,10 +219,9 @@ pub async fn s3_download_object(
     ))
   })? {
     let bytes = file.write(&bytes)?;
-    bar.inc(bytes as u64);
+    downloaded += bytes as u64;
+    log::info!("downloaded {downloaded}/{total} bytes");
   }
-
-  bar.finish();
 
   Ok(file_path.to_string_lossy().to_string())
 }
@@ -324,7 +314,7 @@ pub async fn s3_remove_object(
 
 /// Upload a local file to S3 using the multipart-upload protocol.
 ///
-/// Splits `file_path` into chunks and uploads them with a progress bar.
+/// Splits `file_path` into chunks and uploads them, logging byte progress.
 /// Use this for files that exceed the single-PUT limit; for small files
 /// [`s3_upload_object`] is simpler.
 ///
@@ -392,12 +382,7 @@ pub async fn s3_multipart_upload_object(
     chunk_count -= 1;
   }
 
-  let bar = ProgressBar::new(file_size);
-  bar.set_style(ProgressStyle::with_template(BAR_FORMAT).map_err(|e| {
-    Error::S3Transport(format!(
-      "ERROR - Could not create progress bar.\nReason:\n{e}"
-    ))
-  })?);
+  let mut uploaded: u64 = 0;
 
   if file_size == 0 {
     return Err(Error::S3Transport("Bad file size.".to_string()));
@@ -458,7 +443,8 @@ pub async fn s3_multipart_upload_object(
         .part_number(part_number)
         .build(),
     );
-    bar.inc(this_chunk);
+    uploaded += this_chunk;
+    log::info!("uploaded {uploaded}/{file_size} bytes");
   }
   // complete the multipart upload
   let completed_multipart_upload: CompletedMultipartUpload =
@@ -477,8 +463,6 @@ pub async fn s3_multipart_upload_object(
     .map_err(|e| {
       Error::S3Transport(format!("ERROR - could not upload to S3.\nReason:\n{e}"))
     })?;
-
-  bar.finish();
 
   complete_multipart_upload_res.e_tag.ok_or_else(|| {
     Error::S3Transport("could not get ETag from upload.".to_string())
