@@ -108,7 +108,7 @@ Removed imports at the top of the file: `aws_smithy_runtime::client::http::hyper
 
 `socks5_proxy: Option<&str>` is threaded through ~40 files. The sweep is mechanical: remove the parameter from every function signature and remove the corresponding argument (`socks5_proxy`, `socks5_proxy.as_deref()`, `client.socks5_proxy()`, `self.client.socks5_proxy()`) at every call site.
 
-To keep the diff reviewable, the work is broken into logical commits, one per module:
+The work groups naturally into the following review chunks, listed in the order the spec expects the plan to walk through them. The exact landing sequence — i.e. which of these are individual commits vs. rolled together, and how to keep the workspace compiling in intermediate states — is a plan-level decision, not a spec-level one:
 
 1. `common::http` + `client` (foundation).
 2. `common::{authentication, gitea, vault, kubernetes}`.
@@ -116,7 +116,7 @@ To keep the diff reviewable, the work is broken into logical commits, one per mo
 4. `hsm::*`.
 5. `cfs::*`.
 6. `bos::*`, `bss::*`, `pcs::*`, `node::*`.
-7. `backend_connector::*` (dispatcher-trait impls; requires the new dispatcher release pinned in `Cargo.toml` first).
+7. `backend_connector::*` (dispatcher-trait impls; requires the new dispatcher release pinned in `Cargo.toml`).
 8. `commands::*` including `migrate_backup`, `migrate_restore`, `apply_session`, `apply_hw_cluster_pin`, `i_apply_sat_file`.
 
 ### 3.6 ochami-rs — Cargo.toml changes
@@ -131,7 +131,7 @@ That is the entire SOCKS5 dependency footprint in `ochami-rs` — no hyper 0.14,
 
 - **`src/http.rs`** — two builder functions each carry a `socks5_proxy: Option<&str>` param and a `match socks5_proxy { … }` branch. Remove both parameters and both branches.
 - **`src/backend_connector.rs`** — the connector struct holds `socks5_proxy: Option<String>`; its constructor takes `socks5_proxy: Option<&str>`; ~30 trait method bodies call `self.socks5_proxy.as_deref()` on their way into module helpers. Remove the field, the constructor parameter, and every `.as_deref()` argument.
-- **`src/{hsm,bss,pcs,node}/**/http_client.rs` and `src/{hsm/group,node}/utils.rs`** — each function loses its `socks5_proxy: Option<&str>` parameter and updates the `build_client(root_cert, socks5_proxy)` call to `build_client(root_cert)`.
+- The `http_client.rs` files under `src/hsm/`, `src/bss/`, `src/pcs/`, and `src/node/` (per the ripgrep census in Section 5), plus `src/hsm/group/utils.rs` and `src/node/utils.rs` — each function loses its `socks5_proxy: Option<&str>` parameter, and the `build_client(root_cert, socks5_proxy)` call becomes `build_client(root_cert)`.
 
 Roughly 20 files, all mechanical.
 
