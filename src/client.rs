@@ -34,7 +34,6 @@ use crate::error::Error;
 /// let client = csm_rs::ShastaClient::new(
 ///     "https://api.shasta.example.com",
 ///     std::fs::read("/etc/shasta/ca.crt").unwrap(),
-///     None,
 /// )?;
 ///
 /// // Token is supplied per call; one client serves any number of tokens:
@@ -48,32 +47,29 @@ use crate::error::Error;
 pub struct ShastaClient {
   pub(crate) base_url: String,
   pub(crate) root_cert: Vec<u8>,
-  pub(crate) socks5_proxy: Option<String>,
   pub(crate) http: reqwest::Client,
 }
 
 impl ShastaClient {
   /// Build a new client. Constructs the underlying `reqwest::Client` once,
-  /// applying the CSM root cert and (optionally) a SOCKS5 proxy.
+  /// applying the CSM root cert.
   ///
   /// # Errors
   ///
-  /// Returns [`Error::NetError`] if the proxy URL is malformed or
-  /// `reqwest::Client::build` fails. Malformed PEM input is silently
-  /// tolerated by `reqwest::Certificate::from_pem` (it just produces an
-  /// empty trust chain), so this constructor does not surface PEM errors.
+  /// Returns [`Error::NetError`] if `reqwest::Client::build` fails.
+  /// Malformed PEM input is silently tolerated by
+  /// `reqwest::Certificate::from_pem` (it just produces an empty trust
+  /// chain), so this constructor does not surface PEM errors.
   #[must_use = "constructing a ShastaClient without using it is a no-op"]
   pub fn new(
     base_url: impl Into<String>,
     root_cert: impl Into<Vec<u8>>,
-    socks5_proxy: Option<String>,
   ) -> Result<Self, Error> {
     let root_cert = root_cert.into();
-    let http = http::build_client(&root_cert, socks5_proxy.as_deref())?;
+    let http = http::build_client(&root_cert)?;
     Ok(Self {
       base_url: base_url.into(),
       root_cert,
-      socks5_proxy,
       http,
     })
   }
@@ -88,12 +84,6 @@ impl ShastaClient {
   #[must_use]
   pub fn root_cert(&self) -> &[u8] {
     &self.root_cert
-  }
-
-  /// The SOCKS5 proxy URL, if one was configured.
-  #[must_use]
-  pub fn socks5_proxy(&self) -> Option<&str> {
-    self.socks5_proxy.as_deref()
   }
 
   pub(crate) fn http(&self) -> &reqwest::Client {
@@ -124,25 +114,11 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     let client = ShastaClient::new(
       "https://api.shasta.example.com",
       TEST_PEM.as_bytes().to_vec(),
-      None,
     )
     .expect("client construction should succeed");
 
     assert_eq!(client.base_url(), "https://api.shasta.example.com");
     assert_eq!(client.root_cert(), TEST_PEM.as_bytes());
-    assert!(client.socks5_proxy().is_none());
-  }
-
-  #[test]
-  fn new_with_socks5_proxy_succeeds() {
-    let client = ShastaClient::new(
-      "https://api.example.com",
-      TEST_PEM.as_bytes().to_vec(),
-      Some("socks5://localhost:9050".to_string()),
-    )
-    .expect("client with proxy should succeed");
-
-    assert_eq!(client.socks5_proxy(), Some("socks5://localhost:9050"));
   }
 
   #[test]
@@ -150,7 +126,6 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     let result = ShastaClient::new(
       "https://api.example.com",
       TEST_PEM.as_bytes().to_vec(),
-      Some(":::not a url:::".to_string()),
     );
     assert!(result.is_err());
   }
@@ -164,14 +139,12 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     let client = ShastaClient::new(
       "https://api.example.com",
       TEST_PEM.as_bytes().to_vec(),
-      None,
     )
     .unwrap();
     let cloned = client.clone();
 
     assert_eq!(client.base_url(), cloned.base_url());
     assert_eq!(client.root_cert(), cloned.root_cert());
-    assert_eq!(client.socks5_proxy(), cloned.socks5_proxy());
   }
 
   #[test]
@@ -180,12 +153,11 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     let _ = ShastaClient::new(
       "https://api.example.com".to_string(),
       TEST_PEM.as_bytes().to_vec(),
-      None,
     )
     .unwrap();
     // &str
     let _ =
-      ShastaClient::new("https://api.example.com", TEST_PEM.as_bytes(), None)
+      ShastaClient::new("https://api.example.com", TEST_PEM.as_bytes())
         .unwrap();
   }
 }

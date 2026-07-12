@@ -98,14 +98,12 @@ where
   }))
 }
 
-/// Build a `reqwest::Client` configured with the CSM root certificate and an
-/// optional SOCKS5 proxy. This is the per-request setup that used to be
-/// inlined at every call site.
+/// Build a `reqwest::Client` configured with the CSM root certificate.
+/// This is the per-request setup that used to be inlined at every call site.
 pub(crate) fn build_client(
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
 ) -> Result<reqwest::Client, Error> {
-  build_client_with_auth(shasta_root_cert, socks5_proxy, None)
+  build_client_with_auth(shasta_root_cert, None)
 }
 
 /// Build a `reqwest::Client` like [`build_client`], optionally baking in a
@@ -117,7 +115,6 @@ pub(crate) fn build_client(
 /// valid in an HTTP header value (e.g. control characters, `\n`).
 pub(crate) fn build_client_with_auth(
   shasta_root_cert: &[u8],
-  socks5_proxy: Option<&str>,
   bearer_token: Option<&str>,
 ) -> Result<reqwest::Client, Error> {
   let mut builder = reqwest::Client::builder()
@@ -135,10 +132,7 @@ pub(crate) fn build_client_with_auth(
     builder = builder.default_headers(headers);
   }
 
-  let client = match socks5_proxy {
-    Some(proxy) => builder.proxy(reqwest::Proxy::all(proxy)?).build()?,
-    None => builder.build()?,
-  };
+  let client = builder.build()?;
 
   Ok(client)
 }
@@ -486,7 +480,7 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
 
   #[test]
   fn build_client_with_valid_pem_succeeds() {
-    let client = build_client(TEST_PEM.as_bytes(), None);
+    let client = build_client(TEST_PEM.as_bytes());
     assert!(client.is_ok());
   }
 
@@ -496,15 +490,8 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
   // is not actually surfaced as an error by build_client.
 
   #[test]
-  fn build_client_with_socks5_proxy_succeeds() {
-    let client =
-      build_client(TEST_PEM.as_bytes(), Some("socks5://localhost:9050"));
-    assert!(client.is_ok());
-  }
-
-  #[test]
   fn build_client_with_invalid_proxy_url_fails() {
-    let client = build_client(TEST_PEM.as_bytes(), Some(":::not a url:::"));
+    let client = build_client(TEST_PEM.as_bytes());
     assert!(client.is_err());
   }
 
@@ -513,7 +500,7 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
     // A `\n` byte cannot legally appear in an HTTP header value. Used to
     // panic in the old gen_client; now surfaces as Error::Message.
     let result =
-      build_client_with_auth(TEST_PEM.as_bytes(), None, Some("bad\ntoken"));
+      build_client_with_auth(TEST_PEM.as_bytes(), Some("bad\ntoken"));
     match result {
       Err(Error::Message(m)) => {
         assert!(
@@ -536,7 +523,7 @@ Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc\n\
       .await;
 
     let client =
-      build_client_with_auth(TEST_PEM.as_bytes(), None, Some("token-x"))
+      build_client_with_auth(TEST_PEM.as_bytes(), Some("token-x"))
         .expect("should build");
     let resp = client
       .get(format!("{}/ping", server.uri()))
