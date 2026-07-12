@@ -52,10 +52,6 @@
 //! // 0.108 – 1.0.0-beta.19
 //! let client = ShastaClient::new(base_url, cert, proxy)?;
 //! client.ims_image_get_all(token).await?;
-//!
-//! // 1.0.0-beta.20+
-//! let client = ShastaClient::new(base_url, cert)?;
-//! client.ims_image_get_all(token).await?;
 //! ```
 //!
 //! ## Source layout
