@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "csm-rs"
-version = "1.0.0-beta.21"
+version = "1.0.0-beta.22"
 dependencies = [
  "aws-config",
  "aws-sdk-s3",
