@@ -155,16 +155,40 @@ pub(crate) async fn handle_json_response<T: DeserializeOwned>(
 }
 
 /// On a 2xx response, deserialize the body as `T`. On any other status,
-/// read the body as text and return `Error::Message`. Used by endpoints
-/// (mostly CFS v3 and BSS) whose error payloads are plain text, not JSON.
+/// preserve the HTTP status by returning `Error::CsmError` — the
+/// backend-dispatcher boundary maps that to the same status verbatim,
+/// so upstream 404s surface as HTTP 404 rather than being flattened to
+/// 500. Used by endpoints (mostly CFS v3 and BSS) whose error payloads
+/// may be JSON *or* plain text — we try JSON first, then fall back to
+/// stuffing the text into `detail` so no diagnostic detail is lost.
+///
+/// `method` and originating URL are unknown at this layer, so the
+/// former is stamped `"?"` and the latter is read from
+/// [`reqwest::Response::url`].
 pub(crate) async fn handle_json_or_text_response<T: DeserializeOwned>(
   response: reqwest::Response,
 ) -> Result<T, Error> {
   if response.status().is_success() {
     response.json::<T>().await.map_err(Error::NetError)
   } else {
+    let status = response.status().as_u16();
+    let url = response.url().to_string();
     let text = response.text().await.map_err(Error::NetError)?;
-    Err(Error::Message(text))
+    match serde_json::from_str::<Value>(&text) {
+      Ok(payload) => Err(Error::csm_from_response(
+        "?",
+        &url,
+        status,
+        payload,
+      )),
+      Err(_) => Err(Error::CsmError {
+        method: "?".into(),
+        url,
+        status,
+        detail: text.clone(),
+        body: None,
+      }),
+    }
   }
 }
 

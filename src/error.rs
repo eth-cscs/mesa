@@ -99,7 +99,7 @@ pub enum Error {
   #[cfg(feature = "k8s-console")]
   #[error("CSM-RS > K8s: {0}")]
   K8sExecError(#[from] kube::Error),
-  #[error("CSM-RS > CFS Session")]
+  #[error("CSM-RS > Image '{0}' not found")]
   ImageNotFound(String),
   #[error("CSM-RS > Group '{0}' not found")]
   GroupNotFound(String),
